@@ -2,10 +2,11 @@
 
 ## Configuration
 
-After installing the add-on, configure these 2 parameters in the **Configuration** tab:
+After installing the add-on, configure these parameters in the **Configuration** tab:
 
 1. **telegram_token** — Your Telegram bot token (created via @BotFather)
-2. **anthropic_api_key** — Anthropic API key (console.anthropic.com)
+2. **llm_provider** — The AI provider to use: `anthropic`, `openai`, `openrouter`, `ollama`, or `lmstudio`
+3. **Provider credentials** — Fill in the matching API key or local endpoint for your selected provider
 
 The Home Assistant URL and token are configured **automatically** by the Supervisor.
 

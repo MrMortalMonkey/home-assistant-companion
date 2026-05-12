@@ -78,7 +78,7 @@ if [ -f "${INSTALL_DIR}/requirements.txt" ]; then
     ok "Dependencies installed"
 else
     warn "requirements.txt not found, manual installation..."
-    pip3 install --user --upgrade anthropic requests matplotlib
+    pip3 install --user --upgrade anthropic openai requests matplotlib
 fi
 
 # ═══════════════════════════════════════════════════════════════════
@@ -136,14 +136,44 @@ ask HA_URL             "Home Assistant URL"                 "${HA_URL:-http://19
 ask HA_TOKEN           "HA Long-Lived Token"                "${HA_TOKEN:-}" 1
 [ -n "$HA_TOKEN" ] || fail "HA_TOKEN is empty"
 
-ask ANTHROPIC_API_KEY  "Anthropic API Key"                  "${ANTHROPIC_API_KEY:-}" 1
-[ -n "$ANTHROPIC_API_KEY" ] || fail "ANTHROPIC_API_KEY is empty"
+ask LLM_PROVIDER       "AI provider (anthropic|openai|openrouter|ollama|lmstudio)" "${LLM_PROVIDER:-anthropic}"
+case "$LLM_PROVIDER" in
+    anthropic|openai|openrouter|ollama|lmstudio) : ;;
+    *) fail "Unsupported LLM_PROVIDER: $LLM_PROVIDER" ;;
+esac
+
+ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
+OPENAI_API_KEY="${OPENAI_API_KEY:-}"
+OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}"
+OLLAMA_HOST="${OLLAMA_HOST:-http://localhost:11434}"
+LMSTUDIO_HOST="${LMSTUDIO_HOST:-http://localhost:1234}"
+
+case "$LLM_PROVIDER" in
+    anthropic)
+        ask ANTHROPIC_API_KEY "Anthropic API Key" "$ANTHROPIC_API_KEY" 1
+        [ -n "$ANTHROPIC_API_KEY" ] || fail "ANTHROPIC_API_KEY is empty"
+        ;;
+    openai)
+        ask OPENAI_API_KEY "OpenAI API Key" "$OPENAI_API_KEY" 1
+        [ -n "$OPENAI_API_KEY" ] || fail "OPENAI_API_KEY is empty"
+        ;;
+    openrouter)
+        ask OPENROUTER_API_KEY "OpenRouter API Key" "$OPENROUTER_API_KEY" 1
+        [ -n "$OPENROUTER_API_KEY" ] || fail "OPENROUTER_API_KEY is empty"
+        ;;
+    ollama)
+        ask OLLAMA_HOST "Ollama host" "$OLLAMA_HOST"
+        ;;
+    lmstudio)
+        ask LMSTUDIO_HOST "LM Studio host" "$LMSTUDIO_HOST"
+        ;;
+esac
 
 # ─── OPTIONAL ───
 echo
 info "Options (Enter for default values)"
 
-ask ANTHROPIC_MONTHLY_BUDGET_USD "Monthly budget USD" "${ANTHROPIC_MONTHLY_BUDGET_USD:-10}"
+ask LLM_MONTHLY_BUDGET_USD       "Monthly AI budget USD" "${LLM_MONTHLY_BUDGET_USD:-${ANTHROPIC_MONTHLY_BUDGET_USD:-10}}"
 ask SMS_METHOD                   "Security code method (free_mobile|ha_notify|email)" "${SMS_METHOD:-ha_notify}"
 
 FREE_MOBILE_USER="${FREE_MOBILE_USER:-}"
@@ -175,6 +205,10 @@ esac
 # ═══════════════════════════════════════════════════════════════════
 title "Generating config.json"
 
+export TELEGRAM_TOKEN HA_URL HA_TOKEN LLM_PROVIDER ANTHROPIC_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY OLLAMA_HOST LMSTUDIO_HOST
+export FREE_MOBILE_USER FREE_MOBILE_PASS SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS MAIL_DEST
+export SMS_METHOD LLM_MONTHLY_BUDGET_USD
+
 python3 - <<PYEOF
 import json, os, secrets
 cfg = {
@@ -182,7 +216,12 @@ cfg = {
     "telegram_chat_id":             "",
     "ha_url":                       os.environ.get("HA_URL",""),
     "ha_token":                     os.environ.get("HA_TOKEN",""),
+    "llm_provider":                 os.environ.get("LLM_PROVIDER","anthropic"),
     "anthropic_api_key":            os.environ.get("ANTHROPIC_API_KEY",""),
+    "openai_api_key":               os.environ.get("OPENAI_API_KEY",""),
+    "openrouter_api_key":           os.environ.get("OPENROUTER_API_KEY",""),
+    "ollama_host":                  os.environ.get("OLLAMA_HOST","http://localhost:11434"),
+    "lmstudio_host":                os.environ.get("LMSTUDIO_HOST","http://localhost:1234"),
     "free_mobile_user":             os.environ.get("FREE_MOBILE_USER",""),
     "free_mobile_pass":             os.environ.get("FREE_MOBILE_PASS",""),
     "smtp_host":                    os.environ.get("SMTP_HOST",""),
@@ -193,7 +232,8 @@ cfg = {
     "sms_method":                   os.environ.get("SMS_METHOD","ha_notify"),
     "poll_interval_sec":            2,
     "audit_interval_sec":           1800,
-    "anthropic_monthly_budget_usd": int(os.environ.get("ANTHROPIC_MONTHLY_BUDGET_USD","10") or 10),
+    "llm_monthly_budget_usd":       int(os.environ.get("LLM_MONTHLY_BUDGET_USD","10") or 10),
+    "anthropic_monthly_budget_usd": int(os.environ.get("LLM_MONTHLY_BUDGET_USD","10") or 10),
     "deploy_secret":                secrets.token_hex(32),
 }
 with open("${CONFIG_FILE}", "w") as f:
@@ -201,10 +241,6 @@ with open("${CONFIG_FILE}", "w") as f:
 os.chmod("${CONFIG_FILE}", 0o600)
 print(f"✓ config.json written ({len(cfg)} keys, permissions 600)")
 PYEOF
-
-export TELEGRAM_TOKEN HA_URL HA_TOKEN ANTHROPIC_API_KEY
-export FREE_MOBILE_USER FREE_MOBILE_PASS SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS MAIL_DEST
-export SMS_METHOD ANTHROPIC_MONTHLY_BUDGET_USD
 
 # ═══════════════════════════════════════════════════════════════════
 # 5. Credential test

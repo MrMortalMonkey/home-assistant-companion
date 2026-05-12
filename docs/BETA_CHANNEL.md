@@ -101,7 +101,7 @@ You can consult them at any time.
 
 ## FAQ
 
-**Q: Can MrMortalMonkey see my secrets (`telegram_token`, `ha_token`, `anthropic_api_key`)?**
+**Q: Can MrMortalMonkey see my secrets (`telegram_token`, `ha_token`, AI provider keys)?**
 A: No. `config.json` is explicitly protected (`FORBIDDEN_PATHS = {"config.json"}` in the deploy_server code). Only Python code files are readable.
 
 **Q: What if I refuse a patch?**

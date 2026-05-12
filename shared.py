@@ -429,9 +429,15 @@ def load_config():
         "telegram_chat_id": chat_id,
         "ha_url": "",
         "ha_token": "",
+        "llm_provider": "anthropic",
         "anthropic_api_key": "",
+        "openai_api_key": "",
+        "openrouter_api_key": "",
+        "ollama_host": "http://localhost:11434",
+        "lmstudio_host": "http://localhost:1234",
         "poll_interval_sec": 2,
         "audit_interval_sec": 1800,
+        "llm_monthly_budget_usd": 10,
         "anthropic_monthly_budget_usd": 10,
     }
     with open(CONFIG_PATH, "w") as f:

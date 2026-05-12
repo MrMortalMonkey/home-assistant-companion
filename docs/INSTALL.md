@@ -24,7 +24,8 @@ Four installation methods supported. Choose according to your environment.
 5. Click **Install**
 6. **Configuration** tab — fill in at minimum:
    - `telegram_token` (via [@BotFather](https://t.me/BotFather))
-   - `anthropic_api_key` (via [console.anthropic.com](https://console.anthropic.com))
+   - `llm_provider`
+   - the matching provider API key or local endpoint
    - Leave `sms_method` as `ha_notify` (uses HA notifications)
 7. Start the add-on
 8. Send a message to your Telegram bot to complete setup
@@ -53,7 +54,7 @@ cd home-assistant-companion
 
 # 2. Prepare the config
 cp env.example .env
-nano .env   # fill in TELEGRAM_TOKEN, HA_URL, HA_TOKEN, ANTHROPIC_API_KEY
+nano .env   # fill in TELEGRAM_TOKEN, HA_URL, HA_TOKEN, LLM_PROVIDER, and provider credentials
 
 # 3. Generate config.json (option A: from .env)
 ./install.sh --from-env

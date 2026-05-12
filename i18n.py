@@ -42,7 +42,7 @@ LANG = {
         "wizard_welcome": "🏠 WELCOME — Home Assistant AI Companion",
         "wizard_ha_url": "📡 STEP 1/4 — Home Assistant\nSend me your Home Assistant URL.",
         "wizard_ha_token": "📡 STEP 2/4 — Access token\nSend me your HA long-lived token (eyJ...)",
-        "wizard_anthropic": "🧠 STEP 3/4 — Anthropic API key\nSend me the key (sk-ant-...)",
+        "wizard_anthropic": "🧠 STEP 3/4 — AI provider credentials\nSend me the API key for your selected provider.",
         "wizard_sms": "🔐 STEP 4/4 — Security (unlock code)",
         "wizard_complete": "🎉 SETUP COMPLETE",
 

@@ -1803,7 +1803,7 @@ def handle_callback(callback_query):
         log.warning(f"❌ Abnormal missing entity: {entity_id}")
         return
 
-    # Auto-correction : appliquer or cancel the patch Sonnet
+    # Auto-correction: apply or cancel the AI-generated patch
     if data.startswith("patch_appliquer:"):
         old_code = mem_get("patch_pending_old", "")
         new_code = mem_get("patch_pending_new", "")
@@ -2478,7 +2478,7 @@ def _match_pattern(entity_id, fname):
 
 
 def _construire_question_intelligente(entity_id, fname, state, attrs):
-    """Utilise Claude for construire a question precise"""
+    """Use the configured AI provider to build a precise question."""
     unit = attrs.get("unit_of_measurement", "")
     device_class = attrs.get("device_class", "")
     prompt = (
@@ -3121,7 +3121,7 @@ def _remonter_errors():
     Cycle complete :
     1. CAPTURE : _ErrorCaptureHandler intercepte log.error()
     2. TRIAGE : group by signature, anti-spam 6h
-    3. DIAGNOSTIC : if error ≥ 3x/1h → auto-correction Sonnet
+    3. DIAGNOSTIC: if error ≥ 3x/1h → AI-assisted auto-correction
     4. CORRECTION: patch applied + restart WITHOUT asking
     5. VERIFICATION: if error recurs after fix → rollback
     6. NOTIFICATION: 1 summary message only — never spam
@@ -3231,8 +3231,7 @@ def _remonter_errors():
 
 
 def _auto_guerison(signature, message_error, nb_occurrences=2, retry=False):
-    """Autonomous correction — Sonnet reads the script, proposes a patch, applies it, restarts.
-    NO intervention user. NO button. NO confirmation. TOTAL SILENCE."""
+    """Autonomous correction: the configured strong model proposes a patch, applies it, restarts."""
 
     msg_clean = message_error
     if "] " in msg_clean:
@@ -3702,8 +3701,8 @@ def send_md_par_email():
             f"[AI Companion] Specification — {datetime.now().strftime('%d/%m/%Y %H:%M')}",
             f"Automatic update of the Specification.\n"
             f"Version current : {len(content.split(chr(10)))} lines, {len(content)//1024} KB.\n\n"
-            f"Ce fichier contient all the instructions for summary the project.\n"
-            f"Collez the section REPRISE in a new conversation Claude.",
+            f"This file contains the project summary instructions.\n"
+            f"Paste the RESUME section into a new AI conversation.",
             attachment=md_path
         )
         if ok:
@@ -4599,9 +4598,9 @@ def _auto_apprendre(states, index, now):
 
 
 def _analysis_ia_periodique(states, index, now):
-    """Phase 8 : Claude analysis the data accumulateds and produit of the insights.
-    This is where the AI provides value throrgh correlation, prediction, and optimization.
-    A human cannot do this continuorsly for free."""
+    """Phase 8: the configured AI analyzes accumulated data and produces insights.
+    This is where the AI provides value through correlation, prediction, and optimization.
+    A human cannot do this continuously for free."""
 
     if not check_budget():
         return  # No tokens → no analysis
@@ -6744,7 +6743,7 @@ Available commands :
 /documentation  → Cette help
 /export         → Exports the script assistant.py
 /script         → Exports the script assistant.py
-/claude         → Execute autonomous Claude
+/claude         → Execute autonomous AI helper
 
 Free-form question → Response with context HA pertinent"""
     send_email("[AI Companion] Documentation", doc)
@@ -6752,7 +6751,7 @@ Free-form question → Response with context HA pertinent"""
 
 
 def cmd_problem(description):
-    """Auto-correction : lit the script, send a Sonnet, applique the patch, redemarre"""
+    """Auto-correction: read the script, ask the configured strong model for a patch, apply it, restart."""
     telegram_send(f"🔧 AUTO-CORRECTION\nIssue: {description}\n\nAnalyzing...")
 
     # 1. Lire the script via deploy server local
@@ -6768,7 +6767,7 @@ def cmd_problem(description):
     except Exception as e:
         return f"❌ Impossible of lire the script : {e}"
 
-    # 2. Build the prompt for Sonnet
+    # 2. Build the prompt for the configured strong model
     system_prompt = (
         "You are an expert Python developer specialized in Home Assistant home automation.\n"
         "L'user signale a problem in the script assistant.py.\n"
@@ -6800,7 +6799,7 @@ def cmd_problem(description):
         provider_name = CFG.get("llm_provider", "anthropic")
         telegram_send(f"🤖 {provider_name} replied ({t_out} tokens)")
     except Exception as e:
-        return f"❌ Error appel Sonnet : {e}"
+        return f"❌ AI provider error: {e}"
 
     # 4. Parser the JSON
     try:
@@ -6810,15 +6809,15 @@ def cmd_problem(description):
         new_code = patch_data.get("new_str", "")
         explanation = patch_data.get("explanation", "no explanation")
     except Exception as e:
-        telegram_send(f"❌ Unparseable Sonnet response:\n{response_raw[:500]}")
+        telegram_send(f"❌ Unparseable AI response:\n{response_raw[:500]}")
         return f"❌ JSON invalide : {e}"
 
     if not old_code:
-        return f"❌ Empty patch — Sonnet found no fix.\nExplanation: {explanation}"
+        return f"❌ Empty patch — the AI model found no fix.\nExplanation: {explanation}"
 
     count = script_code.count(old_code)
     if count == 0:
-        telegram_send(f"❌ old_str not found in script\nSonnet explanation: {explanation}")
+        telegram_send(f"❌ old_str not found in script\nAI explanation: {explanation}")
         return "❌ Patch not applicable — old_str missing of the script"
     if count > 1:
         telegram_send(f"❌ old_str found {count} times — ambiguous")
@@ -7260,7 +7259,7 @@ def cmd_expertise():
 
 def cmd_analysis():
     """Dekey_namenche a analysis AI immediate on the data accumulateds"""
-    telegram_send("🧠 Analysis in progress — Claude is examining your data...")
+    telegram_send("🧠 Analysis in progress — the AI model is examining your data...")
     states = ha_get("states")
     if not states:
         return "❌ HA unreachable"

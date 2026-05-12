@@ -12,7 +12,7 @@
   <img alt="Status" src="https://img.shields.io/badge/status-beta-orange">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white">
   <img alt="Home Assistant" src="https://img.shields.io/badge/Home_Assistant-2024.1+-41BDF5?logo=home-assistant&logoColor=white">
-  <img alt="Claude AI" src="https://img.shields.io/badge/Claude_AI-powered-D97757">
+  <img alt="AI Providers" src="https://img.shields.io/badge/AI-multi--provider-6A5ACD">
   <img alt="License" src="https://img.shields.io/badge/License-MIT-green">
 </p>
 
@@ -20,24 +20,24 @@
 
 **Home Assistant AI Companion** is an autonomous AI agent that talks to your Home Assistant 24/7 via Telegram. It discovers your devices, understands natural language requests, tracks your energy consumption, and alerts you at the right moment.
 
-> 💬 *"Turn on the living room light"* → Claude finds the right entity, calls the right service, confirms the action.
+> 💬 *"Turn on the living room light"* → your selected AI model finds the right entity, calls the right service, confirms the action.
 
 ## ✨ What it does
 
-- **💬 Natural language control**: no more searching the UI or writing YAML. You say, Claude does.
+- **💬 Natural language control**: no more searching the UI or writing YAML. You say it, your selected AI model does it.
 - **🔍 Universal detection**: Zigbee, Matter, Z-Wave, WiFi, ESPHome — everything that shows up in Home Assistant.
 - **⚡ Proactive monitoring**: morning briefing, solar peak alerts, standby detection, devices offline, low batteries.
 - **🧺 Appliance cycles**: automatic detection of washing machine / dryer / dishwasher cycles + real-time cost tracking.
 - **🔔 Dynamic alerts**: *"Notify me if a micro-inverter goes offline"* → permanent alert created.
-- **🤖 Auto-fix**: `/problem <description>` → Claude Sonnet reads the code, proposes a patch, you validate.
+- **🤖 Auto-fix**: `/problem <description>` → the configured strong AI model reads the code, proposes a patch, you validate.
 - **📊 Savings tracking**: every saving generated (solar peak, off-peak hours, eliminated standby) is recorded.
 
 ## 🎯 How is this different from a regular automation?
 
 Many things listed above can be done with YAML automations or Node-RED. The difference lies in **three things YAML doesn't do**:
 
-1. **Natural language** — you create alerts, scenes, or trigger actions in full sentences, without opening the interface or editing YAML. Claude identifies the right entities and builds the right service calls.
-2. **Auto-fix** — when something breaks, you type `/problem`. Claude reads the script code, diagnoses it, proposes a patch, applies it if you approve. Zero terminal.
+1. **Natural language** — you create alerts, scenes, or trigger actions in full sentences, without opening the interface or editing YAML. The AI identifies the right entities and builds the right service calls.
+2. **Auto-fix** — when something breaks, you type `/problem`. The AI reads the script code, diagnoses it, proposes a patch, applies it if you approve. Zero terminal.
 3. **Continuous adaptation** — the script learns your home, your rate, your devices. It adjusts its alerts based on what it observes, not on fixed rules you wrote once.
 
 This is not a replacement for your existing automations. It's a **conversational and intelligent layer** on top of HA.
@@ -48,7 +48,7 @@ This is not a replacement for your existing automations. It's a **conversational
 |---|------|-----------------|------|
 | 1 | **Telegram Bot** | [@BotFather](https://t.me/BotFather) → `/newbot` | Free |
 | 2 | **Home Assistant** with long-lived token | Profile → Long-lived access tokens | Free |
-| 3 | **AI API Key** (Anthropic, OpenAI, OpenRouter) | See provider console | Variable (see below) |
+| 3 | **AI provider credentials** (Anthropic, OpenAI, OpenRouter, Ollama, LM Studio) | See provider console or local endpoint | Variable (see below) |
 | 4 | **A Linux machine** (Pi, VM, NAS, HA Add-on...) | See hardware table | Variable |
 
 ### 🔌 Reliable off-peak/peak data — recommendation (optional)
@@ -70,7 +70,7 @@ If you have Home Assistant OS (HA Green, Yellow, Blue, etc.):
 1. In Home Assistant: **Settings → Add-ons → Store → ⋮ → Repositories**
 2. Add: `https://github.com/MrMortalMonkey/home-assistant-companion`
 3. Find **Home Assistant AI Companion** in the list, click **Install**
-4. Configure: `telegram_token` + `anthropic_api_key` (HA URL and token are automatic)
+4. Configure: `telegram_token`, `llm_provider`, and the matching provider key or local endpoint (HA URL and token are automatic)
 5. **Start**
 
 [📖 Detailed guide →](docs/INSTALL.md#ha-add-on)
@@ -138,19 +138,19 @@ python3 assistant.py        # start the bot
 
 ## 💰 What does it actually cost?
 
-The script is **free and open source (MIT)**. The only recurring cost is the Anthropic API tokens.
+The script is **free and open source (MIT)**. The only recurring AI cost is whatever provider or local model runtime you choose.
 
 | Item | Cost |
 |---|---|
 | Script | **Free** (MIT) |
-| Claude tokens | Variable — depends on usage (see below) |
+| AI usage | Variable — depends on provider, selected model, and usage |
 | Hosting | Variable — between $0 (HA Add-on, free VM) and ~$10 (dedicated Pi) |
 
-**On Anthropic tokens:** normal usage (1 briefing/day, a few conversational commands, passive monitoring) generally runs around **$5–15/month**. The bot tracks its own budget via `/budget` and stops if you exceed the limit configured in `anthropic_monthly_budget_usd`.
+**On AI usage:** normal hosted-model usage (1 briefing/day, a few conversational commands, passive monitoring) generally runs around **$5–15/month**, depending on provider and model. Local providers such as Ollama or LM Studio can avoid per-token API billing. The bot tracks its own budget via `/budget` and stops if you exceed the configured monthly budget.
 
 **On savings:** the script measures what it saves you (optimized solar, machines shifted to off-peak, eliminated standbys) and shows it in dollars via `/roi`. **You judge whether the cost/benefit ratio works for you.** Savings depend heavily on your setup: if you have solar + a heat pump + an off-peak rate, there are many levers. If you have a minimal setup, savings probably just cover the token cost — and that's fine, the value shifts to conversational convenience.
 
-> 🧪 **Cheaper alternative**: multi-provider support for Groq / Ollama is now available. See [Issues](https://github.com/MrMortalMonkey/home-assistant-companion/issues) to follow or contribute.
+> 🧪 **Provider choice**: Anthropic, OpenAI, OpenRouter, Ollama, and LM Studio are supported. See [Configuration](docs/CONFIGURATION.md) for provider-specific options.
 
 ## 📚 Documentation
 
@@ -176,7 +176,7 @@ The code has been running in production since February 2026. It's functionally s
 **What to expect at this stage:**
 - Bugs discovered by different HA configurations
 - Behaviors that need to be generalized (not all homes have solar, a heat pump, etc.)
-- Refinement of Claude prompts to reduce token consumption
+- Refinement of AI prompts to reduce token consumption
 
 If you're testing, feedback via [GitHub Issues](https://github.com/MrMortalMonkey/home-assistant-companion/issues) is valuable, even brief.
 
@@ -192,7 +192,7 @@ If you're testing, feedback via [GitHub Issues](https://github.com/MrMortalMonke
 - [x] Documented installation, opt-in deploy_server
 
 **Coming:**
-- [ ] Groq and Ollama support to reduce API cost
+- [x] Multi-provider AI support to reduce API cost
 - [ ] Thermodynamic water heater (clamp meter)
 - [ ] Web dashboard (FastAPI)
 - [ ] Mobile app (React Native)

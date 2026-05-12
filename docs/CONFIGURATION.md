@@ -12,8 +12,13 @@ All configuration is in `config.json`. This file is generated automatically by `
 | `telegram_chat_id` | str | Auto | Detected on first message |
 | `ha_url` | str | ✅ | Home Assistant URL (e.g. `http://192.168.1.76:8123`) |
 | `ha_token` | str | ✅ | HA long-lived access token |
-| `anthropic_api_key` | str | ✅ | API key from [console.anthropic.com](https://console.anthropic.com) |
-| `anthropic_monthly_budget_usd` | int | ✅ | Monthly budget in USD (alerts at 50/80/100%) |
+| `llm_provider` | str | ✅ | AI provider: `anthropic`, `openai`, `openrouter`, `ollama`, or `lmstudio` |
+| `anthropic_api_key` | str | If Anthropic | Anthropic API key |
+| `openai_api_key` | str | If OpenAI | OpenAI API key |
+| `openrouter_api_key` | str | If OpenRouter | OpenRouter API key |
+| `ollama_host` | str | If Ollama | Ollama base URL, usually `http://localhost:11434` |
+| `lmstudio_host` | str | If LM Studio | LM Studio base URL, usually `http://localhost:1234` |
+| `llm_monthly_budget_usd` | int | ✅ | Monthly AI budget in USD (alerts at 50/80/100%) |
 | `sms_method` | str | ✅ | `free_mobile` \| `ha_notify` \| `email` |
 | `free_mobile_user` | str | If `free_mobile` | Free Mobile username |
 | `free_mobile_pass` | str | If `free_mobile` | Free Mobile API key |
@@ -48,14 +53,17 @@ All configuration is in `config.json`. This file is generated automatically by `
 4. Give it a name (e.g. `AI Assistant`) → copy the displayed token
 5. ⚠️ This token is shown only once — keep it safe
 
-### 3. Anthropic API Key
+### 3. AI provider
 
-1. Go to [console.anthropic.com](https://console.anthropic.com)
-2. Create an account → add a card (credit required)
-3. **API Keys → Create Key**
-4. Copy the key (starts with `sk-ant-...`)
+Choose the provider you want in `llm_provider`, then fill in the matching key or endpoint:
 
-**Budget:** normal usage costs $5-10/month. Set `anthropic_monthly_budget_usd: 10` to start, adjust as needed.
+- `anthropic`: set `anthropic_api_key`
+- `openai`: set `openai_api_key`
+- `openrouter`: set `openrouter_api_key`
+- `ollama`: set `ollama_host`
+- `lmstudio`: set `lmstudio_host`
+
+**Budget:** hosted model usage often costs $5-10/month for light home automation usage. Set `llm_monthly_budget_usd: 10` to start, adjust as needed. Local providers such as Ollama or LM Studio do not have per-token API billing, but the budget field can still be kept as a guardrail.
 
 ### 4. Security method (6-digit code at startup)
 
@@ -75,7 +83,12 @@ At startup, AI Assistant sends a 6-digit code to verify it's you accessing the b
   "telegram_chat_id": "",
   "ha_url": "http://192.168.1.76:8123",
   "ha_token": "eyJhbGciOiJIUzI1...",
+  "llm_provider": "anthropic",
   "anthropic_api_key": "sk-ant-api03-xxxxx...",
+  "openai_api_key": "",
+  "openrouter_api_key": "",
+  "ollama_host": "http://localhost:11434",
+  "lmstudio_host": "http://localhost:1234",
   "sms_method": "ha_notify",
   "free_mobile_user": "",
   "free_mobile_pass": "",
@@ -86,7 +99,7 @@ At startup, AI Assistant sends a 6-digit code to verify it's you accessing the b
   "email_dest": "",
   "poll_interval_sec": 2,
   "audit_interval_sec": 1800,
-  "anthropic_monthly_budget_usd": 10,
+  "llm_monthly_budget_usd": 10,
   "deploy_secret": "3f8a9b2c7e1d4f5a6b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a"
 }
 ```

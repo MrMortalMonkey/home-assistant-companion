@@ -1,7 +1,7 @@
 name: Home Assistant AI Companion
 version: "0.1.0"
 slug: assistant
-description: "Your home's AI guardian — autonomous agent that monitors, learns, and optimizes your energy via Home Assistant + Claude AI"
+description: "Your home's AI guardian — autonomous agent that monitors, learns, and optimizes your energy via Home Assistant and your selected AI provider"
 url: https://github.com/MrMortalMonkey/home-assistant-companion
 arch:
   - aarch64
@@ -16,13 +16,25 @@ panel_icon: mdi:robot
 panel_title: Home Assistant AI Companion
 options:
   telegram_token: ""
+  llm_provider: "anthropic"
   anthropic_api_key: ""
+  openai_api_key: ""
+  openrouter_api_key: ""
+  ollama_host: "http://localhost:11434"
+  lmstudio_host: "http://localhost:1234"
+  llm_monthly_budget_usd: 10
   sms_method: "ha_notify"
   anthropic_monthly_budget_usd: 10
   enable_deploy_server: false
 schema:
   telegram_token: str
-  anthropic_api_key: str
+  llm_provider: list(anthropic|openai|openrouter|ollama|lmstudio)
+  anthropic_api_key: str?
+  openai_api_key: str?
+  openrouter_api_key: str?
+  ollama_host: str?
+  lmstudio_host: str?
+  llm_monthly_budget_usd: int
   sms_method: list(free_mobile|ha_notify|email)
   anthropic_monthly_budget_usd: int
   enable_deploy_server: bool

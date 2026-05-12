@@ -15,11 +15,11 @@ BEHAVIOR_PROMPT = os.path.join(BASE_DIR, "behavior.txt")
 
 # ═══ VERSION ═══
 MODE    = "DEV"
-VERSION = "1.6.0"
+VERSION = "0.1.0"
 
 # ═══ LLM PROVIDER CONFIGURATION ═══
 # Supported providers:
-#   "anthropic"  — Anthropic Claude API (default)
+#   "anthropic"  — Anthropic API (default)
 #   "openai"     — OpenAI API
 #   "openrouter" — OpenRouter API
 #   "ollama"     — Ollama (local)

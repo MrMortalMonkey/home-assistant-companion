@@ -140,12 +140,14 @@ def _wizard_handle_message(text):
                 nb_entities = len(r2.json()) if r2.status_code == 200 else "?"
                 CFG["_wizard_step"] = "anthropic_key"
                 _wizard_save_config()
+                provider_name = CFG.get("llm_provider", "anthropic")
+                provider = llm_provider.PROVIDERS.get(provider_name, llm_provider.PROVIDERS["anthropic"])
+                provider_label = provider.get("name", provider_name)
                 telegram_send(
                     f"✅ Home Assistant connected! {nb_entities} entities detected.\n\n"
-                    f"🧠 STEP 3/4 — Anthropic API key\n"
-                    f"Create a key at console.anthropic.com\n"
-                    f"(Paid plan required, ~5-10€/month)\n\n"
-                    f"Send me the key (starts with sk-ant-...)"
+                    f"🧠 STEP 3/4 — AI provider credentials\n"
+                    f"Selected provider: {provider_label}\n\n"
+                    f"Send me the API key for this provider."
                 )
                 return True
             else:
@@ -220,8 +222,9 @@ def _wizard_handle_message(text):
 
             CFG["_wizard_step"] = "sms_method"
             _wizard_save_config()
+            provider_label = provider.get("name", provider_name)
             telegram_send(
-                "✅ Claude AI connected!\n\n"
+                f"✅ {provider_label} connected!\n\n"
                 "🔐 STEP 4/4 — Security (unlock code)\n"
                 "━━━━━━━━━━━━━━━━━━━━\n"
                 "The assistant locks the channel at startup.\n"
@@ -239,7 +242,7 @@ def _wizard_handle_message(text):
             return True
         except Exception as e:
             telegram_send(
-                f"❌ API key rejected by Anthropic.\n"
+                f"❌ API key rejected by the selected AI provider.\n"
                 f"Error: {str(e)[:100]}\n\n"
                 f"Check the key and try again."
             )
@@ -387,7 +390,7 @@ def _wizard_complete():
         "━━━━━━━━━━━━━━━━━━━━\n"
         f"• Home Assistant: {CFG['ha_url']}\n"
         f"• Telegram: connected\n"
-        f"• Claude AI: connected\n"
+        f"• AI provider: connected\n"
         f"• Security: {method_name}\n\n"
         "🚀 First scan in progress...\n"
         "The assistant will scan your entities, discover your devices,\n"

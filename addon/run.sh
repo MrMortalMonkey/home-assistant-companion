@@ -1,6 +1,6 @@
 #!/usr/bin/with-contenv bashio
 # Supervisor provides the HA URL and token automatically.
-# The user configured telegram_token and anthropic_api_key.
+# The user configures telegram_token, an AI provider, and the matching credentials.
 
 set -e
 
@@ -17,16 +17,39 @@ HA_TOKEN="${SUPERVISOR_TOKEN}"
 
 # User options
 TELEGRAM_TOKEN=$(bashio::config 'telegram_token')
+LLM_PROVIDER=$(bashio::config 'llm_provider')
 ANTHROPIC_KEY=$(bashio::config 'anthropic_api_key')
+OPENAI_KEY=$(bashio::config 'openai_api_key')
+OPENROUTER_KEY=$(bashio::config 'openrouter_api_key')
+OLLAMA_HOST=$(bashio::config 'ollama_host')
+LMSTUDIO_HOST=$(bashio::config 'lmstudio_host')
 SMS_METHOD=$(bashio::config 'sms_method')
-BUDGET=$(bashio::config 'anthropic_monthly_budget_usd')
+BUDGET=$(bashio::config 'llm_monthly_budget_usd')
 ENABLE_DEPLOY=$(bashio::config 'enable_deploy_server')
 
 # Minimal validation
-if [ -z "${TELEGRAM_TOKEN}" ] || [ -z "${ANTHROPIC_KEY}" ]; then
-    bashio::log.fatal "telegram_token and anthropic_api_key are required"
+if [ -z "${TELEGRAM_TOKEN}" ]; then
+    bashio::log.fatal "telegram_token is required"
     exit 1
 fi
+
+case "${LLM_PROVIDER}" in
+    anthropic)
+        [ -n "${ANTHROPIC_KEY}" ] || { bashio::log.fatal "anthropic_api_key is required for llm_provider=anthropic"; exit 1; }
+        ;;
+    openai)
+        [ -n "${OPENAI_KEY}" ] || { bashio::log.fatal "openai_api_key is required for llm_provider=openai"; exit 1; }
+        ;;
+    openrouter)
+        [ -n "${OPENROUTER_KEY}" ] || { bashio::log.fatal "openrouter_api_key is required for llm_provider=openrouter"; exit 1; }
+        ;;
+    ollama|lmstudio)
+        ;;
+    *)
+        bashio::log.fatal "Unsupported llm_provider: ${LLM_PROVIDER}"
+        exit 1
+        ;;
+esac
 
 # Generate config.json if missing or credentials changed
 NEED_GEN=1
@@ -46,7 +69,12 @@ if [ "${NEED_GEN}" = "1" ]; then
         --arg telegram "${TELEGRAM_TOKEN}" \
         --arg haurl    "${HA_URL}" \
         --arg hatoken  "${HA_TOKEN}" \
+        --arg provider "${LLM_PROVIDER}" \
         --arg anth     "${ANTHROPIC_KEY}" \
+        --arg openai   "${OPENAI_KEY}" \
+        --arg router   "${OPENROUTER_KEY}" \
+        --arg ollama   "${OLLAMA_HOST}" \
+        --arg lmstudio "${LMSTUDIO_HOST}" \
         --arg sms      "${SMS_METHOD}" \
         --arg secret   "${DEPLOY_SECRET}" \
         --argjson budget "${BUDGET}" \
@@ -55,10 +83,16 @@ if [ "${NEED_GEN}" = "1" ]; then
             telegram_chat_id: "",
             ha_url: $haurl,
             ha_token: $hatoken,
+            llm_provider: $provider,
             anthropic_api_key: $anth,
+            openai_api_key: $openai,
+            openrouter_api_key: $router,
+            ollama_host: $ollama,
+            lmstudio_host: $lmstudio,
             sms_method: $sms,
             poll_interval_sec: 2,
             audit_interval_sec: 1800,
+            llm_monthly_budget_usd: $budget,
             anthropic_monthly_budget_usd: $budget,
             deploy_secret: $secret,
             free_mobile_user: "",

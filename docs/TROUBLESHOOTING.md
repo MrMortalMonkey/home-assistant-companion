@@ -38,13 +38,13 @@
 
 3. Manually re-trigger the scan from Telegram: `/scan`
 
-## Error "Rate limit exceeded" from Anthropic
+## Error "Rate limit exceeded" from your AI provider
 
-Your API key has reached its limit. Options:
+Your selected AI provider key has reached its limit. Options:
 
 - Wait a few minutes
-- Increase the quota in [console.anthropic.com](https://console.anthropic.com) → **Limits**
-- Adjust `anthropic_monthly_budget_usd` in `config.json`
+- Increase the quota in your provider console
+- Adjust `llm_monthly_budget_usd` in `config.json`
 
 ## The bot crashes at startup
 
@@ -107,7 +107,7 @@ sudo systemctl restart assistant.service   # (or docker compose restart)
 
 ## Getting help
 
-1. **`/problem <description>`** in Telegram — Claude diagnoses your problem
+1. **`/problem <description>`** in Telegram — the configured AI model diagnoses your problem
 2. **Detailed logs**:
    - HA Add-on: Log tab
    - Docker: `docker compose logs --tail=200 assistant`

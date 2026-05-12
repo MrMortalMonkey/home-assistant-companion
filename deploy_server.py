@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # =============================================================================
 # Webhook independent of assistant.py
-# Allows Claude to: read/write files, patch, restart
+# Allows the configured AI assistant to: read/write files, patch, restart
 # =============================================================================
 
 import hashlib
