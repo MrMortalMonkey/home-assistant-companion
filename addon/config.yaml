@@ -1,0 +1,33 @@
+name: Home Assistant AI Companion
+version: "1.5.5"
+slug: assistant
+description: "Your home's AI guardian — Autonameous agent that monitors, learns, and optimizes your energy via Home Assistant + Claude AI"
+url: https://github.com/MrMortalMonkey/home-assistant-ai-companion
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+homeassistant_api: true
+hassio_api: true
+ingress: false
+panel_icon: mdi:robot
+panel_title: Home Assistant AI Companion
+options:
+  telegram_token: ""
+  anthropic_api_key: ""
+  sms_method: "ha_notify"
+  anthropic_monthly_budget_usd: 10
+  enable_deploy_server: false
+schema:
+  telegram_token: str
+  anthropic_api_key: str
+  sms_method: list(free_mobile|ha_notify|email)
+  anthropic_monthly_budget_usd: int
+  enable_deploy_server: bool
+map:
+  - config:rw
+  - ssl:ro
+startup: application
+boot: auto

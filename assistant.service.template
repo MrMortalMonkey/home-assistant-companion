@@ -1,0 +1,25 @@
+[Unit]
+Description=Home Assistant AI Companion
+Documentation=https://github.com/MrMortalMonkey/home-assistant-ai-companion
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__USER__
+Group=__USER__
+WorkingDirectory=__INSTALL_DIR__
+ExecStart=/usr/bin/python3 -u __INSTALL_DIR__/assistant.py
+Restart=always
+RestartSec=10
+StandardOutput=append:__INSTALL_DIR__/assistant.log
+StandardError=append:__INSTALL_DIR__/assistant.log
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=__INSTALL_DIR__
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,28 @@
+services:
+  assistant:
+    # Option 1: build the image locally from the Dockerfile
+    build: .
+
+    # Option 2: use the pre-built image from GitHub Container Registry
+    # (uncomment the line below and comment out "build: ." above)
+    # image: ghcr.io/MrMortalMonkey/home-assistant-ai-companion:latest
+
+    container_name: assistant
+    restart: unless-stopped
+
+    volumes:
+      # Persistence: config.json, memory.db, logs
+      - ./data:/app/data
+
+    # Load variables from .env (copy env.example to .env first)
+    env_file:
+      - .env
+
+    # Timezone for morning briefings, evening summaries, etc.
+    environment:
+      - TZ=Europe/Paris
+
+    # Beta-tester mode (opt-in): exposes deploy_server to receive patches.
+    # Uncomment the ports line below ONLY if you have read docs/BETA_CHANNEL.md
+    # ports:
+    #   - "127.0.0.1:8501:8501"

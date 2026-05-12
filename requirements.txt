@@ -1,0 +1,13 @@
+# Home Assistant AI Companion — Python dependencies
+# Compatible Python 3.10+
+
+# LLM Providers
+anthropic>=0.40.0          # Required for Anthropic Claude provider
+openai>=1.0.0              # Required for OpenAI / OpenRouter / Ollama / LM Studio
+
+# HTTP / Utilities
+requests>=2.31.0
+matplotlib>=3.7.0
+
+# Optional — for the tests
+# pytest>=7.4.0
