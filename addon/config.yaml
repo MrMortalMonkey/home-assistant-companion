@@ -1,5 +1,5 @@
 name: Home Assistant AI Companion
-version: "2.0.0-beta.1"
+version: "1.0.0"
 slug: assistant
 description: "Your home's AI guardian — autonomous agent that monitors, learns, and optimizes your energy via Home Assistant + Claude AI"
 url: https://github.com/MrMortalMonkey/home-assistant-companion

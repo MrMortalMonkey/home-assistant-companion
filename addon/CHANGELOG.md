@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.0.0-beta.1 (2026-05-11)
+## 1.0.0 beta (2026-05-11)
 - First HA Add-on release
 - Appliance questionnaire for smart plugs
 - Sniper mode: adaptive polling 20s/60s
