@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-v2.0-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-v2.0.0--beta.1-blue">
   <img alt="Status" src="https://img.shields.io/badge/status-beta-orange">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white">
   <img alt="Home Assistant" src="https://img.shields.io/badge/Home_Assistant-2024.1+-41BDF5?logo=home-assistant&logoColor=white">
@@ -28,7 +28,7 @@
 - **🔍 Universal detection**: Zigbee, Matter, Z-Wave, WiFi, ESPHome — everything that shows up in Home Assistant.
 - **⚡ Proactive monitoring**: morning briefing, solar peak alerts, standby detection, devices offline, low batteries.
 - **🧺 Appliance cycles**: automatic detection of washing machine / dryer / dishwasher cycles + real-time cost tracking.
-- **🔔 Dynamic alerts**: *"Notify me if a micro-ingreenr goes offline"* → permanent alert created.
+- **🔔 Dynamic alerts**: *"Notify me if a micro-inverter goes offline"* → permanent alert created.
 - **🤖 Auto-fix**: `/problem <description>` → Claude Sonnet reads the code, proposes a patch, you validate.
 - **📊 Savings tracking**: every saving generated (solar peak, off-peak hours, eliminated standby) is recorded.
 
@@ -68,7 +68,7 @@ Four supported methods. **Choose the one that matches your hardware**:
 If you have Home Assistant OS (HA Green, Yellow, Blue, etc.):
 
 1. In Home Assistant: **Settings → Add-ons → Store → ⋮ → Repositories**
-2. Add: `https://github.com/MrMortalMonkey/home-assistant-ai-companion`
+2. Add: `https://github.com/MrMortalMonkey/home-assistant-companion`
 3. Find **Home Assistant AI Companion** in the list, click **Install**
 4. Configure: `telegram_token` + `anthropic_api_key` (HA URL and token are automatic)
 5. **Start**
@@ -80,8 +80,8 @@ If you have Home Assistant OS (HA Green, Yellow, Blue, etc.):
 On any machine with Docker (Synology NAS, Mini PC, Linux...):
 
 ```bash
-git clone https://github.com/MrMortalMonkey/home-assistant-ai-companion.git
-cd home-assistant-ai-companion
+git clone https://github.com/MrMortalMonkey/home-assistant-companion.git
+cd home-assistant-companion
 cp env.example .env     # then edit .env with your credentials
 docker compose up -d
 docker compose logs -f  # follow the logs
@@ -94,8 +94,8 @@ docker compose logs -f  # follow the logs
 For full control, with systemd for auto-recovery:
 
 ```bash
-git clone https://github.com/MrMortalMonkey/home-assistant-ai-companion.git
-cd home-assistant-ai-companion
+git clone https://github.com/MrMortalMonkey/home-assistant-companion.git
+cd home-assistant-companion
 ./install.sh                       # interactive CLI wizard
 sudo ./scripts/install_systemd.sh  # deploy as system service
 ```
@@ -107,8 +107,8 @@ The `assistant.service` starts at boot, restarts on crash (`Restart=always`).
 ### 4️⃣ Manual install — To understand what's happening
 
 ```bash
-git clone https://github.com/MrMortalMonkey/home-assistant-ai-companion.git
-cd home-assistant-ai-companion
+git clone https://github.com/MrMortalMonkey/home-assistant-companion.git
+cd home-assistant-companion
 pip install -r requirements.txt
 ./install.sh                # generates config.json
 python3 assistant.py        # start the bot
@@ -150,7 +150,7 @@ The script is **free and open source (MIT)**. The only recurring cost is the Ant
 
 **On savings:** the script measures what it saves you (optimized solar, machines shifted to off-peak, eliminated standbys) and shows it in dollars via `/roi`. **You judge whether the cost/benefit ratio works for you.** Savings depend heavily on your setup: if you have solar + a heat pump + an off-peak rate, there are many levers. If you have a minimal setup, savings probably just cover the token cost — and that's fine, the value shifts to conversational convenience.
 
-> 🧪 **Cheaper alternative**: multi-provider support for Groq / Ollama is now available. See [Issues](https://github.com/MrMortalMonkey/home-assistant-ai-companion/issues) to follow or contribute.
+> 🧪 **Cheaper alternative**: multi-provider support for Groq / Ollama is now available. See [Issues](https://github.com/MrMortalMonkey/home-assistant-companion/issues) to follow or contribute.
 
 ## 📚 Documentation
 
@@ -169,7 +169,7 @@ The script is **free and open source (MIT)**. The only recurring cost is the Ant
 
 ## 📊 Project status
 
-**Current version: v2.0 (beta)**
+**Current version: v2.0.0-beta.1**
 
 The code has been running in production since February 2026. It's functionally stable but has **not yet been validated on enough different installations** to be considered generally stable.
 
@@ -178,7 +178,7 @@ The code has been running in production since February 2026. It's functionally s
 - Behaviors that need to be generalized (not all homes have solar, a heat pump, etc.)
 - Refinement of Claude prompts to reduce token consumption
 
-If you're testing, feedback via [GitHub Issues](https://github.com/MrMortalMonkey/home-assistant-ai-companion/issues) is valuable, even brief.
+If you're testing, feedback via [GitHub Issues](https://github.com/MrMortalMonkey/home-assistant-companion/issues) is valuable, even brief.
 
 ## 🗺 Roadmap
 
@@ -200,8 +200,8 @@ If you're testing, feedback via [GitHub Issues](https://github.com/MrMortalMonke
 
 ## 🤝 Support
 
-- 🐛 **Bug** → [GitHub Issues](https://github.com/MrMortalMonkey/home-assistant-ai-companion/issues)
-- 💡 **Idea** → [GitHub Discussions](https://github.com/MrMortalMonkey/home-assistant-ai-companion/discussions)
+- 🐛 **Bug** → [GitHub Issues](https://github.com/MrMortalMonkey/home-assistant-companion/issues)
+- 💡 **Idea** → [GitHub Discussions](https://github.com/MrMortalMonkey/home-assistant-companion/discussions)
 
 ## 📜 License
 

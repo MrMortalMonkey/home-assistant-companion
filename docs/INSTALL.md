@@ -19,7 +19,7 @@ Four installation methods supported. Choose according to your environment.
 
 1. In Home Assistant, go to **Settings → Add-ons → Store**
 2. Click the three dots in the top right → **Repositories**
-3. Add the URL: `https://github.com/MrMortalMonkey/home-assistant-ai-companion`
+3. Add the URL: `https://github.com/MrMortalMonkey/home-assistant-companion`
 4. Close, reload — find **Home Assistant AI Companion** in the list
 5. Click **Install**
 6. **Configuration** tab — fill in at minimum:
@@ -48,8 +48,8 @@ Four installation methods supported. Choose according to your environment.
 
 ```bash
 # 1. Get the code
-git clone https://github.com/MrMortalMonkey/home-assistant-ai-companion.git
-cd home-assistant-ai-companion
+git clone https://github.com/MrMortalMonkey/home-assistant-companion.git
+cd home-assistant-companion
 
 # 2. Prepare the config
 cp env.example .env
@@ -113,8 +113,8 @@ sudo apt update
 sudo apt install -y python3 python3-pip git curl jq
 
 # 2. Clone
-git clone https://github.com/MrMortalMonkey/home-assistant-ai-companion.git
-cd home-assistant-ai-companion
+git clone https://github.com/MrMortalMonkey/home-assistant-companion.git
+cd home-assistant-companion
 
 # 3. Installation wizard (dependencies + config.json)
 ./install.sh
@@ -135,13 +135,13 @@ sudo systemctl status  assistant.service      # status
 sudo systemctl restart assistant.service      # restart
 sudo systemctl stop    assistant.service      # stop
 sudo journalctl -u assistant.service -f       # live logs
-tail -f ~/home-assistant-ai-companion/assistant.log             # application logs
+tail -f ~/home-assistant-companion/assistant.log                # application logs
 ```
 
 ### Update
 
 ```bash
-cd ~/home-assistant-ai-companion
+cd ~/home-assistant-companion
 git pull
 pip3 install --user --upgrade -r requirements.txt
 sudo systemctl restart assistant.service
@@ -154,7 +154,7 @@ sudo systemctl stop assistant.service
 sudo systemctl disable assistant.service
 sudo rm /etc/systemd/system/assistant.service
 sudo systemctl daemon-reload
-rm -rf ~/home-assistant-ai-companion       # removes code, config and DB
+rm -rf ~/home-assistant-companion          # removes code, config and DB
 ```
 
 ---
@@ -164,8 +164,8 @@ rm -rf ~/home-assistant-ai-companion       # removes code, config and DB
 To run the bot by hand, without a service, without Docker.
 
 ```bash
-git clone https://github.com/MrMortalMonkey/home-assistant-ai-companion.git
-cd home-assistant-ai-companion
+git clone https://github.com/MrMortalMonkey/home-assistant-companion.git
+cd home-assistant-companion
 pip3 install --user -r requirements.txt
 ./install.sh               # interactive wizard → config.json
 python3 assistant.py       # start the bot

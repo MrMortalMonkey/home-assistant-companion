@@ -5,7 +5,7 @@ services:
 
     # Option 2: use the pre-built image from GitHub Container Registry
     # (uncomment the line below and comment out "build: ." above)
-    # image: ghcr.io/MrMortalMonkey/home-assistant-ai-companion:latest
+    # image: ghcr.io/MrMortalMonkey/home-assistant-companion:latest
 
     container_name: assistant
     restart: unless-stopped

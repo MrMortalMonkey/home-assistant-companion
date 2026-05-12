@@ -111,7 +111,7 @@ PROFILE_QUESTIONS = [
 ]
 
 VALID_CATEGORIES = [
-    "energy_solar",    # APSystems, Anker, micro-ingreenrs
+    "energy_solar",    # APSystems, Anker, micro-inverters
     "energy_heating",  # heat pump, thermostats
     "energy_consumption",      # Ecojoko, meters
     "connected_plug",    # plugs with power measurement
@@ -7652,7 +7652,7 @@ def _detecter_mode_vacances(now):
 def _auto_update_github():
     """Checks GitHub for of the updates all the 24h. CRASH-PROOF."""
     try:
-        repo = "MrMortalMonkey/home-assistant-ai-companion"
+        repo = "MrMortalMonkey/home-assistant-companion"
         branch = "main"
         files = ["config.py", "shared.py", "skills.py", "assistant.py"]
         last = mem_get("auto_update_last")

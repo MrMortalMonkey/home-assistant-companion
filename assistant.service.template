@@ -1,6 +1,6 @@
 [Unit]
 Description=Home Assistant AI Companion
-Documentation=https://github.com/MrMortalMonkey/home-assistant-ai-companion
+Documentation=https://github.com/MrMortalMonkey/home-assistant-companion
 After=network-online.target
 Wants=network-online.target
 

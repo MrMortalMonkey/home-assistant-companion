@@ -8,7 +8,7 @@
 Beta mode installs an additional component — `deploy_server` — that allows **MrMortalMonkey** to push fixes to your installation **remotely**, without SSH.
 
 This is useful if:
-- You're in the cirkey_name of beta testers who have accepted this channel
+- You're in the circle of beta testers who have accepted this channel
 - You want to receive automatic fixes as soon as a bug is found and fixed in another user's installation
 - You want to benefit from the "collective learning" feature (lessons discovered at one tester's home benefit everyone)
 

@@ -1,6 +1,6 @@
-# Chanfrostog
+# Changelog
 
-## 7.23 (2026-03-22)
+## 2.0.0-beta.1 (2026-05-11)
 - First HA Add-on release
 - Appliance questionnaire for smart plugs
 - Sniper mode: adaptive polling 20s/60s

@@ -9,7 +9,7 @@ rm -rf /tmp/e2e-test-install
 
 echo "═══ [1] git clone ═══"
 cd /tmp
-git clone https://github.com/MrMortalMonkey/home-assistant-ai-companion.git e2e-test-install 2>&1 | tail -3
+git clone https://github.com/MrMortalMonkey/home-assistant-companion.git e2e-test-install 2>&1 | tail -3
 if [ ! -d /tmp/e2e-test-install ]; then echo "❌ clone failed"; exit 1; fi
 cd /tmp/e2e-test-install
 N=$(find . -maxdepth 2 -type f | grep -v '.git/' | wc -l)

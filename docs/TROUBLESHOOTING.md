@@ -112,4 +112,4 @@ sudo systemctl restart assistant.service   # (or docker compose restart)
    - HA Add-on: Log tab
    - Docker: `docker compose logs --tail=200 assistant`
    - Linux: `sudo journalctl -u assistant.service -n 200`
-3. **GitHub Issues**: https://github.com/MrMortalMonkey/home-assistant-ai-companion/issues
+3. **GitHub Issues**: https://github.com/MrMortalMonkey/home-assistant-companion/issues
