@@ -130,4 +130,4 @@ echo ""
 cd /tmp && rm -rf e2e-test-install
 echo "  ✅ Test finished"
 echo ""
-echo "════════ FIN E2E TEST $(date -Iseconds) ════════"
+echo "════════ DONE E2E TEST $(date -Iseconds) ════════"

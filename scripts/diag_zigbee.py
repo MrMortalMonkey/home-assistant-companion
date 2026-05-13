@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Check rate memory state + what the bot sees now."""
+"""Check rate memory state and what the bot sees now."""
 import sqlite3
 DB = '/home/lolufe/assistant/memory.db'
 conn = sqlite3.connect(DB)
 
-print("=== Memory: all rate-related HC entries ===")
+print("=== Memory: all rate-related peak/off-peak entries ===")
 rows = conn.execute(
     "SELECT key_name, value_text FROM memory_store WHERE key_name LIKE '%rate%' OR key_name LIKE '%hc%' OR key_name LIKE '%hp%' OR key_name LIKE '%off_peak_hour%'"
 ).fetchall()
@@ -20,7 +20,7 @@ rows = conn.execute("SELECT key_name, value_text FROM memory_store WHERE key_nam
 for r in rows: print(f"  {r[0]} = {r[1][:300] if r[1] else None}")
 conn.close()
 
-# Check in HA whether the Linky off-peak/peak stat is present
+# Check in HA whether off-peak/peak statistics are visible.
 import json, requests
 with open('/home/lolufe/assistant/config.json') as f: cfg = json.load(f)
 r = requests.get(f"{cfg['ha_url']}/api/states",
@@ -28,8 +28,12 @@ r = requests.get(f"{cfg['ha_url']}/api/states",
                  timeout=15, verify=False)
 states = r.json()
 
-print("\n=== All entities related to Linky / linky / ha-linky ===")
-matched = [s for s in states if 'linky' in s['entity_id'].lower()]
+print("\n=== All entities related to off-peak / peak pricing ===")
+keywords = ('off_peak', 'offpeak', 'peak', 'rate', 'tariff', 'price')
+matched = [
+    s for s in states
+    if any(k in s['entity_id'].lower() for k in keywords)
+]
 for s in matched:
     eid = s['entity_id']
     state = s['state']
@@ -37,7 +41,7 @@ for s in matched:
     print(f"  {eid}: state={state} fname={fname}")
 
 if not matched:
-    print("  (no Linky entity visible — statistics may be invisible via /api/states)")
+    print("  (no rate entity visible — statistics may be invisible via /api/states)")
 
 # Test off-peak auto-detection
 print("\n=== Off-peak auto-detection test: searching entities matching bot keywords ===")

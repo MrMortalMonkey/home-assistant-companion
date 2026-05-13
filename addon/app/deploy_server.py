@@ -248,7 +248,7 @@ def action_chmod(data):
         return {"status": "error", "message": "Path not allowed"}
     full_path = os.path.join(ASSISTANT_DIR, filepath)
     if not os.path.exists(full_path):
-        return {"status": "error", "message": f"Fichier introuvable: {filepath}"}
+        return {"status": "error", "message": f"File not found: {filepath}"}
     if mode not in ["0o755", "755", "+x", "0o644", "644", "0o600", "600"]:
         return {"status": "error", "message": "Mode not allowed"}
     try:
@@ -315,7 +315,7 @@ def action_patch(data):
     try:
         shutil.copy2(SCRIPT_PATH, backup_path)
     except Exception as e:
-        return {"status": "error", "message": f"Backup impossible: {e}"}
+        return {"status": "error", "message": f"Backup failed: {e}"}
 
     if mode == "full":
         new_code = data.get("code", "")
@@ -480,11 +480,11 @@ echo "  URL : $(cat /home/lolufe/assistant/tunnel_url.txt 2>/dev/null)"
 W=$(pgrep -f 'tunnel_wrapper.sh' | wc -l)
 C=$(pgrep -f 'cloudflared tunnel.*localhost' | wc -l)
 if [ "$W" = "1" ] && [ "$C" = "1" ]; then
-    echo "[OK] PROPRE : 1 wrapper + 1 cloudflared"
+    echo "[OK] CLEAN: 1 wrapper + 1 cloudflared"
 else
     echo "[FAIL] $W wrappers, $C cloudflared (should be 1+1)"
 fi
-echo "════════ FIN ELIMINATE_DUPLICATE ════════"
+echo "════════ DONE ELIMINATE_DUPLICATE ════════"
 """
     p = "/tmp/eliminate_duplicate.sh"
     with open(p, "w") as f: f.write(script)
@@ -492,7 +492,7 @@ echo "════════ FIN ELIMINATE_DUPLICATE ════════"
     subprocess.Popen(["bash", p], start_new_session=True,
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     log_deploy("🗑️ Duplicate cloudflared.service elimination scheduled (~30s)")
-    return {"status": "ok", "message": "Elimination in progress, wait ~32s"}
+    return {"status": "ok", "message": "Removal in progress, wait ~32s"}
 
 
 def action_inspect_old_cloudflared():
@@ -605,7 +605,7 @@ if [ "$W" = "1" ] && [ "$C" = "1" ]; then
 else
     echo "[FAIL] KEYAN_STATE_KO ($W wrappers, $C cloudflared)"
 fi
-echo "════════ FIN FINAL_KEYAN ════════"
+echo "════════ DONE FINAL_KEYAN ════════"
 """
     p = "/tmp/final_clean.sh"
     with open(p, "w") as f: f.write(script)
@@ -642,13 +642,13 @@ pgrep -af tunnel_wrapper || true
 pgrep -af "cloudflared tunnel" || true
 sleep 1
 sudo -n systemctl start cloudflared_tunnel.service
-# Wait the stabilisation (15s)
+# Wait for stabilization (15s)
 sleep 15
 echo "[POST T+15s] :"
 pgrep -af tunnel_wrapper || true
 pgrep -af "cloudflared tunnel" || true
 echo "[URL] : $(cat /home/lolufe/assistant/tunnel_url.txt 2>/dev/null)"
-echo "════════ FIN KEYAN_DOUBLE ════════"
+echo "════════ DONE KEYAN_DOUBLE ════════"
 """
     p = "/tmp/clean_double.sh"
     with open(p, "w") as f: f.write(script)
@@ -690,7 +690,7 @@ echo "[POST] tunnel processes :"
 pgrep -af tunnel_wrapper || true
 pgrep -af "cloudflared tunnel" || true
 echo "[POST] URL : $(cat /home/lolufe/assistant/tunnel_url.txt 2>/dev/null)"
-echo "════════ FIN TUNNEL_RESTART ════════"
+echo "════════ DONE TUNNEL_RESTART ════════"
 """
     p = "/tmp/tunnel_restart.sh"
     with open(p, "w") as f: f.write(script)
@@ -930,7 +930,7 @@ fi
 # 2. Test tunnel externe
 URL=$(cat "$URL_FILE" 2>/dev/null)
 if [ -z "$URL" ]; then
-    log "⚠️  not of URL in $URL_FILE → restart tunnel"
+    log "⚠️  no URL in $URL_FILE -> restart tunnel"
     sudo -n systemctl restart cloudflared_tunnel.service
     exit 0
 fi
@@ -938,7 +938,7 @@ fi
 # 3. Test ping via the tunnel (curl does not follow auth so we accept 401)
 HTTP=$(curl -s -m 8 -o /dev/null -w "%{http_code}" "$URL/ping" 2>/dev/null)
 if [ "$HTTP" != "401" ] && [ "$HTTP" != "200" ]; then
-    log "⚠️  tunnel KO (HTTP=$HTTP) sur $URL → restart"
+    log "⚠️  tunnel failed (HTTP=$HTTP) on $URL -> restart"
     sudo -n systemctl restart cloudflared_tunnel.service
     echo "tunnel_restarted=$(date -Iseconds)" > "$STATE_FILE"
 fi
@@ -1123,7 +1123,7 @@ echo "[FINAL] services :"
 echo "  deploy_server : $(sudo -n systemctl is-active deploy_server.service)"
 echo "  tunnel        : $(sudo -n systemctl is-active cloudflared_tunnel.service)"
 echo "[FINAL] URL : $URL"
-echo "════════ FIN HANDOFF $(date -Iseconds) ════════"
+echo "════════ DONE HANDOFF $(date -Iseconds) ════════"
 """
     script_path = "/tmp/infra_handoff.sh"
     with open(script_path, "w") as f:

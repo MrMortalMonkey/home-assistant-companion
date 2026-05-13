@@ -21,7 +21,7 @@ import llm_provider
 
 PROFILE_QUESTIONS = [
     {
-        "id": "household_personnes",
+        "id": "household_people",
         "question": "👥 How many people live in the household?",
         "buttons": [
             {"text": "1", "value": "1"},
@@ -33,34 +33,34 @@ PROFILE_QUESTIONS = [
     },
     {
         "id": "household_presence",
-        "question": "🏠 When are your home on weekdays?",
+        "question": "🏠 When is someone usually home on weekdays?",
         "buttons": [
-            {"text": "Always (remote work)", "value": "teletravail"},
-            {"text": "Morning + evening", "value": "matin_soir"},
-            {"text": "Evening only", "value": "soir"},
+            {"text": "Always (remote work)", "value": "remote_work"},
+            {"text": "Morning + evening", "value": "morning_evening"},
+            {"text": "Evening only", "value": "evening"},
             {"text": "Variable", "value": "variable"},
         ],
         "skill_key": "household",
     },
     {
         "id": "household_solar",
-        "question": "☀️ Do your have solar panels?",
+        "question": "☀️ Do you have solar panels?",
         "buttons": [
             {"text": "Yes", "value": "yes"},
             {"text": "No", "value": "no"},
-            {"text": "Planned", "value": "project"},
+            {"text": "Planned", "value": "planned"},
         ],
         "skill_key": "household",
     },
     {
         "id": "household_solar_kwc",
-        "question": "☀️ What is your installed cacapacity (kWp)?",
+        "question": "☀️ What is your installed capacity (kWp)?",
         "condition": lambda profile: profile.get("household_solar") == "yes",
         "buttons": [
-            {"text": "< 3 kWc", "value": "<3"},
-            {"text": "3-6 kWc", "value": "3-6"},
-            {"text": "6-9 kWc", "value": "6-9"},
-            {"text": "> 9 kWc", "value": ">9"},
+            {"text": "< 3 kWp", "value": "<3"},
+            {"text": "3-6 kWp", "value": "3-6"},
+            {"text": "6-9 kWp", "value": "6-9"},
+            {"text": "> 9 kWp", "value": ">9"},
         ],
         "skill_key": "household",
     },
@@ -68,9 +68,9 @@ PROFILE_QUESTIONS = [
         "id": "household_heating",
         "question": "🌡️ What is your main heating system?",
         "buttons": [
-            {"text": "Heat pump (HP)", "value": "heat_pump"},
+            {"text": "Heat pump", "value": "heat_pump"},
             {"text": "Electric (radiators)", "value": "electric"},
-            {"text": "Gas", "value": "gaz"},
+            {"text": "Gas", "value": "gas"},
             {"text": "Other (oil, wood...)", "value": "other"},
         ],
         "skill_key": "household",
@@ -79,9 +79,9 @@ PROFILE_QUESTIONS = [
         "id": "household_hot_water",
         "question": "🚿 Domestic hot water?",
         "buttons": [
-            {"text": "Electric water heater", "value": "cumulus"},
-            {"text": "Thermodynamic", "value": "thermo"},
-            {"text": "Boiler (gas/oil)", "value": "chaudiere"},
+            {"text": "Electric water heater", "value": "electric_tank"},
+            {"text": "Heat pump water heater", "value": "heat_pump_water_heater"},
+            {"text": "Boiler (gas/oil)", "value": "boiler"},
             {"text": "Solar / Heat pump", "value": "solar_heat_pump"},
         ],
         "skill_key": "household",
@@ -102,9 +102,9 @@ PROFILE_QUESTIONS = [
         "question": "🎯 Your main goal?",
         "buttons": [
             {"text": "💰 Reduce the bill", "value": "reduce_bill"},
-            {"text": "☀️ Maximize solar", "value": "maximiser_solar"},
-            {"text": "🔍 Understand my consumption", "value": "comprendre"},
-            {"text": "🤖 Automate everything", "value": "automatiser"},
+            {"text": "☀️ Maximize solar", "value": "maximize_solar"},
+            {"text": "🔍 Understand my consumption", "value": "understand"},
+            {"text": "🤖 Automate everything", "value": "automate"},
         ],
         "skill_key": "household",
     },
@@ -138,7 +138,7 @@ PATTERNS_AUTO = [
     ("system_anker",    "state_of_charge",      "energy_battery",   "soc",        "Anker System SOC"),
     ("system_anker",    "energy_solar",     "energy_production", "production", "Anker system W"),
     ("solar", "production.*now",  "energy_forecast", "realtime",  "Real-time solar forecast"),
-    ("solar", "production.*tomorrow",      "energy_forecast", "j_plus_1",    "Solar forecast tomorrow"),
+    ("solar", "production.*tomorrow",      "energy_forecast", "tomorrow",    "Solar forecast tomorrow"),
     ("weather", "",                      "weather",             "forecast",    "Weather station"),
 ]
 
@@ -157,14 +157,14 @@ PROVIDERS = {
         "name": "EDF",
         "offers": {
             "base": {"name": "Rate Blue Base", "type": "base", "price_kwh": 0.2516, "subscription_month": 12.44},
-            "hphc": {"name": "Rate Blue HP/HC", "type": "hphc", "price_hp": 0.27, "price_hc": 0.2068, "subscription_month": 13.01},
+            "hphc": {"name": "Blue peak/off-peak", "type": "hphc", "price_hp": 0.27, "price_hc": 0.2068, "subscription_month": 13.01},
             "tempo": {"name": "Tempo", "type": "tempo", "price_blue_hp": 0.1369, "price_blue_hc": 0.1056,
                        "price_white_hp": 0.1894, "price_white_hc": 0.1486, "price_red_hp": 0.7562, "price_red_hc": 0.1568, "subscription_month": 13.01},
             "zen": {"name": "Green Electric Zen", "type": "hphc", "price_hp": 0.2676, "price_hc": 0.2068, "subscription_month": 12.44},
             "weekend": {"name": "Zen Week-End", "type": "weekend", "price_weekday": 0.2038, "price_weekend": 0.1538, "subscription_month": 14.83},
-            "weekend_hphc": {"name": "Zen Week-End HP/HC", "type": "weekend_hphc", "price_hp_weekday": 0.2153, "price_hc": 0.1618, "price_weekend": 0.1618, "subscription_month": 15.08},
+            "weekend_hphc": {"name": "Zen Week-End peak/off-peak", "type": "weekend_hphc", "price_hp_weekday": 0.2153, "price_hc": 0.1618, "price_weekend": 0.1618, "subscription_month": 15.08},
             "weekend_plus": {"name": "Zen Week-End Plus (Selected day)", "type": "weekend_plus", "price_weekday": 0.2133, "price_weekend_day": 0.1604, "subscription_month": 14.83},
-            "weekend_plus_hphc": {"name": "Zen Week-End Plus HP/HC (Selected day)", "type": "weekend_plus_hphc",
+            "weekend_plus_hphc": {"name": "Zen Week-End Plus peak/off-peak (selected day)", "type": "weekend_plus_hphc",
                 "price_hp_weekday": 0.2213, "price_hc_weekend_day": 0.166, "subscription_month": 15.08,
                 "description": "Peak weekdays | Off-peak + weekend + chosen day + holidays = same reduced price"},
         }
@@ -173,7 +173,7 @@ PROVIDERS = {
         "name": "TotalEnergies",
         "offers": {
             "base": {"name": "Essentielle Base", "type": "base", "price_kwh": 0.2516, "subscription_month": 12.44},
-            "hphc": {"name": "Essentielle HP/HC", "type": "hphc", "price_hp": 0.27, "price_hc": 0.2068, "subscription_month": 13.01},
+            "hphc": {"name": "Essentielle peak/off-peak", "type": "hphc", "price_hp": 0.27, "price_hc": 0.2068, "subscription_month": 13.01},
             "online": {"name": "Online Base", "type": "base", "price_kwh": 0.2177, "subscription_month": 12.44},
         }
     },
@@ -181,7 +181,7 @@ PROVIDERS = {
         "name": "Engie",
         "offers": {
             "base": {"name": "Reference Base", "type": "base", "price_kwh": 0.2516, "subscription_month": 12.44},
-            "hphc": {"name": "Reference HP/HC", "type": "hphc", "price_hp": 0.27, "price_hc": 0.2068, "subscription_month": 13.01},
+            "hphc": {"name": "Reference peak/off-peak", "type": "hphc", "price_hp": 0.27, "price_hc": 0.2068, "subscription_month": 13.01},
             "elec_adapt": {"name": "Elec Adapt", "type": "base", "price_kwh": 0.2346, "subscription_month": 12.44},
         }
     },
@@ -189,7 +189,7 @@ PROVIDERS = {
         "name": "Octopus Energy",
         "offers": {
             "base": {"name": "Eco-Consumption Base", "type": "base", "price_kwh": 0.1994, "subscription_month": 12.44},
-            "hphc": {"name": "Eco-Consumption HP/HC", "type": "hphc", "price_hp": 0.2252, "price_hc": 0.1606, "subscription_month": 13.01},
+            "hphc": {"name": "Eco-Consumption peak/off-peak", "type": "hphc", "price_hp": 0.2252, "price_hc": 0.1606, "subscription_month": 13.01},
         }
     },
     "ekwateur": {
@@ -265,7 +265,7 @@ def _start_questionnaire_household():
             if not q["condition"](profile):
                 profile[qid] = "n/a"
                 continue
-        # Poser the question
+        # Ask the question
         buttons = [
             {"text": b["text"], "callback_data": f"profile:{qid}:{b['value']}"}
             for b in q["buttons"]
@@ -284,7 +284,7 @@ def _start_questionnaire_household():
 
     # Summary
     labels = {
-        "household_personnes": "👥 People",
+        "household_people": "👥 People",
         "household_presence": "🏠 Presence",
         "household_solar": "☀️ Solar",
         "household_solar_kwc": "☀️ Capacity",
@@ -293,57 +293,164 @@ def _start_questionnaire_household():
         "household_voice_assistant": "🗣️ Assistant",
         "household_goal": "🎯 Goal",
     }
-    msg = "✅ HOUSEHOLD PROFILEE SAVED\n━━━━━━━━━━━━━━━━━━\n"
+    msg = "✅ HOUSEHOLD PROFILE SAVED\n━━━━━━━━━━━━━━━━━━\n"
     for qid, label in labels.items():
         val = profile.get(qid, "")
         if val and val != "n/a":
             msg += f"  {label} : {val}\n"
-    msg += "\n🧠 These answers power the script's skills."
-    msg += "\nThe more it knows, the more it saves your."
+    msg += "\n🧠 These answers improve the assistant's recommendations."
+    msg += "\nThe more context it has, the better it can help."
     msg += "\n💡 /profile to review or edit"
     telegram_send(msg)
-    log.info(f"✅ Horsehold profile complete: {profile}")
+    log.info(f"✅ Household profile complete: {profile}")
+
+
+def _parse_numeric_state(value):
+    try:
+        return float(str(value).replace(",", "."))
+    except (TypeError, ValueError):
+        return None
+
+
+def _collect_entity_ids(value, found=None):
+    """Recursively collect Home Assistant entity IDs from nested API payloads."""
+    if found is None:
+        found = set()
+    if isinstance(value, str):
+        if re.match(r"^[a-z_]+\.[A-Za-z0-9_]+$", value):
+            found.add(value)
+    elif isinstance(value, dict):
+        for item in value.values():
+            _collect_entity_ids(item, found)
+    elif isinstance(value, list):
+        for item in value:
+            _collect_entity_ids(item, found)
+    return found
+
+
+def _ha_energy_entity_ids():
+    """Best-effort read of Home Assistant Energy dashboard references."""
+    entity_ids = set()
+    for endpoint in ("config/energy", "energy/info"):
+        try:
+            payload = ha_get(endpoint, _retries=0)
+            if payload:
+                entity_ids.update(_collect_entity_ids(payload))
+        except Exception:
+            pass
+    return entity_ids
+
+
+def _looks_like_excluded_energy_source(entity_id, friendly_name):
+    combined = f"{entity_id} {friendly_name}".lower()
+    excluded = (
+        "solar", "pv", "photovoltaic", "battery", "grid", "meter", "mains",
+        "import", "export", "return", "tariff", "price", "cost", "forecast",
+        "voltage", "current", "humidity", "temperature", "lqi", "linkquality",
+    )
+    return any(word in combined for word in excluded)
+
+
+def _measurement_kind(entity):
+    attrs = entity.get("attributes", {})
+    unit = str(attrs.get("unit_of_measurement", "")).lower()
+    device_class = str(attrs.get("device_class", "")).lower()
+    state_class = str(attrs.get("state_class", "")).lower()
+    if _parse_numeric_state(entity.get("state")) is None:
+        return ""
+    if device_class == "power" or unit in ("w", "watt", "watts", "kw"):
+        return "power"
+    if device_class == "energy" or unit in ("wh", "kwh", "mwh"):
+        if state_class in ("total", "total_increasing", "measurement", ""):
+            return "energy"
+    return ""
+
+
+def _collect_appliance_candidates():
+    """Collect power consumers from smart plugs and HA Energy/power sensors."""
+    candidates = {}
+    states = ha_get("states") or []
+    index = {e["entity_id"]: e for e in states}
+    energy_ids = _ha_energy_entity_ids()
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        rows = conn.execute(
+            "SELECT entity_id, friendly_name FROM entity_map "
+            "WHERE category='connected_plug' AND subcategory='power'"
+        ).fetchall()
+        known_appliances = set(r[0] for r in conn.execute("SELECT entity_id FROM appliances").fetchall())
+        ignored = set(r[0] for r in conn.execute("SELECT entity_id FROM entity_map WHERE category='ignore'").fetchall())
+        conn.close()
+    except Exception:
+        rows, known_appliances, ignored = [], set(), set()
+
+    for eid, fname in rows:
+        if eid not in known_appliances:
+            candidates[eid] = {
+                "entity_id": eid,
+                "fname": fname or eid,
+                "source": "smart_plug",
+                "measurement": "power",
+            }
+
+    for entity in states:
+        eid = entity["entity_id"]
+        if eid in candidates or eid in known_appliances or eid in ignored:
+            continue
+        if not eid.startswith("sensor."):
+            continue
+        attrs = entity.get("attributes", {})
+        fname = attrs.get("friendly_name", eid)
+        kind = _measurement_kind(entity)
+        if not kind:
+            continue
+        if _looks_like_excluded_energy_source(eid, fname):
+            continue
+
+        from_energy_dashboard = eid in energy_ids
+        combined = f"{eid} {fname}".lower()
+        appliance_hint = any(
+            word in combined
+            for word in (
+                "washer", "washing", "dryer", "dishwasher", "oven", "freezer",
+                "fridge", "refrigerator", "heater", "hvac", "pump", "charger",
+                "ev", "kettle", "coffee", "dehumidifier", "air_conditioner",
+                "air conditioner", "microwave", "tv", "computer", "server",
+            )
+        )
+        if not (from_energy_dashboard or kind == "power" or appliance_hint):
+            continue
+
+        candidates[eid] = {
+            "entity_id": eid,
+            "fname": fname,
+            "source": "ha_energy" if from_energy_dashboard else "power_sensor",
+            "measurement": kind,
+        }
+
+    source_order = {"smart_plug": 0, "ha_energy": 1, "power_sensor": 2}
+    return sorted(candidates.values(), key=lambda c: (source_order.get(c["source"], 9), c["fname"].lower()))
 
 
 def _start_questionnaire_appliances():
-    """Ask the user to identify the appliances on each smart plug.
-    Called after the first scan. Only once."""
+    """Ask the user to identify power consumers and appliance monitors."""
     if mem_get("appliances_configured"):
         return
 
-    # Find all plugs with a power sensor
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        plugs = conn.execute(
-            "SELECT entity_id, friendly_name FROM entity_map WHERE category='connected_plug' AND entity_id LIKE '%_power'"
-        ).fetchall()
-        conn.close()
-    except Exception:
-        return
-
-    if not plugs:
-        return
-
-    # Filter out already-identified ones
-    a_identifier = []
-    for eid, fname in plugs:
-        if not appliance_get(eid):
-            a_identifier.append((eid, fname))
-
-    if not a_identifier:
-        mem_set("appliances_configured", "yes")
+    candidates = _collect_appliance_candidates()
+    if not candidates:
         return
 
     # Store the queue
-    queue = [{"entity_id": eid, "fname": fname} for eid, fname in a_identifier]
-    mem_set("appliances_queue", json.dumps(queue))
+    mem_set("appliances_queue", json.dumps(candidates))
 
     # Ask the first question
     _ask_question_appliance_next()
 
 
 def _ask_question_appliance_next():
-    """Ask the question for the next plug in the queue."""
+    """Ask the next power-consumer identification question."""
     # If waiting for a custom name, do not advance
     if mem_get("pending_name_appliance"):
         return
@@ -379,25 +486,48 @@ def _ask_question_appliance_next():
     item = queue[0]
     eid = item["entity_id"]
     fname = item["fname"]
-    # Final the name for display
-    for suffix in [" Power", " Power"]:
+    source = item.get("source", "power_sensor")
+    measurement = item.get("measurement", "power")
+
+    # Clean the name for display
+    for suffix in [" Power", " Consumption", " Energy"]:
         fname = fname.replace(suffix, "")
 
     remaining_count = len(queue) - 1
-    msg = f"🔌 Which appliance is plugged into:\n**{fname}**?\n"
-    if remaining_count > 0:
-        msg += f"({remaining_count} plug(s) remaining)"
+    if source == "ha_energy":
+        source_label = "Home Assistant Energy"
+    elif source == "smart_plug":
+        source_label = "smart plug power sensor"
+    else:
+        source_label = "power sensor"
 
-    buttons = [
-        {"text": "🧺 Washing machine", "callback_data": f"appliance:{eid}:washing_machine"},
-        {"text": "👕 Dryer", "callback_data": f"appliance:{eid}:dryer"},
-        {"text": "🍽️ Dishwasher", "callback_data": f"appliance:{eid}:dishwasher"},
-        {"text": "❄️ Freezer", "callback_data": f"appliance:{eid}:freezer"},
-        {"text": "🔇 Standby killer", "callback_data": f"appliance:{eid}:standby_killer"},
-        {"text": "📊 Monitoring", "callback_data": f"appliance:{eid}:energy_monitor"},
-        {"text": "🔌 Other", "callback_data": f"appliance:{eid}:other"},
-        {"text": "⬜ Skip", "callback_data": f"appliance:{eid}:ignore"},
-    ]
+    msg = (
+        f"🔌 What does this {source_label} represent?\n"
+        f"**{fname}**\n"
+        f"`{eid}`\n"
+    )
+    if measurement == "energy":
+        msg += "\nThis looks like a cumulative energy sensor. Choose Monitoring unless you also have a live W power sensor for cycle detection.\n"
+    if remaining_count > 0:
+        msg += f"\n({remaining_count} item(s) remaining)"
+
+    if measurement == "energy":
+        buttons = [
+            {"text": "📊 Energy monitor", "callback_data": f"appliance:{eid}:energy_monitor"},
+            {"text": "🔌 Other", "callback_data": f"appliance:{eid}:other"},
+            {"text": "⬜ Skip", "callback_data": f"appliance:{eid}:ignore"},
+        ]
+    else:
+        buttons = [
+            {"text": "🧺 Washing machine", "callback_data": f"appliance:{eid}:washing_machine"},
+            {"text": "👕 Dryer", "callback_data": f"appliance:{eid}:dryer"},
+            {"text": "🍽️ Dishwasher", "callback_data": f"appliance:{eid}:dishwasher"},
+            {"text": "❄️ Freezer", "callback_data": f"appliance:{eid}:freezer"},
+            {"text": "🔇 Standby killer", "callback_data": f"appliance:{eid}:standby_killer"},
+            {"text": "📊 Monitoring", "callback_data": f"appliance:{eid}:energy_monitor"},
+            {"text": "🔌 Other", "callback_data": f"appliance:{eid}:other"},
+            {"text": "⬜ Skip", "callback_data": f"appliance:{eid}:ignore"},
+        ]
     telegram_send_buttons(msg, buttons)
 
 
@@ -509,9 +639,9 @@ def _engine_savings_proactive(states, index, now):
                 msg += f"\n💡 Switch off the plugs"
 
         # Personalized goal
-        if goal == "comprendre" and eco_month[1] == 0:
+        if goal == "understand" and eco_month[1] == 0:
             msg += f"\n\n🔍 Type /energy to see your consumption"
-        elif goal == "automatiser" and has_assistant:
+        elif goal == "automate" and has_assistant:
             msg += f"\n\n🤖 Consider automating standby killers via {name_assistant}"
 
         # ═══ WEATHER ═══
@@ -678,8 +808,8 @@ def _engine_savings_proactive(states, index, now):
                         )
 
     # ═══ 4. EVENING SUMMARY (1x/day at 21h00-21h05) ═══
-    if hour == 21 and minute < 5 and _eco_proactive_state.get("summary_soir") != now.strftime("%Y-%m-%d"):
-        _eco_proactive_state["summary_soir"] = now.strftime("%Y-%m-%d")
+    if hour == 21 and minute < 5 and _eco_proactive_state.get("evening_summary") != now.strftime("%Y-%m-%d"):
+        _eco_proactive_state["evening_summary"] = now.strftime("%Y-%m-%d")
 
         today = now.strftime("%Y-%m-%d")
         eco_day = conn.execute(
@@ -971,7 +1101,7 @@ def _engine_savings_proactive(states, index, now):
                     if delta > 0.01:
                         eco_possible = delta * 1.5  # ~1.5 kWh per average cycle
                         telegram_send(
-                            f"⚡ Machine running — rate HP !\n"
+                            f"⚡ Appliance running during peak rate!\n"
                             f"Off-peak hours start at {hc_started_at}h.\n"
                             f"💡 Next cycle: start after {hc_started_at}h → ~{eco_possible:.2f}€ saved"
                         )
@@ -1112,7 +1242,7 @@ def _calculer_signature_cycle(samples):
     if not samples or len(samples) < 3:
         return ""
 
-    # Extraire the watts (samples = [(ts, watts), ...])
+    # Extract watts (samples = [(timestamp, watts), ...]).
     watts = [w for _, w in samples if isinstance(w, (int, float))]
     if len(watts) < 3:
         return ""
@@ -1508,7 +1638,7 @@ def handle_callback(callback_query):
             q_label = next((q["question"].split("\n")[0] for q in PROFILE_QUESTIONS if q["id"] == qid), qid)
             v_label = next((b["text"] for q in PROFILE_QUESTIONS if q["id"] == qid for b in q["buttons"] if b["value"] == value), value)
             telegram_send(f"✅ {v_label}")
-            # Question nexte
+            # Next question
             _start_questionnaire_household()
         return
 
@@ -1561,7 +1691,7 @@ def handle_callback(callback_query):
         app = appliance_get(eid)
         app_name = app["name"] if app and app.get("name") else eid
         _state_plugs[eid] = "active"
-        # Restaurer the samples
+        # Restore the samples
         try:
             conn_cc = sqlite3.connect(DB_PATH)
             rows = conn_cc.execute(
@@ -1610,7 +1740,7 @@ def handle_callback(callback_query):
                     pass
                 telegram_send(
                     f"⬜ {fname_clean} — parked\n"
-                    f"No suivi, no notification.\n"
+                    f"No tracking, no notification.\n"
                     f"(type /appliances reset to reconfigure)\n"
                     f"📊 {nb_monitored} appliances monitored"
                 )
@@ -1645,7 +1775,7 @@ def handle_callback(callback_query):
                         f"📊 {nb_monitored} appliances monitored"
                     )
 
-            # Question nexte
+            # Next question
             try:
                 queue = json.loads(mem_get("appliances_queue") or "[]")
                 queue = [q for q in queue if q["entity_id"] != eid]
@@ -1846,42 +1976,42 @@ def handle_callback(callback_query):
         return
 
     # Power outage: restore exact pre-outage state
-    if data.startswith("edf_restaurer:"):
-        snapshot_json = mem_get("edf_snapshot", "{}")
+    if data.startswith("outage_restore:"):
+        snapshot_json = mem_get("outage_snapshot", "{}")
         try:
             snapshot = json.loads(snapshot_json)
         except Exception:
             snapshot = {}
         if not snapshot:
-            telegram_send("⚠️ No snapshot available — restoration impossible")
+            telegram_send("⚠️ No snapshot available — restoration is not possible")
             return
-        rallumees = 0
-        laissees_off = 0
-        for eid, state_avant in snapshot.items():
+        restored_on = 0
+        left_off = 0
+        for eid, previous_state in snapshot.items():
             if not eid.startswith("switch.") or "child_lock" in eid:
                 continue
             try:
-                if state_avant == "on":
+                if previous_state == "on":
                     ha_post("services/switch/turn_on", {"entity_id": eid})
-                    rallumees += 1
+                    restored_on += 1
                 else:
-                    laissees_off += 1
+                    left_off += 1
             except Exception:
                 pass
         telegram_send(
             f"✅ Power outage recovery complete\n"
-            f"🟢 {rallumees} plug(s) set back to ON\n"
-            f"⚫ {laissees_off} plug(s) left OFF (normal state)"
+            f"🟢 {restored_on} plug(s) set back to ON\n"
+            f"⚫ {left_off} plug(s) left OFF (normal state)"
         )
-        log.info(f"✅ Power outage recovered: {rallumees} ON, {laissees_off} OFF")
+        log.info(f"✅ Power outage recovered: {restored_on} ON, {left_off} OFF")
         return
 
-    if data.startswith("edf_laisser:"):
+    if data.startswith("outage_leave:"):
         telegram_send("✅ OK — plugs left as-is.")
         return
 
-    # Suggestion machine : suggestion_ori, suggestion_no, suggestion_tordays
-    if data.startswith("suggestion_ori:"):
+    # Appliance run suggestions.
+    if data.startswith("suggestion_now:"):
         entity_id = data.split(":", 1)[1]
         telegram_send(f"✅ Got it! Start the appliance when ready.\nI'm monitoring the cycle.")
         return
@@ -2015,31 +2145,31 @@ def ha_refresh_areas():
     _KNOWN_ROOMS_REFRESH = [
         "kitchen", "living_room", "guest bedroom", "child bedroom", "bedroom",
         "laundry_room", "garage", "office", "salle of bain", "sdb",
-        "entree", "corloir", "jardin", "terrasse", "attic", "basement",
+        "entry", "hallway", "garden", "terrace", "attic", "basement",
     ]
     try:
         conn = sqlite3.connect(DB_PATH)
-        mises_a_day = 0
+        updated_count = 0
         rows = conn.execute("SELECT entity_id, room, friendly_name FROM entity_map WHERE room IS NULL OR room=''").fetchall()
-        for eid, room_currentle, fname in rows:
-            norvelle_room = ""
-            # Attempt 1 : API HA
+        for eid, current_room, fname in rows:
+            new_room = ""
+            # Attempt 1: Home Assistant area registry.
             area_id = _entity_areas.get(eid, "")
             if area_id:
-                norvelle_room = _areas_id_to_name.get(area_id, area_id)
-            # Essai 2 : extraire since friendly_name
-            if not norvelle_room and fname:
+                new_room = _areas_id_to_name.get(area_id, area_id)
+            # Attempt 2: infer from friendly name.
+            if not new_room and fname:
                 fn = fname.lower()
                 for p in _KNOWN_ROOMS_REFRESH:
                     if p in fn:
-                        norvelle_room = p
+                        new_room = p
                         break
-            if norvelle_room:
-                conn.execute("UPDATE entity_map SET room=? WHERE entity_id=?", (norvelle_room, eid))
-                mises_a_day += 1
-        if mises_a_day > 0:
+            if new_room:
+                conn.execute("UPDATE entity_map SET room=? WHERE entity_id=?", (new_room, eid))
+                updated_count += 1
+        if updated_count > 0:
             conn.commit()
-            log.info(f"🏠 {mises_a_day} rooms updated in mapping")
+            log.info(f"🏠 {updated_count} rooms updated in mapping")
         conn.close()
     except Exception as ex:
         log.error(f"Room update: {ex}")
@@ -2054,13 +2184,13 @@ def ha_get_area(entity_id):
 
 
 def _monitored_heat_pump_correlee(index, states):
-    """heat pump : alerts only on a real failure (not a cycle thermostat).
+    """Heat pump: alert only on a real failure, not a thermostat cycle.
     Stay silent if no heat pump is configured.
-    The thermostat naturally cycles on and off. Alert only if :
-    1. HP in OFF mode (not auto/heat) = manually disabled
-    2. Outdoor temperature < 3°C (real cold)
-    3. Indoor temperature < 17°C AND falling
-    → Cela signifie that the heat pump is off ET the home is cooling."""
+    The thermostat naturally cycles on and off. Alert only if:
+    1. Heat pump is OFF, not auto/heat, which usually means manually disabled.
+    2. Outdoor temperature < 3°C.
+    3. Indoor temperature < 17°C and falling.
+    This means the heat pump is off and the home is cooling."""
     if not role_get("heat_pump_climate"):
         return
     heat_pump_entity = None
@@ -2191,12 +2321,12 @@ def ha_get_context_intelligent(question, states=None):
                                 if "T" in str(date_str):
                                     dt_ev = datetime.fromisoformat(date_str.replace("Z", "+00:00")[:19])
                                     days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-                                    date_lisible = f"{days[dt_ev.weekday()]} {dt_ev.day}/{dt_ev.month} at {dt_ev.hour}:{dt_ev.minute:02d}"
+                                    readable_date = f"{days[dt_ev.weekday()]} {dt_ev.day}/{dt_ev.month} at {dt_ev.hour}:{dt_ev.minute:02d}"
                                 else:
-                                    date_lisible = str(date_str)
+                                    readable_date = str(date_str)
                             except Exception:
-                                date_lisible = str(date_str)
-                            lines.append(f"📅 CALENDAR {fname}: {summary} — {date_lisible}")
+                                readable_date = str(date_str)
+                            lines.append(f"📅 CALENDAR {fname}: {summary} — {readable_date}")
                         if not events:
                             lines.append(f"📅 CALENDAR {fname}: nothing in the next 72h")
                 except Exception as ex_ev:
@@ -2206,14 +2336,14 @@ def ha_get_context_intelligent(question, states=None):
 
     # ═══ BUILD CONTEXT ═══
     # Calendars FIRST (priority for daily questions)
-    cal_lignes = [l for l in lines if l.startswith("📅")]
-    others_lignes = [l for l in lines if not l.startswith("📅")]
-    lignes_ordata = cal_lignes + others_lignes
-    context = "Available data:\n" + "\n".join(lignes_ordata[:80]) if lignes_ordata else _ha_summary_generique(states)
+    calendar_lines = [l for l in lines if l.startswith("📅")]
+    other_lines = [l for l in lines if not l.startswith("📅")]
+    ordered_lines = calendar_lines + other_lines
+    context = "Available data:\n" + "\n".join(ordered_lines[:80]) if ordered_lines else _ha_summary_generique(states)
 
     memory_store_extra = []
 
-    # Baselines : compare the value_texts current values to habits
+    # Baselines: compare current values to habits.
     now = datetime.now()
     day = now.weekday()
     hour = now.hour
@@ -2251,7 +2381,7 @@ def ha_get_context_intelligent(question, states=None):
         ).fetchall()
         conn.close()
         if cycles:
-            memory_store_extra.append("DERNIERS CYCLES MACHINES :")
+            memory_store_extra.append("RECENT APPLIANCE CYCLES:")
             for fname, started_at, duration, consumption in cycles:
                 date = started_at[:10] if started_at else "?"
                 memory_store_extra.append(f"  {fname} — {date} | {duration}min | {consumption:.2f}kWh")
@@ -2272,24 +2402,24 @@ def ha_get_context_intelligent(question, states=None):
         price_now = rate_current_kwh_price()
         ttype = rate.get("type", "base")
         provider = rate.get("provider", "?")
-        est_we = _is_weekend_or_holiday()
-        info_rate = f"RATE: {provider} {ttype} | Price current: {price_now}€/kWh"
+        is_weekend_day = _is_weekend_or_holiday()
+        info_rate = f"RATE: {provider} {ttype} | Current price: {price_now}/kWh"
         if ttype in ("hphc", "weekend_hphc", "weekend_plus_hphc"):
-            hc = _is_off_peak_hour_ranges(rate.get("off_peak_hours", []))
-            info_rate += f" ({'HC' if hc else 'HP'})"
-        if est_we:
+            is_off_peak = _is_off_peak_hour_ranges(rate.get("off_peak_hours", []))
+            info_rate += f" ({'off-peak' if is_off_peak else 'peak'})"
+        if is_weekend_day:
             info_rate += " (weekend/holiday)"
         chosen_day = rate.get("chosen_day")
         if chosen_day is not None:
-            days = ['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim']
+            days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
             info_rate += f" | Selected day: {days[chosen_day]}"
         memory_store_extra.append(info_rate)
         # Summary rate of the month
         data_rate, nb_rate = skill_get("optimisation_rate")
         if data_rate and data_rate.get("total_kwh", 0) > 1:
             periods = data_rate.get("periods", {})
-            summary = " | ".join(f"{p}:{v['kwh']:.0f}kWh/{v['eur']:.1f}€" for p, v in periods.items())
-            memory_store_extra.append(f"SUMMARY RATE MONTH: {data_rate['total_kwh']:.0f}kWh {data_rate['total_eur']:.1f}€ | {summary}")
+            summary = " | ".join(f"{p}:{v['kwh']:.0f}kWh/{v['eur']:.1f}" for p, v in periods.items())
+            memory_store_extra.append(f"MONTHLY RATE SUMMARY: {data_rate['total_kwh']:.0f}kWh {data_rate['total_eur']:.1f} | {summary}")
     except Exception:
         pass
 
@@ -2335,9 +2465,9 @@ def ha_get_context_intelligent(question, states=None):
         if data_host and data_host.get("history"):
             last = data_host["history"][-1].get("metrics", {})
             ram = last.get("ram_mb", "?")
-            disque = last.get("disque_libre_mb", "?")
-            latence = last.get("latence_ha_ms", "?")
-            memory_store_extra.append(f"HOTE: RAM={ram}MB | Disque libre={disque}MB | Latence HA={latence}ms")
+            free_disk = last.get("disque_libre_mb", "?")
+            ha_latency = last.get("latence_ha_ms", "?")
+            memory_store_extra.append(f"HOST: RAM={ram}MB | Free disk={free_disk}MB | HA latency={ha_latency}ms")
     except Exception:
         pass
 
@@ -2346,10 +2476,10 @@ def ha_get_context_intelligent(question, states=None):
         if data_host and "last_mesure" in data_host:
             m = data_host["last_mesure"]
             ram = m.get("ram_pct", 0)
-            disque = m.get("disque_pct", 0)
-            if ram > 70 or disque > 80:
+            disk = m.get("disque_pct", 0)
+            if ram > 70 or disk > 80:
                 memory_store_extra.append(
-                    f"HOTE: RAM {ram:.0f}% | Disque {disque:.0f}% | "
+                    f"HOST: RAM {ram:.0f}% | Disk {disk:.0f}% | "
                     f"DB {m.get('db_kb', '?')}KB | Load {m.get('cpu_load5', '?')}"
                 )
     except Exception:
@@ -2367,16 +2497,16 @@ def ha_get_context_intelligent(question, states=None):
         eco_month = get_savings_month()
         if eco_month["nb_actions"] > 0:
             memory_store_extra.append(
-                f"SAVINGS MONTH EN COURS: {eco_month['total_eur']:.2f}€ | "
+                f"CURRENT MONTH SAVINGS: {eco_month['total_eur']:.2f} | "
                 f"{eco_month['total_kwh']:.1f} kWh | {eco_month['nb_actions']} actions"
             )
             for t, d in eco_month["by_type"].items():
-                memory_store_extra.append(f"  {t}: {d['eur']:.2f}€ ({d['nb']} actions)")
+                memory_store_extra.append(f"  {t}: {d['eur']:.2f} ({d['nb']} actions)")
         previous_month = (datetime.now().replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
         previous_savings = get_savings_month(previous_month)
         if previous_savings["nb_actions"] > 0:
             memory_store_extra.append(
-                f"SAVINGS MONTH PRECEDENT ({previous_month}): {previous_savings['total_eur']:.2f}€ | "
+                f"PREVIOUS MONTH SAVINGS ({previous_month}): {previous_savings['total_eur']:.2f} | "
                 f"{previous_savings['total_kwh']:.1f} kWh | {previous_savings['nb_actions']} actions"
             )
     except Exception:
@@ -2401,28 +2531,28 @@ def ha_get_context_intelligent(question, states=None):
                 proj_kwh = kwh_by_day * days_month
                 proj_eur = eur_by_day * days_month
 
-                # Grid subscription (~16€/month for 9kVA, ajustable)
+                # Grid subscription cost, adjustable by configuration.
                 subscription_monthly = CFG.get("grid_subscription_monthly", 16.0)
                 proj_total = proj_eur + subscription_monthly
 
                 memory_store_extra.append(
                     f"GRID BILL PROJECTION: "
-                    f"Consumption {current_day}j = {consumption_kwh:.0f} kWh / {consumption_eur:.1f}€ | "
-                    f"Projected month = {proj_kwh:.0f} kWh / {proj_eur:.1f}€ consumption + {subscription_monthly:.0f}€ subscription = ~{proj_total:.0f}€ total | "
-                    f"Average {kwh_by_day:.1f} kWh/day / {eur_by_day:.2f}€/day"
+                    f"Consumption day {current_day} = {consumption_kwh:.0f} kWh / {consumption_eur:.1f} | "
+                    f"Projected month = {proj_kwh:.0f} kWh / {proj_eur:.1f} consumption + {subscription_monthly:.0f} subscription = ~{proj_total:.0f} total | "
+                    f"Average {kwh_by_day:.1f} kWh/day / {eur_by_day:.2f}/day"
                 )
 
                 periods = data_rate.get("periods", {})
-                names_p = {"hp": "HP", "hc": "HC", "base": "Base", "weekday": "Weekday", "weekend_day": "WE/Selected day"}
+                period_names = {"hp": "Peak", "hc": "Off-peak", "base": "Base", "weekday": "Weekday", "weekend_day": "Weekend/selected day"}
                 for p, vals in periods.items():
                     pct = vals["kwh"] / consumption_kwh * 100 if consumption_kwh > 0 else 0
-                    memory_store_extra.append(f"  {names_p.get(p, p)}: {vals['kwh']:.0f} kWh ({pct:.0f}%) / {vals['eur']:.1f}€")
+                    memory_store_extra.append(f"  {period_names.get(p, p)}: {vals['kwh']:.0f} kWh ({pct:.0f}%) / {vals['eur']:.1f}")
 
                 # Solar
                 solar_kwh = data_rate.get("solar_kwh", 0)
                 if solar_kwh > 0:
                     eco_sol = solar_kwh * (consumption_eur / consumption_kwh if consumption_kwh > 0 else 0.20)
-                    memory_store_extra.append(f"  Solar self-consumed: {solar_kwh:.0f} kWh → ~{eco_sol:.1f}€ saved (no-billed)")
+                    memory_store_extra.append(f"  Solar self-consumed: {solar_kwh:.0f} kWh → ~{eco_sol:.1f} saved (not billed)")
     except Exception:
         pass
 
@@ -3252,7 +3382,7 @@ def _auto_heal(signature, message_error, occurrence_count=2, retry=False):
     if "] " in msg_clean:
         msg_clean = msg_clean.split("] ", 1)[-1]
 
-    # 1. Lire the script
+    # 1. Read the script.
     try:
         cfg_secret = CFG.get("deploy_secret", "")
         req_r = urllib.request.Request("http://localhost:8501/read")
@@ -3272,30 +3402,30 @@ def _auto_heal(signature, message_error, occurrence_count=2, retry=False):
         req_l.add_header("Authorization", f"Bearer {cfg_secret}")
         resp_l = urllib.request.urlopen(req_l, timeout=10)
         all_logs = json.loads(resp_l.read().decode()).get("lines", [])
-        # Filterr the errors + context
-        logs_recents = "\n".join([l for l in all_logs if "ERROR" in l or "error" in l.lower()][-20:])
-        if not logs_recents:
-            logs_recents = "\n".join(all_logs[-15:])
+        # Filter errors and nearby context.
+        recent_logs = "\n".join([l for l in all_logs if "ERROR" in l or "error" in l.lower()][-20:])
+        if not recent_logs:
+            recent_logs = "\n".join(all_logs[-15:])
     except Exception:
-        logs_recents = message_error
+        recent_logs = message_error
 
-    # 3. Extraire the context pertinent (not the 12K lines)
+    # 3. Extract the relevant context without sending the whole script.
     # Search the lines that contain the error pattern
     error_words = [m for m in msg_clean.split() if len(m) > 4][:5]
-    lignes_script = script_code.split("\n")
-    lignes_pertinentes = set()
-    for i, line in enumerate(lignes_script):
-        if any(mot in line for word in error_words):
-            for j in range(max(0, i-30), min(len(lignes_script), i+30)):
-                lignes_pertinentes.add(j)
+    script_lines_list = script_code.split("\n")
+    relevant_lines = set()
+    for i, line in enumerate(script_lines_list):
+        if any(word in line for word in error_words):
+            for j in range(max(0, i-30), min(len(script_lines_list), i+30)):
+                relevant_lines.add(j)
 
-    if not lignes_pertinentes:
-        context = "\n".join(f"L{i+1}: {l}" for i, l in enumerate(lignes_script[:500]))
+    if not relevant_lines:
+        context = "\n".join(f"L{i+1}: {l}" for i, l in enumerate(script_lines_list[:500]))
         context += "\n...\n"
-        context += "\n".join(f"L{i+1}: {l}" for i, l in enumerate(lignes_script[-500:], len(lignes_script)-500))
+        context += "\n".join(f"L{i+1}: {l}" for i, l in enumerate(script_lines_list[-500:], len(script_lines_list)-500))
     else:
-        indices = sorted(lignes_pertinentes)
-        context = "\n".join(f"L{i+1}: {lignes_script[i]}" for i in indices)
+        indices = sorted(relevant_lines)
+        context = "\n".join(f"L{i+1}: {script_lines_list[i]}" for i in indices)
 
     try:
         patch_prompt = (
@@ -3318,7 +3448,7 @@ def _auto_heal(signature, message_error, occurrence_count=2, retry=False):
         )
         user_patch = (
             f"RECURRING ERROR ({occurrence_count}x in 60s):\n{msg_clean[:300]}\n\n"
-            f"RECENT LOGS:\n{logs_recents[:1000]}\n\n"
+            f"RECENT LOGS:\n{recent_logs[:1000]}\n\n"
             f"SCRIPT CONTEXT (relevant lines):\n{context[:15000]}"
         )
         blocks, t_in, t_out = llm_provider.llm_completion(
@@ -3474,9 +3604,9 @@ def cmd_roi():
     report += f"\n💰 REAL SAVINGS ({nb_actions} actions)\n"
     for saving_type, info in eco_data.get("by_type", {}).items():
         type_labels = {
-            "cycle_solar": "☀️ Cycles solar",
-            "rate_optimal": "⚡ Optimization rate",
-            "surconsumption_evitee": "📉 Surconsumption evitee",
+            "cycle_solar": "☀️ Solar cycles",
+            "rate_optimal": "⚡ Rate optimization",
+            "surconsumption_evitee": "📉 Avoided overconsumption",
             "recommendation_applied": "💡 Recommendations",
         }
         label = type_labels.get(saving_type, saving_type)
@@ -3516,8 +3646,8 @@ def cmd_roi():
 
 
 def skill_suggestion_machine(states):
-    """Suggest the best moment for start a machine — based on the window solar.
-    Sans failures solars, the reminders programs fonctionnent mais not the suggestions solars."""
+    """Suggest the best time to run an appliance based on the solar window.
+    Without solar sensors, reminders still work but solar suggestions are disabled."""
     now = datetime.now()
     day = now.weekday()
     hour = now.hour
@@ -3606,21 +3736,21 @@ def skill_suggestion_machine(states):
         info_rate = ""
         if ttype in ("weekend", "weekend_hphc", "weekend_plus", "weekend_plus_hphc"):
             if _is_weekend_or_holiday() or _est_chosen_day(rate):
-                info_rate = f"\n💰 Reduced rate (WE/day choisi) : {price_now}€/kWh"
+                info_rate = f"\n💰 Reduced rate (weekend/selected day): {price_now}/kWh"
             else:
-                info_rate = f"\n💰 Weekday rate : {price_now}€/kWh"
+                info_rate = f"\n💰 Weekday rate: {price_now}/kWh"
         elif ttype == "hphc":
-            hc = _is_off_peak_hour_ranges(rate.get("off_peak_hours", []))
-            info_rate = f"\n💰 {'HC' if hc else 'HP'} : {price_now}€/kWh"
+            is_off_peak = _is_off_peak_hour_ranges(rate.get("off_peak_hours", []))
+            info_rate = f"\n💰 {'Off-peak' if is_off_peak else 'Peak'}: {price_now}/kWh"
 
         cov_pct = min(100, int(production_w / 2000 * 100))
         part_grid = max(0, 100 - cov_pct) / 100
         estimated_cost = round(1.5 * price_now * part_grid, 2)
         solar_saving = round(1.5 * price_now - estimated_cost, 2)
-        info_eco = f"\n💡 ~{cov_pct}% solar → ~{estimated_cost}€ grid, ~{solar_saving}€ saved"
+        info_eco = f"\n💡 ~{cov_pct}% solar → ~{estimated_cost} grid, ~{solar_saving} saved"
 
         telegram_send(
-            f"☀️ BON CRENEAU MACHINE\n"
+            f"☀️ GOOD APPLIANCE WINDOW\n"
             f"Solar production: {int(production_w)} W\n"
             f"Optimal slot ({days[day]} {best_hour}h) : ~{int(best_prod)} W typical"
             f"{info_rate}{info_eco}\n\n"
@@ -3628,7 +3758,7 @@ def skill_suggestion_machine(states):
         )
         mem_set("last_suggestion_machine", now.isoformat())
         mem_set("pending_hour_machine", "yes")
-        log.info(f"☀️ Suggestion machine : {best_hour}h, {int(best_prod)}W, {price_now}€/kWh")
+        log.info(f"☀️ Appliance suggestion: {best_hour}h, {int(best_prod)}W, {price_now}/kWh")
 
 
 def cmd_skills():
@@ -4135,7 +4265,7 @@ def cmd_intelligence():
 
     # Savings
     if s['saving'] > 0:
-        report += f"\n💰 SAVINGS ESTIMEES : {s['saving']:.2f}€ (cycles solar)\n"
+        report += f"\n💰 ESTIMATED SAVINGS: {s['saving']:.2f} (solar cycles)\n"
 
     report += f"\n🧠 {s['skills']} skills | {s['baselines']} baselines | {s['hypotheses']} hypotheses"
 
@@ -4897,14 +5027,14 @@ def _analysis_ia_periodique(states, index, now):
 
 
 def rate_cost_cycle(consumption_kwh, duration_min, started_at_iso=None):
-    """Calculate the full cycle cost, accounting for HP/HC overlap"""
+    """Calculate the full cycle cost, accounting for peak/off-peak overlap."""
     rate = rate_get()
 
     if rate.get("type") == "base":
         price = rate.get("price_kwh", 0.2516)
         return {
             "cost_total": round(consumption_kwh * price, 3),
-            "detail": f"{price}€/kWh (base)",
+            "detail": f"{price}/kWh (base)",
             "price_avg_kwh": price
         }
 
@@ -4934,11 +5064,11 @@ def rate_cost_cycle(consumption_kwh, duration_min, started_at_iso=None):
         price_ended_at = rate_current_kwh_price()
         price_avg = (price_started_at + price_ended_at) / 2
         cost = round(consumption_kwh * price_avg, 3)
-        detail_hp = f"HP:{rate.get('price_hp')}€" if not rate_is_off_peak_hour() else ""
-        detail_hc = f"HC:{rate.get('price_hc')}€" if rate_is_off_peak_hour() else ""
+        detail_hp = f"peak:{rate.get('price_hp')}" if not rate_is_off_peak_hour() else ""
+        detail_hc = f"off-peak:{rate.get('price_hc')}" if rate_is_off_peak_hour() else ""
         return {
             "cost_total": cost,
-            "detail": f"{price_avg:.4f}€/kWh ({detail_hp or detail_hc})",
+            "detail": f"{price_avg:.4f}/kWh ({detail_hp or detail_hc})",
             "price_avg_kwh": price_avg
         }
 
@@ -4947,13 +5077,13 @@ def rate_cost_cycle(consumption_kwh, duration_min, started_at_iso=None):
 
 def _rate_detect_off_peak_hours():
     """Automatically detects the off-peak hours in HA.
-    Supports: Lixee ZLinky, LinkYTIC, ESPHome TIC, HA-Linky, Ecojoko, all HC sensors.
+    Supports Home Assistant rate sensors and peak/off-peak indexes.
     If ranges cannot be found directly, enable auto-learning."""
     states = ha_get("states")
     if not states:
         return None
 
-    hc_confirmee = False  # Le contract is HP/HC (not base)
+    off_peak_confirmed = False  # The contract has peak/off-peak pricing, not a single base rate.
     ptec_entity = None    # Current rate period entity
 
     for e in states:
@@ -4977,19 +5107,19 @@ def _rate_detect_off_peak_hours():
                                          "current_rate", "rate_index"]):
             ptec_entity = eid
             if "hc" in state.lower():
-                hc_confirmee = True
+                off_peak_confirmed = True
 
-        # ═══ 3. Index HCHC/HCHP index confirms off-peak subscription ═══
+        # ═══ 3. Cumulative peak/off-peak indexes confirm the subscription ═══
         if any(kw in eid_low for kw in ["hchc", "hchp", "index_hc", "index_hp",
                                          "consumption_hc", "consumption_hp",
                                          "off_peak_hours_index", "peak_hours_index"]):
-            hc_confirmee = True
+            off_peak_confirmed = True
 
         if "ecojoko" in eid_low and ("_hc_" in eid_low or "_hp_" in eid_low):
-            hc_confirmee = True
+            off_peak_confirmed = True
 
-        # ═══ 5. Attribute Linky / ZLinky with ranges in the attributes ═══
-        if any(kw in eid_low for kw in ["linky", "zlinky", "lixee", "teleinfo"]):
+        # ═══ 5. Attributes with ranges in the sensor metadata ═══
+        if any(kw in eid_low for kw in ["current_rate", "rate_period", "tariff", "teleinfo"]):
             for k, v in attrs.items():
                 v_str = str(v)
                 if ":" in v_str and "-" in v_str and any(h in v_str for h in ["22:", "23:", "06:", "07:"]):
@@ -4997,22 +5127,22 @@ def _rate_detect_off_peak_hours():
                     if ranges:
                         return ranges
 
-    if hc_confirmee:
+    if off_peak_confirmed:
         # Save information for learning
-        mem_set("rate_hc_confirmee", "yes")
+        mem_set("rate_off_peak_confirmed", "yes")
         if ptec_entity:
             mem_set("rate_ptec_entity", ptec_entity)
-            # Start learning HC ranges
+            # Start learning off-peak ranges.
             mem_set("rate_learn_off_peak", "yes")
             log.info(f"🔍 Off-peak confirmed via {ptec_entity} — range learning activated")
         else:
-            log.info("🔍 Off-peak confirmed (HCHC/HP index) but no real-time PTEC sensor")
+            log.info("🔍 Off-peak confirmed by cumulative indexes, but no real-time period sensor was found")
 
     return None
 
 
 def _rate_learn_off_peak_ranges(states):
-    """Learn HC ranges by observing PTEC transitions.
+    """Learn off-peak ranges by observing period transitions.
     Called every 5 minutes by monitoring. Deduces exact ranges within 24h."""
     if mem_get("rate_learn_off_peak") != "yes":
         return
@@ -5033,10 +5163,10 @@ def _rate_learn_off_peak_ranges(states):
     # Store each peak/off-peak observation by hour
     data, nb = skill_get("learning_hc")
     if not data:
-        data = {"observations": {}, "ranges_deduites": []}
+        data = {"observations": {}, "deduced_ranges": []}
 
-    minute_arrondie = 0 if now.minute < 30 else 30
-    key_name = f"{now.hour:02d}:{minute_arrondie:02d}"
+    rounded_minute = 0 if now.minute < 30 else 30
+    key_name = f"{now.hour:02d}:{rounded_minute:02d}"
 
     is_off_peak = "hc" in state
     if key_name not in data["observations"]:
@@ -5045,38 +5175,38 @@ def _rate_learn_off_peak_ranges(states):
 
     nb_obs = sum(v["hc"] + v["hp"] for v in data["observations"].values())
     if nb_obs >= 48:
-        # Build the ranges HC
-        hours_hc = []
+        # Build the off-peak ranges.
+        off_peak_hours = []
         for h_str in sorted(data["observations"].keys()):
             obs = data["observations"][h_str]
             if obs["hc"] > obs["hp"]:
-                hours_hc.append(h_str)
+                off_peak_hours.append(h_str)
 
-        if hours_hc:
-            # Convert to continuors ranges
-            ranges = _build_ranges(hours_hc)
-            data["ranges_deduites"] = ranges
+        if off_peak_hours:
+            # Convert to continuous ranges.
+            ranges = _build_ranges(off_peak_hours)
+            data["deduced_ranges"] = ranges
 
-            # Appliquer at the rate
+            # Apply to the active rate.
             rate = rate_get()
             if rate and "type" in rate:
                 rate["off_peak_hours"] = ranges
                 rate["hc_source"] = "auto_learned"
                 rate["configured_at"] = now.isoformat()
                 skill_set("pricing", rate)
-                mem_set("rate_learn_off_peak", "termine")
+                mem_set("rate_learn_off_peak", "done")
                 telegram_send(
-                    f"🧠 Off-peak hours auto-applied !\n"
+                    f"🧠 Off-peak hours auto-applied!\n"
                     f"Detected ranges: {', '.join(ranges)}\n"
-                    f"Source : observation PTEC on 24h"
+                    f"Source: 24h period observation"
                 )
-                log.info(f"🧠 HC auto-applied : {ranges}")
+                log.info(f"🧠 Off-peak ranges auto-applied: {ranges}")
 
     skill_set("learning_hc", data, nb + 1)
 
 
 def _build_ranges(hours_hc):
-    """Convert an HC hour list ['22:00', '22:30', '23:00', ...] en ranges ['22:00-06:00']"""
+    """Convert an off-peak hour list like ['22:00', '22:30'] into ranges like ['22:00-06:00']."""
     if not hours_hc:
         return []
 
@@ -5110,26 +5240,166 @@ def _build_ranges(hours_hc):
     return result
 
 
-def rate_configure_questionnaire():
-    """Start the questionnaire of configuration rate on Telegram"""
-    if not str(CFG.get("telegram_chat_id", "")).strip():
-        log.info("Rate questionnaire deferred until Telegram chat_id is known.")
-        return
-    mem_set("pending_rate_step", "provider")
-    list = []
+def _rate_source_menu():
+    return (
+        "⚡ ELECTRICITY RATE SETUP\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "How should I get your electricity price?\n\n"
+        "  1 → Read Home Assistant Energy / price sensors\n"
+        "  2 → Enter my known rate manually\n"
+        "  3 → Choose a preset provider or plan\n\n"
+        "Reply with 1, 2, or 3. You can also reply cancel."
+    )
+
+
+def _rate_provider_menu():
+    lines = []
     idx = 1
     for key_name, provider in PROVIDERS.items():
         if key_name != "other":
-            list.append(f"  {idx} → {provider['name']}")
+            lines.append(f"  {idx} → {provider['name']}")
             idx += 1
-    list.append(f"  {idx} → Other provider")
-
-    telegram_send(
-        "⚡ ELECTRICITY RATE CONFIGURATION\n"
+    lines.append(f"  {idx} → Other provider")
+    return (
+        "⚡ PRESET ELECTRICITY PROVIDERS\n"
         "━━━━━━━━━━━━━━━━━━\n"
-        "Which is your provider ?\n\n" +
-        "\n".join(list)
+        "These presets are optional. If your provider is not listed, reply Other or use manual entry.\n\n"
+        + "\n".join(lines)
     )
+
+
+def _parse_rate_price(text):
+    cleaned = (
+        str(text).lower()
+        .replace("$", "")
+        .replace("usd", "")
+        .replace("eur", "")
+        .replace("€", "")
+        .replace("/kwh", "")
+        .replace(",", ".")
+        .strip()
+    )
+    try:
+        value = float(cleaned)
+        if 0 < value < 10:
+            return value
+    except ValueError:
+        pass
+    return None
+
+
+def _currency_from_unit(unit):
+    unit = str(unit or "").strip()
+    if "/" in unit:
+        return unit.split("/", 1)[0].strip() or "currency"
+    if "$" in unit:
+        return "$"
+    if "€" in unit or "eur" in unit.lower():
+        return "€"
+    return "currency"
+
+
+def _rate_price_candidates_from_ha(states, energy_ids):
+    candidates = []
+    for entity in states or []:
+        eid = entity.get("entity_id", "")
+        if not eid.startswith("sensor."):
+            continue
+        price = _parse_rate_price(entity.get("state"))
+        if price is None:
+            continue
+        attrs = entity.get("attributes", {})
+        fname = attrs.get("friendly_name", eid)
+        unit = attrs.get("unit_of_measurement", "")
+        combined = f"{eid} {fname} {unit}".lower()
+        if "kwh" not in combined:
+            continue
+        if not any(word in combined for word in ("price", "rate", "tariff", "cost", "electricity", "energy")):
+            continue
+        priority = 0 if eid in energy_ids else 5
+        if "current" in combined or "now" in combined:
+            priority -= 1
+        if "total" in combined or "month" in combined or "daily" in combined:
+            priority += 3
+        candidates.append({
+            "entity_id": eid,
+            "name": fname,
+            "price": price,
+            "currency": _currency_from_unit(unit),
+            "text": combined,
+            "priority": priority,
+        })
+    return sorted(candidates, key=lambda c: (c["priority"], c["entity_id"]))
+
+
+def _rate_configure_from_ha_energy():
+    states = ha_get("states") or []
+    energy_ids = _ha_energy_entity_ids()
+    candidates = _rate_price_candidates_from_ha(states, energy_ids)
+    if not candidates:
+        telegram_send(
+            "⚠️ I could not find an electricity price sensor in Home Assistant Energy.\n\n"
+            "You can still reply 2 to enter your known rate manually, or 3 to choose a preset."
+        )
+        return True
+
+    peak = next((c for c in candidates if "peak" in c["text"] and "off" not in c["text"]), None)
+    off_peak = next((c for c in candidates if "off peak" in c["text"] or "off_peak" in c["text"] or "offpeak" in c["text"]), None)
+    if peak and off_peak:
+        ranges = _rate_detect_off_peak_hours() or []
+        data = {
+            "type": "hphc",
+            "provider": "Home Assistant Energy",
+            "name": "Detected peak/off-peak price sensors",
+            "price_hp": peak["price"],
+            "price_hc": off_peak["price"],
+            "price_hp_entity_id": peak["entity_id"],
+            "price_hc_entity_id": off_peak["entity_id"],
+            "currency": peak["currency"],
+            "source": "ha_energy",
+            "configured_at": datetime.now().isoformat(),
+        }
+        if ranges:
+            data["off_peak_hours"] = ranges
+        skill_set("pricing", data)
+        mem_set("pending_rate_step", "")
+        msg = (
+            "✅ Rate configured from Home Assistant Energy\n"
+            f"Peak: {peak['price']} {peak['currency']}/kWh ({peak['name']})\n"
+            f"Off-peak: {off_peak['price']} {off_peak['currency']}/kWh ({off_peak['name']})"
+        )
+        if ranges:
+            msg += f"\nOff-peak hours: {', '.join(ranges)}"
+        telegram_send(msg)
+        return True
+
+    best = candidates[0]
+    data = {
+        "type": "base",
+        "provider": "Home Assistant Energy",
+        "name": best["name"],
+        "price_kwh": best["price"],
+        "price_entity_id": best["entity_id"],
+        "currency": best["currency"],
+        "source": "ha_energy",
+        "configured_at": datetime.now().isoformat(),
+    }
+    skill_set("pricing", data)
+    mem_set("pending_rate_step", "")
+    telegram_send(
+        "✅ Rate configured from Home Assistant Energy\n"
+        f"{best['name']}: {best['price']} {best['currency']}/kWh"
+    )
+    return True
+
+
+def rate_configure_questionnaire():
+    """Start the electricity rate questionnaire on Telegram."""
+    if not str(CFG.get("telegram_chat_id", "")).strip():
+        log.info("Rate questionnaire deferred until Telegram chat_id is known.")
+        return
+    mem_set("pending_rate_step", "source")
+    telegram_send(_rate_source_menu())
 
 
 def rate_handle_response(text):
@@ -5139,6 +5409,33 @@ def rate_handle_response(text):
         return False
 
     t = text.strip().lower()
+
+    if t in ("cancel", "stop", "no"):
+        mem_set("pending_rate_step", "")
+        telegram_send("❌ Rate configuration cancelled.")
+        return True
+
+    if step == "source":
+        if t in ("1", "ha", "home assistant", "home assistant energy", "energy", "auto"):
+            return _rate_configure_from_ha_energy()
+        if t in ("2", "manual", "known", "known rate"):
+            mem_set("rate_temp_provider", "manual")
+            mem_set("rate_temp_provider_name", "Manual")
+            mem_set("pending_rate_step", "custom_type")
+            telegram_send(
+                "⚡ Manual electricity rate\n"
+                "━━━━━━━━━━━━━━━━━━\n"
+                "What type of rate do you have?\n"
+                "  1 → Single price per kWh\n"
+                "  2 → Peak/off-peak prices"
+            )
+            return True
+        if t in ("3", "preset", "provider", "plan"):
+            mem_set("pending_rate_step", "provider")
+            telegram_send(_rate_provider_menu())
+            return True
+        telegram_send("Please reply with 1, 2, or 3.\n\n" + _rate_source_menu())
+        return True
 
     if step == "provider":
         key_names = [c for c in PROVIDERS.keys() if c != "other"]
@@ -5150,7 +5447,7 @@ def rate_handle_response(text):
             elif num == len(key_names) + 1:
                 idx = "other"
         except ValueError:
-            # Par name
+            # By name
             for c, f in PROVIDERS.items():
                 if t in c or t in f["name"].lower():
                     idx = c
@@ -5159,7 +5456,7 @@ def rate_handle_response(text):
         if idx == "other":
             mem_set("rate_temp_provider", "other")
             mem_set("pending_rate_step", "custom_provider")
-            telegram_send("🏢 Name of your provider ?")
+            telegram_send("🏢 What is the name of your electricity provider?")
             return True
 
         if idx is None:
@@ -5169,20 +5466,20 @@ def rate_handle_response(text):
         provider = PROVIDERS[idx]
         mem_set("rate_temp_provider", idx)
 
-        # Listr the offers
+        # List the offers
         offers = provider["offers"]
         if len(offers) == 1:
             offer_key_name = list(offers.keys())[0]
             return _rate_apply_offer(idx, offer_key_name)
 
-        msg = f"⚡ {provider['name']} — Which offer ?\n\n"
+        msg = f"⚡ {provider['name']} — Which plan?\n\n"
         for i, (key_name, offer) in enumerate(offers.items(), 1):
             if offer["type"] == "base":
-                msg += f"  {i} → {offer['name']} ({offer.get('price_kwh', '?')}€/kWh)\n"
+                msg += f"  {i} → {offer['name']} ({offer.get('price_kwh', '?')}/kWh)\n"
             elif offer["type"] == "hphc":
-                msg += f"  {i} → {offer['name']} (HP:{offer.get('price_hp')}€ / HC:{offer.get('price_hc')}€)\n"
+                msg += f"  {i} → {offer['name']} (peak: {offer.get('price_hp')} / off-peak: {offer.get('price_hc')})\n"
             elif offer["type"] == "tempo":
-                msg += f"  {i} → {offer['name']} (Blue HC:{offer.get('price_blue_hc')}€)\n"
+                msg += f"  {i} → {offer['name']} (blue off-peak: {offer.get('price_blue_hc')})\n"
             else:
                 msg += f"  {i} → {offer['name']}\n"
         mem_set("pending_rate_step", "offer")
@@ -5190,45 +5487,49 @@ def rate_handle_response(text):
         return True
 
     if step == "custom_provider":
-        mem_set("rate_temp_provider_name", text.strip())
+        mem_set("rate_temp_provider_name", text.strip() or "Manual")
         mem_set("pending_rate_step", "custom_type")
-        telegram_send("Subscription type ?\n  1 → Base (single price)\n  2 → HP/HC")
+        telegram_send("Rate type?\n  1 → Single price per kWh\n  2 → Peak/off-peak prices")
         return True
 
     if step == "custom_type":
         if t in ("1", "base"):
             mem_set("pending_rate_step", "custom_price")
             mem_set("rate_temp_type", "base")
-            telegram_send("💰 Price per kWh, tax included ?\nExample : 0.2516")
+            telegram_send("💰 What is your price per kWh?\nExample: 0.162")
         else:
             mem_set("pending_rate_step", "custom_hp")
             mem_set("rate_temp_type", "hphc")
-            telegram_send("💰 Price Peak hours (€/kWh tax included) ?")
+            telegram_send("💰 Peak price per kWh?\nExample: 0.241")
         return True
 
     if step == "custom_price":
         try:
-            price = float(t.replace(",", ".").replace("€", "").strip())
+            price = _parse_rate_price(t)
+            if price is None:
+                raise ValueError("invalid price")
             data = {
                 "type": "base",
-                "provider": mem_get("rate_temp_provider_name") or "Inconnu",
+                "provider": mem_get("rate_temp_provider_name") or "Manual",
                 "price_kwh": price,
                 "configured_at": datetime.now().isoformat()
             }
             skill_set("pricing", data)
             mem_set("pending_rate_step", "")
-            telegram_send(f"✅ Rate configuredd\n{data['provider']} Base: {price}€/kWh")
+            telegram_send(f"✅ Rate configured\n{data['provider']} single price: {price}/kWh")
             return True
         except Exception:
-            telegram_send("Invalid format. Example : 0.2516")
+            telegram_send("Invalid format. Example: 0.162")
             return True
 
     if step == "custom_hp":
         try:
-            price = float(t.replace(",", ".").replace("€", "").strip())
+            price = _parse_rate_price(t)
+            if price is None:
+                raise ValueError("invalid price")
             mem_set("rate_temp_hp", str(price))
             mem_set("pending_rate_step", "custom_hc")
-            telegram_send(f"✅ HP : {price}€\n💰 Price Off-peak hours (€/kWh tax included) ?")
+            telegram_send(f"✅ Peak price: {price}/kWh\n💰 Off-peak price per kWh?")
             return True
         except Exception:
             telegram_send("Invalid format.")
@@ -5236,10 +5537,12 @@ def rate_handle_response(text):
 
     if step == "custom_hc":
         try:
-            price_hc = float(t.replace(",", ".").replace("€", "").strip())
+            price_hc = _parse_rate_price(t)
+            if price_hc is None:
+                raise ValueError("invalid price")
             mem_set("rate_temp_hc", str(price_hc))
             mem_set("pending_rate_step", "custom_ranges")
-            telegram_send("🕐 Off-peak hour ranges ?\nExample : 22:00-06:00")
+            telegram_send("🕐 Off-peak hour ranges?\nExample: 22:00-06:00")
             return True
         except Exception:
             telegram_send("Invalid format.")
@@ -5248,11 +5551,11 @@ def rate_handle_response(text):
     if step == "custom_ranges":
         ranges = [p.strip() for p in t.replace(" ", "").split(",") if "-" in p]
         if not ranges:
-            telegram_send("Invalid format. Example : 22:00-06:00")
+            telegram_send("Invalid format. Example: 22:00-06:00")
             return True
         data = {
             "type": "hphc",
-            "provider": mem_get("rate_temp_provider_name") or "Inconnu",
+            "provider": mem_get("rate_temp_provider_name") or "Manual",
             "price_hp": float(mem_get("rate_temp_hp") or "0.27"),
             "price_hc": float(mem_get("rate_temp_hc") or "0.2068"),
             "off_peak_hours": ranges,
@@ -5261,10 +5564,10 @@ def rate_handle_response(text):
         skill_set("pricing", data)
         mem_set("pending_rate_step", "")
         telegram_send(
-            f"✅ HP/HC rate configured\n"
+            f"✅ Peak/off-peak rate configured\n"
             f"{data['provider']}\n"
-            f"HP : {data['price_hp']}€ | HC : {data['price_hc']}€\n"
-            f"HC ranges : {', '.join(ranges)}"
+            f"Peak: {data['price_hp']}/kWh | Off-peak: {data['price_hc']}/kWh\n"
+            f"Off-peak hours: {', '.join(ranges)}"
         )
         return True
 
@@ -5295,7 +5598,7 @@ def rate_handle_response(text):
         return _rate_apply_offer(provider_key_name, idx)
 
     if step == "chosen_day":
-        days_map = {"1": 0, "Monday": 0, "2": 2, "Wednesday": 2, "3": 4, "Friday": 4}
+        days_map = {"1": 0, "monday": 0, "2": 2, "wednesday": 2, "3": 4, "friday": 4}
         day = days_map.get(t)
         if day is None:
             telegram_send("Reply 1 (Monday), 2 (Wednesday) or 3 (Friday)")
@@ -5305,38 +5608,33 @@ def rate_handle_response(text):
         rate_in_progress["chosen_day"] = day
         days_names = {0: "Monday", 2: "Wednesday", 4: "Friday"}
 
-        # If HP/HC → ask the off-peak hours
+        # If peak/off-peak pricing applies, ask for the off-peak hours.
         if "hphc" in rate_in_progress.get("type", ""):
             mem_set("rate_temp_data", json.dumps(rate_in_progress))
             mem_set("pending_rate_step", "off_peak_hours")
             telegram_send(
-                f"✅ Selected day : {days_names[day]}\n\n"
-                f"🕐 Your off-peak hour ranges ?\nExample : 22:00-06:00"
+                f"✅ Selected day: {days_names[day]}\n\n"
+                f"🕐 Your off-peak hour ranges?\nExample: 22:00-06:00"
             )
             return True
 
-        # Sino c'is ended_ati
+        # Otherwise this setup is complete.
         rate_in_progress["configured_at"] = datetime.now().isoformat()
         skill_set("pricing", rate_in_progress)
         mem_set("pending_rate_step", "")
         telegram_send(
             f"✅ Rate configured\n"
             f"{rate_in_progress.get('provider', '')} — {rate_in_progress.get('name', '')}\n"
-            f"Selected day : {days_names[day]}\n"
-            f"Weekday: {rate_in_progress.get('price_weekday', '?')}€\n"
-            f"Weekend plus selected day : {rate_in_progress.get('price_weekend_day', '?')}€"
+            f"Selected day: {days_names[day]}\n"
+            f"Weekday: {rate_in_progress.get('price_weekday', '?')}/kWh\n"
+            f"Weekend plus selected day: {rate_in_progress.get('price_weekend_day', '?')}/kWh"
         )
-        return True
-
-    if t in ("cancel", "stop", "cancel", "no"):
-        mem_set("pending_rate_step", "")
-        telegram_send("❌ Rate configuration cancelled.")
         return True
 
     if step == "off_peak_hours":
         ranges = [p.strip() for p in t.replace(" ", "").split(",") if "-" in p]
         if not ranges:
-            telegram_send("Invalid format. Example : 22:00-06:00")
+            telegram_send("Invalid format. Example: 22:00-06:00")
             return True
 
         rate_in_progress = json.loads(mem_get("rate_temp_data") or "{}")
@@ -5348,8 +5646,8 @@ def rate_handle_response(text):
         telegram_send(
             f"✅ Rate configured\n"
             f"{rate_in_progress.get('provider', '')} — {rate_in_progress.get('name', '')}\n"
-            f"HP : {rate_in_progress.get('price_hp')}€ | HC : {rate_in_progress.get('price_hc')}€\n"
-            f"HC ranges : {', '.join(ranges)}"
+            f"Peak: {rate_in_progress.get('price_hp')} | Off-peak: {rate_in_progress.get('price_hc')}\n"
+            f"Off-peak hours: {', '.join(ranges)}"
         )
         return True
 
@@ -5358,7 +5656,7 @@ def rate_handle_response(text):
 
 
 def _rate_apply_offer(provider_key_name, offer_key_name):
-    """Applies a known provider offer with prefilled rates"""
+    """Apply a preset provider offer with prefilled rates."""
     provider = PROVIDERS[provider_key_name]
     offer = provider["offers"][offer_key_name]
     name_f = provider["name"]
@@ -5377,7 +5675,7 @@ def _rate_apply_offer(provider_key_name, offer_key_name):
         telegram_send(
             f"✅ Rate configured automatically\n"
             f"{name_f} — {offer['name']}\n"
-            f"Price : {offer['price_kwh']}€/kWh tax included"
+            f"Price: {offer['price_kwh']}/kWh"
         )
         return True
 
@@ -5399,7 +5697,7 @@ def _rate_apply_offer(provider_key_name, offer_key_name):
             mem_set("pending_rate_step", "")
             telegram_send(
                 f"✅ {name_f} — {offer['name']}\n"
-                f"HP : {offer['price_hp']}€ | HC : {offer['price_hc']}€\n"
+                f"Peak: {offer['price_hp']} | Off-peak: {offer['price_hc']}\n"
                 f"🕐 Auto-detected off-peak hours: {', '.join(hc_auto)}"
             )
         else:
@@ -5407,10 +5705,10 @@ def _rate_apply_offer(provider_key_name, offer_key_name):
             mem_set("pending_rate_step", "off_peak_hours")
             telegram_send(
                 f"✅ {name_f} — {offer['name']}\n"
-                f"HP : {offer['price_hp']}€ | HC : {offer['price_hc']}€\n\n"
-                f"🕐 Off-peak hours no found in HA.\n"
-                f"Check your Linky meter (plus button) or bill.\n"
-                f"Example : 22:00-06:00"
+                f"Peak: {offer['price_hp']} | Off-peak: {offer['price_hc']}\n\n"
+                f"🕐 Off-peak hours were not found in Home Assistant.\n"
+                f"Check your utility meter or bill.\n"
+                f"Example: 22:00-06:00"
             )
         return True
 
@@ -5431,10 +5729,10 @@ def _rate_apply_offer(provider_key_name, offer_key_name):
         mem_set("pending_rate_step", "off_peak_hours")
         telegram_send(
             f"✅ {name_f} — {offer['name']}\n"
-            f"Blue : HP {offer['price_blue_hp']}€ / HC {offer['price_blue_hc']}€\n"
-            f"White : HP {offer['price_white_hp']}€ / HC {offer['price_white_hc']}€\n"
-            f"Red : HP {offer['price_red_hp']}€ / HC {offer['price_red_hc']}€\n\n"
-            f"🕐 Your off-peak hour ranges ?\nExample : 22:00-06:00"
+            f"Blue: peak {offer['price_blue_hp']} / off-peak {offer['price_blue_hc']}\n"
+            f"White: peak {offer['price_white_hp']} / off-peak {offer['price_white_hc']}\n"
+            f"Red: peak {offer['price_red_hp']} / off-peak {offer['price_red_hc']}\n\n"
+            f"🕐 Your off-peak hour ranges?\nExample: 22:00-06:00"
         )
         return True
 
@@ -5455,7 +5753,7 @@ def _rate_apply_offer(provider_key_name, offer_key_name):
             telegram_send(
                 f"✅ {name_f} — {offer['name']}\n"
                 f"Rates prefilled automatically.\n\n"
-                f"📅 Which selected weekday ?\n"
+                f"📅 Which extra weekday should use the lower rate?\n"
                 f"  1 → Monday\n  2 → Wednesday\n  3 → Friday"
             )
             return True
@@ -5466,7 +5764,7 @@ def _rate_apply_offer(provider_key_name, offer_key_name):
             telegram_send(
                 f"✅ {name_f} — {offer['name']}\n"
                 f"Rates prefilled.\n\n"
-                f"🕐 Your off-peak hour ranges ?\nExample : 22:00-06:00"
+                f"🕐 Your off-peak hour ranges?\nExample: 22:00-06:00"
             )
             return True
 
@@ -5475,7 +5773,7 @@ def _rate_apply_offer(provider_key_name, offer_key_name):
         mem_set("pending_rate_step", "")
         telegram_send(
             f"✅ Rate configured\n{name_f} — {offer['name']}\n"
-            f"Weekday: {data.get('price_weekday', '?')}€ | Weekend+holidays: {data.get('price_weekend', '?')}€"
+            f"Weekday: {data.get('price_weekday', '?')}/kWh | Weekend and holidays: {data.get('price_weekend', '?')}/kWh"
         )
         return True
 
@@ -5505,26 +5803,37 @@ def cmd_rate():
     is_off_peak = rate_is_off_peak_hour()
 
     report = "⚡ ELECTRICITY RATE\n━━━━━━━━━━━━━━━━━━\n"
-    report += f"Provider : {rate.get('provider', 'EDF')}\n"
-    report += f"Type : {rate.get('type', 'base')}\n"
+    type_label = {
+        "base": "single price",
+        "hphc": "peak/off-peak",
+        "tempo": "variable color-day",
+        "weekend": "weekend",
+        "weekend_hphc": "weekend peak/off-peak",
+        "weekend_plus": "weekend plus",
+        "weekend_plus_hphc": "weekend plus peak/off-peak",
+    }.get(rate.get("type", "base"), rate.get("type", "base"))
+    currency = rate.get("currency", "")
+    unit = f" {currency}/kWh" if currency else "/kWh"
+    report += f"Provider: {rate.get('provider', 'Manual')}\n"
+    report += f"Type: {type_label}\n"
 
     if rate.get("type") == "hphc":
-        report += f"HP : {rate.get('price_hp')}€/kWh\n"
-        report += f"HC : {rate.get('price_hc')}€/kWh\n"
-        report += f"HC ranges : {', '.join(rate.get('off_peak_hours', []))}\n"
-        report += f"\nCurrent period: {'🔵 HC' if is_off_peak else '🔴 HP'} — {current_price}€/kWh"
+        report += f"Peak price: {rate.get('price_hp')}{unit}\n"
+        report += f"Off-peak price: {rate.get('price_hc')}{unit}\n"
+        report += f"Off-peak ranges: {', '.join(rate.get('off_peak_hours', []))}\n"
+        report += f"\nCurrent period: {'🔵 off-peak' if is_off_peak else '🔴 peak'} — {current_price}{unit}"
     else:
-        report += f"Price : {rate.get('price_kwh', current_price)}€/kWh\n"
+        report += f"Price: {rate.get('price_kwh', current_price)}{unit}\n"
 
     if rate.get("configured_at"):
         report += f"\nConfigured on: {rate['configured_at'][:10]}"
 
-    report += "\n\nTo modify : /rate config"
+    report += "\n\nTo modify: /rate config"
     return report
 
 
 def skill_dynamic_collect(states):
-    """Execute all the skills dynamic enregistrees"""
+    """Run all registered dynamic skills."""
     conn = sqlite3.connect(DB_PATH)
     rows = conn.execute(
         "SELECT name, data FROM skills WHERE name LIKE 'dyn_%'"
@@ -5601,19 +5910,19 @@ def skill_create_auto(question, states):
     nb_dyn = conn.execute("SELECT COUNT(*) FROM skills WHERE name LIKE 'dyn_%'").fetchone()[0]
     conn.close()
     if nb_dyn >= 10:
-        return None  # Max 10 skills dynamic
+        return None  # Max 10 dynamic skills.
 
     prompt = (
         "You are the user's home automation assistant.\n"
-        "Il pose cette question : \"" + question + "\"\n\n"
-        "Shorld your create a new monitoring skill for future requests ?\n"
+        "The user asked this question: \"" + question + "\"\n\n"
+        "Should you create a new monitoring skill for future requests?\n"
         "A skill monitors Home Assistant entities and learns a pattern.\n\n"
-        "Reply ONLY in JSON :\n"
-        "If NO : {\"create\": false}\n"
-        "If YES : {\"create\": true, \"name\": \"dyn_name_short\", \"description\": \"what it does\", "
+        "Reply ONLY in JSON:\n"
+        "If NO: {\"create\": false}\n"
+        "If YES: {\"create\": true, \"name\": \"dyn_name_short\", \"description\": \"what it does\", "
         "\"entities\": [\"sensor.xxx\", \"sensor.yyy\"], \"action\": \"collect\", \"threshold\": null}\n\n"
-        "Possible actions : collect (history), alert (threshold exceeded), compare (ratio 2 entities).\n"
-        "IMPORTANT : the entities doivent exister in Home Assistant.\n"
+        "Possible actions: collect (history), alert (threshold exceeded), compare (ratio between 2 entities).\n"
+        "IMPORTANT: the entities must exist in Home Assistant.\n"
         "Reply with JUST the JSON, nothing else."
     )
 
@@ -5842,7 +6151,7 @@ def cmd_energy(detail=False):
                 duration = f" ({mins} min)"
             active_cycles.append(f"{fname}{duration}")
     if active_cycles:
-        report += "\n🔄 CYCLES EN COURS\n"
+        report += "\n🔄 ACTIVE CYCLES\n"
         for c in active_cycles:
             report += f"  ▶️ {c}\n"
 
@@ -5941,7 +6250,7 @@ def cmd_energy(detail=False):
 
 
 def cmd_solar():
-    # No failures → message clair
+    # No failures -> clear message.
     if not role_get("solar_production_w"):
         return "☀️ No solar panels detected.\nIf your just installed panels, run /scan to detect them."
 
@@ -6071,7 +6380,7 @@ def cmd_zigbee():
             report += f"  LQI={lqi} — {fname}{room_str}\n"
 
     if bons or excellents:
-        report += f"\n✅ LQI BON 51-100 : {len(bons)} devices"
+        report += f"\n✅ Good LQI 51-100: {len(bons)} devices"
         report += f"\n✅ LQI EXCELLENT >100 : {len(excellents)} devices\n"
 
     # Top 5 meiltheir and 5 pires (online)
@@ -6272,7 +6581,7 @@ def cmd_scan():
 
         states = ha_get("states")
         if not states:
-            telegram_send("❌ Scan impossible — HA unreachable")
+            telegram_send("❌ Scan cannot run — Home Assistant is unreachable")
             return ""
         nb_entities = len(states)
         index = {e["entity_id"]: e for e in states}
@@ -6350,7 +6659,7 @@ def cmd_calendar():
                 report += f"\n  ⏰ {start[:16]} → {end[:16] if end else '?'}"
         elif state == "off":
             if message:
-                report += f"\n  Prochain : {message}"
+                report += f"\n  Next: {message}"
                 if start:
                     report += f" ({start[:16]})"
             else:
@@ -6453,16 +6762,16 @@ def cmd_profile():
         return "👥 Profile not configured — questionnaire launched!"
 
     labels = {
-        "household_personnes": "👥 Personnes",
+        "household_people": "👥 People",
         "household_presence": "🏠 Weekday presence",
-        "household_solar": "☀️ Panneaux solars",
-        "household_solar_kwc": "☀️ Power installee",
+        "household_solar": "☀️ Solar panels",
+        "household_solar_kwc": "☀️ Installed capacity",
         "household_heating": "🌡️ Heating",
         "household_hot_water": "🚿 Hot water",
-        "household_voice_assistant": "🗣️ Assistant voice",
-        "household_goal": "🎯 Objectif principal",
+        "household_voice_assistant": "🗣️ Voice assistant",
+        "household_goal": "🎯 Main goal",
     }
-    report = "👥 PROFILE FOYER\n━━━━━━━━━━━━━━━━━━\n"
+    report = "👥 HOUSEHOLD PROFILE\n━━━━━━━━━━━━━━━━━━\n"
     for qid, label in labels.items():
         val = data.get(qid, "")
         if val and val != "n/a":
@@ -6665,14 +6974,14 @@ def cmd_appliances():
         return "🔌 No appliance configured.\nThe questionnaire starts at next boot."
 
     CATEGORIES = {
-        "cycles": {"label": "🔄 GROS CONSOMMATEURS (cycles)", "types": {"washing_machine", "dryer", "dishwasher", "freezer", "forr"}},
-        "standby": {"label": "🔇 STANDBY CUTTER (standby)", "types": {"standby_killer"}},
-        "monitoring": {"label": "📊 MONITORING ENERGY", "types": {"energy_monitor"}},
-        "other": {"label": "🔌 AUTRES", "types": {"other"}},
-        "ignore": {"label": "⬜ VOIE DE GARAGE", "types": {"ignore"}},
+        "cycles": {"label": "🔄 LARGE CONSUMERS (cycles)", "types": {"washing_machine", "dryer", "dishwasher", "freezer", "forr"}},
+        "standby": {"label": "🔇 STANDBY CUTTERS", "types": {"standby_killer"}},
+        "monitoring": {"label": "📊 ENERGY MONITORING", "types": {"energy_monitor"}},
+        "other": {"label": "🔌 OTHER", "types": {"other"}},
+        "ignore": {"label": "⬜ SKIPPED", "types": {"ignore"}},
     }
 
-    report = "🔌 APPLIANCES ON PLUGS\n━━━━━━━━━━━━━━━━━━\n"
+    report = "🔌 APPLIANCES AND POWER CONSUMERS\n━━━━━━━━━━━━━━━━━━\n"
     for cat_key, cat_info in CATEGORIES.items():
         cat_rows = [r for r in rows if r[1] in cat_info["types"]]
         if cat_rows:
@@ -6690,7 +6999,7 @@ def cmd_programs():
     if not data:
         return "🔄 No cycles recorded — profiles are learned automatically after each cycle."
 
-    report = f"🔄 PROFILES DE CYCLES APPRIS\n━━━━━━━━━━━━━━━━━━\n"
+    report = f"🔄 LEARNED CYCLE PROFILES\n━━━━━━━━━━━━━━━━━━\n"
 
     for eid, info in data.items():
         name = info.get("name", eid)
@@ -6702,21 +7011,21 @@ def cmd_programs():
             for prog_name, p in sorted(progs.items(), key=lambda x: -x[1].get("nb_cycles", 0)):
                 duration = p.get("duration_avg", 0)
                 consumption = p.get("consumption_avg", 0)
-                puiss = p.get("power_avg", 0)
+                average_power = p.get("power_avg", 0)
                 nb_p = p.get("nb_cycles", 0)
                 sig = p.get("signature", "?")
                 price = rate_current_kwh_price()
                 cost = consumption * price
                 report += f"  📊 {prog_name} ({nb_p}x)\n"
-                report += f"    {duration:.0f} min | {consumption:.2f} kWh | ~{puiss:.0f}W avg | {cost:.2f}€\n"
-                report += f"    Signature : {sig}\n"
+                report += f"    {duration:.0f} min | {consumption:.2f} kWh | ~{average_power:.0f}W avg | {cost:.2f}\n"
+                report += f"    Signature: {sig}\n"
         else:
             duration = info.get("duration_avg", 0)
             consumption = info.get("consumption_avg", 0)
             report += f"  {duration:.0f} min | {consumption:.2f} kWh\n"
 
     report += f"\n📊 {nb} total cycles analyzed"
-    report += f"\n💡 Costs calculated at current rate ({rate_current_kwh_price():.4f}€/kWh)"
+    report += f"\n💡 Costs calculated at current rate ({rate_current_kwh_price():.4f}/kWh)"
     return report
 
 
@@ -6730,12 +7039,12 @@ def cmd_cycles():
     conn.close()
     if not rows:
         return "📊 No cycles recorded"
-    report = "📊 DERNIERS CYCLES\n━━━━━━━━━━━━━━━━\n"
+    report = "📊 RECENT CYCLES\n━━━━━━━━━━━━━━━━\n"
     for row in rows:
         fname, started_at, duration, consumption, cost = row[:5]
         prog = row[5] if len(row) > 5 else None
         date = started_at[:16].replace("T", " ") if started_at else "?"
-        report += f"  {fname} — {date}\n    {duration}min | {consumption:.2f}kWh | {cost:.2f}€"
+        report += f"  {fname} — {date}\n    {duration} min | {consumption:.2f} kWh | {cost:.2f}"
         if prog:
             report += f"\n    🔍 {prog}"
         report += "\n"
@@ -6743,30 +7052,32 @@ def cmd_cycles():
 
 
 def cmd_documentation():
-    doc = f"""📖 AI HOME AUTOMATION ASSISTANT v{VERSION}
+    doc = f"""📖 HOME ASSISTANT AI COMPANION v{VERSION}
 
-Available commands :
+Available commands:
 ━━━━━━━━━━━━━━━━━━━━
-/audit          → HA state + analysis AI
-/energy        → Solar + Ecojoko + heat pump + thermostats + weather
-/solar        → Production APSystems + Anker
-/batteries      → Zigbee batteries + Anker
-/zigbee         → Reseau Zigbee + LQI
-/nas            → NAS Synology
-/automations → Automatisations HA
+/audit          → Home Assistant state and AI analysis
+/energy         → Energy, solar, heat pump, thermostats, and weather
+/solar          → Solar production and battery systems
+/batteries      → Device batteries
+/zigbee         → Zigbee network and LQI
+/nas            → NAS monitoring
+/automations    → Home Assistant automations
 /addons         → HA Apps
 /cycles         → Appliance cycle history
-/budget         → Consumption tokens API
+/budget         → AI token and cost usage
+/rate           → Electricity rate setup/status
+/appliances     → Appliance and power-consumer setup
 /scan           → Rescan and learn entities
-/debug          → Internal state of the script
-/logs           → 20 lasts lines of log
-/memory_store        → What the AI has memorized
-/documentation  → Cette help
-/export         → Exports the script assistant.py
-/script         → Exports the script assistant.py
+/debug          → Internal diagnostic state
+/logs           → Last 20 log lines
+/memory_store   → What the AI has memorized
+/documentation  → This help menu
+/export         → Export assistant.py
+/script         → Export assistant.py
 /ai             → Execute autonomous AI helper
 
-Free-form question → Response with context HA pertinent"""
+Free-form question → Answer using relevant Home Assistant context"""
     send_email("[AI Companion] Documentation", doc)
     return doc
 
@@ -6775,7 +7086,7 @@ def cmd_problem(description):
     """Auto-correction: read the script, ask the configured strong model for a patch, apply it, restart."""
     telegram_send(f"🔧 AUTO-CORRECTION\nIssue: {description}\n\nAnalyzing...")
 
-    # 1. Lire the script via deploy server local
+    # 1. Read the script through the local deploy server.
     try:
         req_read = urllib.request.Request("http://localhost:8501/read")
         cfg_secret = CFG.get("deploy_secret", "")
@@ -6889,7 +7200,7 @@ def cmd_clean_carto():
     for (eid,) in rows:
         eid_low = eid.lower()
 
-        # Keep the capteurs ECU essentiels
+        # Keep essential ECU sensors.
         if eid in useful_aps:
             continue
 
@@ -7295,7 +7606,7 @@ def cmd_analysis():
 
 
 def cmd_diag_hc():
-    """Search the off-peak hours in HA (Linky, Ecojoko, attributes)"""
+    """Search Home Assistant for off-peak hour sources."""
     states = ha_get("states")
     if not states:
         return "❌ HA unreachable"
@@ -7309,7 +7620,7 @@ def cmd_diag_hc():
 
         # Search in the entity_id
         eid_low = eid.lower()
-        if any(k in eid_low for k in ["off_peak", "off_peak", "offpeak", "hc_hp", "hp_hc", "linky", "rate"]):
+        if any(k in eid_low for k in ["off_peak", "off_peak", "offpeak", "hc_hp", "hp_hc", "rate", "tariff", "price"]):
             report += f"\n📌 {eid}\n  {fname} = {e['state']}\n"
             for k, v in attrs.items():
                 if isinstance(v, str) and len(v) < 200:
@@ -7328,11 +7639,11 @@ def cmd_diag_hc():
                     found.append(eid)
             if any(kw in v_str for kw in ["22:00", "23:00", "06:00", "off peak", "off peak"]):
                 if eid not in found:
-                    report += f"\n📌 {eid} (value contains HC)\n  {fname} = {e['state']}\n  {k}: {v}\n"
+                    report += f"\n📌 {eid} (value contains off-peak data)\n  {fname} = {e['state']}\n  {k}: {v}\n"
                     found.append(eid)
 
     if not found:
-        report += "\nNo off-peak entity found in HA.\nOff-peak hours will be fetched via Enedis."
+        report += "\nNo off-peak entity found in Home Assistant."
 
     return report
 
@@ -7688,12 +7999,12 @@ def _auto_update_github():
         r_sha = requests.get(url_api, timeout=15)
         if r_sha.status_code != 200:
             return
-        sha_distant = r_sha.json().get("sha", "")[:7]
+        remote_sha = r_sha.json().get("sha", "")[:7]
         sha_local = mem_get("auto_update_sha") or ""
-        if sha_distant == sha_local:
+        if remote_sha == sha_local:
             mem_set("auto_update_last", datetime.now().isoformat())
             return
-        log.info(f"🔄 Update available: {sha_local or '?'} → {sha_distant}")
+        log.info(f"🔄 Update available: {sha_local or '?'} → {remote_sha}")
         files_dl = {}
         for fname in files:
             url_raw = f"https://raw.githubusercontent.com/{repo}/{branch}/{fname}"
@@ -7728,12 +8039,12 @@ def _auto_update_github():
         for fname, content in files_dl.items():
             with open(os.path.join(BASE_DIR, fname), "w") as f:
                 f.write(content)
-        mem_set("auto_update_sha", sha_distant)
+        mem_set("auto_update_sha", remote_sha)
         mem_set("auto_update_last", datetime.now().isoformat())
-        log.info(f"✅ Update applied: {sha_distant}")
+        log.info(f"✅ Update applied: {remote_sha}")
         telegram_send(
-            f"🔄 MISE A JOUR AUTOMATIQUE\n━━━━━━━━━━━━━━━━━━\n"
-            f"Version: {sha_distant}\nFichiers: {', '.join(files)}\n"
+            f"🔄 AUTOMATIC UPDATE\n━━━━━━━━━━━━━━━━━━\n"
+            f"Version: {remote_sha}\nFiles: {', '.join(files)}\n"
             f"Restarting in 5 seconds..."
         )
         import subprocess
@@ -7833,7 +8144,7 @@ def cmd_score():
         except Exception:
             pass
 
-        # 5. Optimization HC/HP (0-10 pts)
+        # 5. Off-peak optimization (0-10 pts)
         score_hchp = 0
         try:
             cycles_hc = conn.execute(
@@ -7844,14 +8155,14 @@ def cmd_score():
             ).fetchone()[0]
             if cycles_total > 0:
                 pct_hc = cycles_hc / cycles_total * 100
-                score_hchp = min(10, int(pct_hc / 10))  # 100% HC → 10 pts
+                score_hchp = min(10, int(pct_hc / 10))  # 100% off-peak -> 10 pts
         except Exception:
             pass
 
         score_baselines = 0
         try:
             baseline_count = conn.execute("SELECT COUNT(*) FROM baselines WHERE sample_count >= 10").fetchone()[0]
-            score_baselines = min(10, int(baseline_count / 50))  # 500 baselines → 10 pts
+            score_baselines = min(10, int(baseline_count / 50))  # 500 baselines -> 10 pts
         except Exception:
             pass
 
@@ -7871,13 +8182,13 @@ def cmd_score():
         return (
             f"🏠 HOME ENERGY SCORE\n"
             f"━━━━━━━━━━━━━━━━━━\n\n"
-            f"{emoji} **Note : {grade} — {total}/100**\n\n"
+            f"{emoji} **Grade: {grade} — {total}/100**\n\n"
             f"☀️ Solar coverage: {score_solar}/25\n"
             f"💰 Savings: {score_eco}/25\n"
-            f"🔌 Standbys : {score_standby}/15\n"
+            f"🔌 Standby: {score_standby}/15\n"
             f"📡 Zigbee Network: {score_zigbee}/15\n"
-            f"⏰ Optimization HC : {score_hchp}/10\n"
-            f"📊 Baselines : {score_baselines}/10\n\n"
+            f"⏰ Off-peak optimization: {score_hchp}/10\n"
+            f"📊 Baselines: {score_baselines}/10\n\n"
             f"Score updates weekly."
         )
     except Exception as e:
@@ -7913,18 +8224,18 @@ def cmd_export_pdf():
         report = f"📊 MONTHLY REPORT — {month}\n"
         report += "=" * 40 + "\n\n"
 
-        report += f"💰 SAVINGS : {total_eco:.2f}€\n"
+        report += f"💰 SAVINGS: {total_eco:.2f}\n"
         if eco:
             for e in eco:
-                report += f"  • {e[1]} : {e[2]:.2f}€\n"
+                report += f"  • {e[1]}: {e[2]:.2f}\n"
 
-        report += f"\n🔄 CYCLES MACHINES :\n"
+        report += f"\n🔄 APPLIANCE CYCLES:\n"
         for c in cycles:
             app = appliance_get(c[0])
             name = app["name"] if app and app.get("name") else c[0].split(".")[-1]
-            report += f"  • {name} : {c[1]} cycles, {c[2]:.1f} kWh, {c[3]:.2f}€\n"
+            report += f"  • {name}: {c[1]} cycles, {c[2]:.1f} kWh, {c[3]:.2f}\n"
 
-        report += f"\n🤖 TOKENS API : {tokens.get('total_tokens', 0):,} ({tokens.get('total_cost', 0):.2f}€)\n"
+        report += f"\n🤖 API TOKENS: {tokens.get('total_tokens', 0):,} ({tokens.get('total_cost', 0):.2f})\n"
 
         # Score
         score_txt = cmd_score()
@@ -7966,9 +8277,9 @@ def cmd_advice_contract():
         if consumption_total < 10:
             return "⚠️ Not enough data (< 10 kWh measured this month). Try again in a few weeks."
 
-        # Estimation monthlyle
-        days_ecorles = now.day
-        estimated_monthly_consumption = consumption_total / max(1, days_ecorles) * 30
+        # Monthly estimate.
+        elapsed_days = now.day
+        estimated_monthly_consumption = consumption_total / max(1, elapsed_days) * 30
 
         current_price = rate_current_kwh_price()
         current_cost = estimated_monthly_consumption * current_price
@@ -7976,22 +8287,22 @@ def cmd_advice_contract():
         # Compare with a few standard offers
         alternatives = [
             ("EDF Zen", 0.2516),
-            ("EDF Zen WE", 0.2068),  # Average HP/HC
+            ("EDF Zen WE", 0.2068),  # Average peak/off-peak
             ("TotalEnergies Essentielle", 0.2219),
             ("Octopus Eco-Consumption", 0.1992),
         ]
 
-        result = f"💡 CONSEIL CONTRAT\n━━━━━━━━━━━━━━━━━━\n\n"
-        result += f"Contract current : {provider} ({current_type})\n"
+        result = f"💡 RATE PLAN ADVICE\n━━━━━━━━━━━━━━━━━━\n\n"
+        result += f"Current contract: {provider} ({current_type})\n"
         result += f"Estimated consumption: {estimated_monthly_consumption:.0f} kWh/month\n"
-        result += f"Estimated cost: {current_cost:.0f}€/month\n\n"
-        result += f"Alternatives :\n"
+        result += f"Estimated cost: {current_cost:.0f}/month\n\n"
+        result += f"Alternatives:\n"
 
         for name, price in alternatives:
             cost_alt = estimated_monthly_consumption * price
             diff = current_cost - cost_alt
             emoji = "✅" if diff > 5 else "➖"
-            result += f"  {emoji} {name} : ~{cost_alt:.0f}€/month ({'+' if diff < 0 else '-'}{abs(diff):.0f}€)\n"
+            result += f"  {emoji} {name}: ~{cost_alt:.0f}/month ({'+' if diff < 0 else '-'}{abs(diff):.0f})\n"
 
         result += f"\n⚠️ Simplified estimates. Check provider websites for exact rates."
         return result
@@ -8161,7 +8472,7 @@ def _heartbeat_observe(index, now):
             except Exception:
                 pass
         
-        # S'assurer that the table existe
+        # Make sure the table exists.
         _heartbeat_init_table()
         
         conn = sqlite3.connect(DB_PATH)
@@ -8169,7 +8480,7 @@ def _heartbeat_observe(index, now):
         for entity_id in _HEARTBEAT_SENSORS_PILIERS:
             e = index.get(entity_id)
             
-            # Lire the baseline existante
+            # Read the existing baseline.
             row = conn.execute(
                 "SELECT median_sec, p95_sec, p99_sec, samples_count, last_recompute, "
                 "learning_started, learning_complete FROM sensor_heartbeat WHERE entity_id=?",
@@ -8295,10 +8606,10 @@ def _heartbeat_observe(index, now):
                 if gap_h > 26:
                     _alert_if_new(
                         f"heartbeat_rate_{entity_id}",
-                        f"⚠️ HEARTBEAT RATE — Rollover quotidien rate\n━━━━━━━━━━━━━━━━━━\n"
+                        f"⚠️ RATE HEARTBEAT — daily rollover\n━━━━━━━━━━━━━━━━━━\n"
                         f"  • {entity_id}\n"
                         f"  • Not updated for {gap_h:.1f}h (expected: 1 update/day at midnight)\n\n"
-                        f"HP/HC calculations may be based on stale values.\n"
+                        f"Peak/off-peak calculations may be based on stale values.\n"
                         f"Action: restart the Ecojoko integration in HA.",
                         delay_h=12
                     )
@@ -8383,9 +8694,9 @@ def cmd_heartbeat():
                 msg_lines.append(f"{icon} {short}")
                 msg_lines.append(f"   med {med_str} · P99 {p99_str} · gap {gap_str} · {samples} samples")
         
-        # Rate HC/HP sensors
+        # Peak/off-peak rate sensors.
         msg_lines.append("")
-        msg_lines.append("📅 Rate HC/HP (1 update/day, threshold 26h)")
+        msg_lines.append("📅 Peak/off-peak rate sensors (1 update/day, threshold 26h)")
         for eid in _HEARTBEAT_SENSORS_TARIF:
             short = eid.replace("sensor.", "")
             gap = gaps.get(eid)
@@ -8541,10 +8852,10 @@ def cmd_rooms():
         conn.close()
 
         for eid, e in index_dict.items():
-            # Only the capteurs of power
+            # Only power sensors.
             if "_power" not in eid or e.get("state") in ("unavailable", "unknown", ""):
                 continue
-            # Exclure production solar
+            # Exclude solar production.
             if eid in solar_ids:
                 continue
             try:
@@ -8625,7 +8936,7 @@ def _rollback_si_errors_repetees(now):
         for line in content.split("\n"):
             if "CRASH" in line:
                 try:
-                    # Extraire timestamp
+                    # Extract timestamp.
                     ts_str = line.split("CRASH")[1][:25].strip()
                     dt = datetime.fromisoformat(ts_str.replace(" ", "T")[:19])
                     if (now - dt).total_seconds() < 3600:
@@ -8843,7 +9154,7 @@ def handle_message(text):
         "programs": cmd_programs,      # 🔄 Learned appliance programs
         "appliances": cmd_appliances,          # 🔌 Appliances on plugs
         "monitoring": cmd_monitoring,    # 🛡️ Everything monitored
-        "profile": cmd_profile,                # 👥 Horsehold profile
+        "profile": cmd_profile,                # 👥 Household profile
         "savings": cmd_savings,          # 💰 Detail of the savings
         "dashboard": cmd_dashboard,          # 📊 Push stats to HA (Lovelace)
         "calendar": cmd_calendar,        # 📅 Events calendar HA
@@ -8919,7 +9230,7 @@ def handle_message(text):
                 f"Monitoring active — cycles, costs, savings.\n"
                 f"📊 {nb_monitored} appliances monitored"
             )
-        # Continuer the queue
+        # Continue the queue
         try:
             queue = json.loads(mem_get("appliances_queue") or "[]")
             queue = [q for q in queue if q["entity_id"] != eid_pending]
@@ -8943,7 +9254,7 @@ def handle_message(text):
         conn.close()
         mem_set("appliances_configured", "")
         mem_set("appliances_queue", "")
-        # Reset of the programs learned (change of machine = norvel learning)
+        # Reset learned programs because a different appliance needs fresh learning.
         skill_set("machine_programs", {})
         _start_questionnaire_appliances()
         return "🔄 Full reconfiguration started...\nAppliances + learned programs reset.\nAutomatic re-learning begins."
@@ -8985,7 +9296,7 @@ def handle_message(text):
             "📌 EXAMPLES\n"
             "✅ /problem Heat pump not heating despite 5°C outside\n"
             "✅ /problem 3 Zigbee devices are offline\n"
-            "✅ /problem Grid consumption dorbled suddenly"
+            "✅ /problem Grid consumption doubled suddenly"
         )
     if t.startswith("problem ") or t.startswith("problem "):
         description = t.split(" ", 1)[1].strip()
@@ -9001,7 +9312,7 @@ def handle_message(text):
     log.info(f"CONTEXTE→HAIKU: {len(context)} chars, {len(cal_lines)} lines calendar: {cal_lines[:5]}")
     result = call_llm(text, context)
     if result is None:
-        return "Je n'ai not compris your request"
+        return "I did not understand your request"
     return result
 
 
@@ -9041,19 +9352,19 @@ def automatic_summary():
     nb_cycles = conn.execute("SELECT COUNT(*) FROM appliance_cycles WHERE ended_at IS NOT NULL").fetchone()[0]
     total_consumption = conn.execute("SELECT SUM(consumption_kwh) FROM appliance_cycles WHERE ended_at IS NOT NULL").fetchone()[0] or 0
     cost_total = conn.execute("SELECT SUM(cost_eur) FROM appliance_cycles WHERE ended_at IS NOT NULL").fetchone()[0] or 0
-    nb_absences = conn.execute("SELECT COUNT(*) FROM zigbee_outages").fetchone()[0]
-    nb_abnormales = conn.execute("SELECT COUNT(*) FROM zigbee_outages WHERE status='abnormal'").fetchone()[0]
+    outage_count = conn.execute("SELECT COUNT(*) FROM zigbee_outages").fetchone()[0]
+    abnormal_count = conn.execute("SELECT COUNT(*) FROM zigbee_outages WHERE status='abnormal'").fetchone()[0]
     conn.close()
 
     context = f"""Summary for {CFG.get('summary_days', 4)} days:
 
-CYCLES MACHINES : {nb_cycles}
-Consumption : {total_consumption:.2f} kWh
+CYCLES: {nb_cycles}
+Consumption: {total_consumption:.2f} kWh
 Estimated cost: {cost_total:.2f}€
 
 ZIGBEE NETWORK:
-Detected absences: {nb_absences}
-Confirmed anomalies: {nb_abnormales}
+Detected outages: {outage_count}
+Confirmed anomalies: {abnormal_count}
 
 Mapping: {mem_get('discovery_count', 0)} entities learned
 """

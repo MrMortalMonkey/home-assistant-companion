@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-v0.1.3-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-v0.1.4-blue">
   <img alt="Status" src="https://img.shields.io/badge/status-beta-orange">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white">
   <img alt="Home Assistant" src="https://img.shields.io/badge/Home_Assistant-2024.1+-41BDF5?logo=home-assistant&logoColor=white">
@@ -51,13 +51,11 @@ This is not a replacement for your existing automations. It's a **conversational
 | 3 | **AI provider credentials** (Anthropic, OpenAI, OpenRouter, Ollama, LM Studio) | See provider console or local endpoint | Variable (see below) |
 | 4 | **A Linux machine** (Pi, VM, NAS, HA App...) | See hardware table | Variable |
 
-### 🔌 Reliable off-peak/peak data — recommendation (optional)
+### 🔌 Reliable Rate Data
 
-If you have a smart meter and a time-of-use rate (off-peak / peak hours), I recommend the [**ha-linky**](https://github.com/bokub/ha-linky) app (Bokub) as an official source for your off-peak/peak consumption. It uses the Enedis API via [Consumption API](https://consumption.boris.sh) (free, 3-year Enedis consent).
+If you have a smart meter or a time-of-use rate, configure Home Assistant Energy first. The app can read configured Energy statistics and price sensors, or you can enter your known electricity rate manually during Telegram setup.
 
-**Why?** Third-party energy integrations don't all support every rate. ha-linky reads directly from Enedis, so it's compatible with **all rates**.
-
-Data delivered in D+1 (the previous morning), so it's not real-time — but it's reliable and official.
+Provider-specific integrations are optional. The app does not require a regional utility provider to calculate basic costs.
 
 ## 🚀 Quick install
 
@@ -169,7 +167,7 @@ The script is **free and open source (MIT)**. The only recurring AI cost is what
 
 ## 📊 Project status
 
-**Current version: v0.1.3 beta**
+**Current version: v0.1.4 beta**
 
 The code has been running in production since February 2026. It's functionally stable but has **not yet been validated on enough different installations** to be considered generally stable.
 

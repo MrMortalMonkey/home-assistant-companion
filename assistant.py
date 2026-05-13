@@ -10,6 +10,7 @@ from skills import (
     _alert_zigbee_device_mort,
     _backup_auto_db,
     _check_voice_scripts,
+    _collect_appliance_candidates,
     _cycle_intelligence,
     _detect_water_leak,
     _detect_vacation_mode,
@@ -1053,27 +1054,16 @@ def main():
         log.info("⚡ Rate not configured — launching questionnaire")
         rate_configure_questionnaire()
 
-    # Device identification on smart outlets
+    # Device identification from smart outlets, HA Energy, and power sensors
     try:
-        conn_check = sqlite3.connect(DB_PATH)
-        nb_plugs_carto = conn_check.execute(
-            "SELECT COUNT(*) FROM entity_map WHERE category='connected_plug' AND entity_id LIKE '%_power'"
-        ).fetchone()[0]
-        appliance_count = conn_check.execute("SELECT COUNT(*) FROM appliances").fetchone()[0]
-        plugs_without_appliance = conn_check.execute(
-            "SELECT entity_id, friendly_name FROM entity_map "
-            "WHERE category='connected_plug' AND entity_id LIKE '%_power' "
-            "AND entity_id NOT IN (SELECT entity_id FROM appliances)"
-        ).fetchall()
-        log.debug(f"Devices: {nb_plugs_carto} outlets, {appliance_count} identified, {len(plugs_without_appliance)} remaining")
-        conn_check.close()
-        if plugs_without_appliance:
+        candidates = _collect_appliance_candidates()
+        if candidates:
             mem_set("appliances_configured", "")
             mem_set("appliances_queue", "")
-            log.info(f"🔌 Relaunching questionnaire for {len(plugs_without_appliance)} outlet(s)")
+            log.info(f"🔌 Relaunching questionnaire for {len(candidates)} power consumer(s)")
             _start_questionnaire_appliances()
         else:
-            log.info("🔌 All outlets are identified")
+            log.info("🔌 All detected power consumers are identified")
     except Exception as ex_app:
         log.error(f"🔌 Device diagnostic error: {ex_app}")
         import traceback
