@@ -136,9 +136,9 @@ class TestAppliances:
         """Dishwasher detected even with spelling mistake."""
         fname = "Plug dishwasher Power"
         fname_low = fname.lower()
-        is_vaisselle = any(k in fname_low for k in ("vaisselle", "vaiselle", "dishwash"))
-        is_washing_machine = "lav" in fname_low and not is_vaisselle
-        assert is_vaisselle == True
+        is_dishwasher = any(k in fname_low for k in ("dishwasher", "dishwash"))
+        is_washing_machine = "washer" in fname_low and not is_dishwasher
+        assert is_dishwasher == True
         assert is_washing_machine == False
 
 

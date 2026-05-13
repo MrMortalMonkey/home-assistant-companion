@@ -20,7 +20,7 @@ LANG = {
         # Reminders
         "laundry_warm_reminder": "👕 {name} — Warm clothes!\nDrying done ({duration} min).\nTake out now — easier to fold.\n⏳ Anti-crease running, ~{grace} min left.",
         "reminder_washing_machine": "🧺 {name} — Cycle done!\nDuration: {duration} min.\n🚪 Door unlocks in ~5 min.\nPrepare the dryer or clothesline.",
-        "reminder_vaisselle": "🍽️ {name} — Dishes ready!\nCycle done ({duration} min).\n⚠️ Caution: dishes are hot — wait 10 min.",
+        "reminder_dishwasher": "🍽️ {name} — Dishes ready!\nCycle done ({duration} min).\n⚠️ Caution: dishes are hot — wait 10 min.",
         "reminder_other": "✅ {name} — Cycle ending.\nDuration: {duration} min.",
 
         # Sniper

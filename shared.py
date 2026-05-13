@@ -32,7 +32,7 @@ _tz_time.tzset()
 
 __all__ = [
     "ANTI_DUPLICATE_SEC",
-    "AUTO_GUERISON_COOLDOWN",
+    "AUTO_HEAL_COOLDOWN",
     "BASELINE_ENTITIES",
     "BASE_DIR",
     "CFG",
@@ -46,7 +46,7 @@ __all__ = [
     "GRACE_AFTER_WASH",
     "GRACE_AFTER_DRYING",
     "GRACE_AFTER_DISHWASHER",
-    "HA_DOMAINES_AUTORISES",
+    "HA_ALLOWED_DOMAINS",
     "HA_TOOLS",
     "WEEKLY_SUMMARY_HOUR",
     "EVENING_SUMMARY_HOUR",
@@ -59,7 +59,7 @@ __all__ = [
     "MODE",
     "PLUG_POLL_ACTIVE",
     "PLUG_POLL_IDLE",
-    "ROLES_DEFINIS",
+    "ROLE_DEFINITIONS",
     "AUTO_HEAL_THRESHOLD",
     "CYCLE_START_W",
     "CYCLE_END_W",
@@ -75,29 +75,29 @@ __all__ = [
     "_entities_already_detected",
     "_entity_areas",
     "_errors_buffer",
-    "_errors_vues",
-    "_est_hour_creuse_ranges",
+    "_errors_seen",
+    "_is_off_peak_hour_ranges",
     "_est_chosen_day",
-    "_est_weekend_ou_ferie",
+    "_is_weekend_or_holiday",
     "_state_plugs",
     "_grace_ended_at",
-    "_injecter_lessons_founding",
+    "_inject_founding_lessons",
     "_install_matplotlib_bg",
-    "_intelligence_compteur",
+    "_intelligence_counter",
     "_is_authorized_chat",
     "_md_last_hash",
     "_plugs_snapshot",
     "_powers_history",
     "_laundry_reminder_sent",
-    "_snapshot_valide",
+    "_snapshot_valid",
     "_watchdog",
     "_wizard_save_config",
-    "transcrire_vocal",
+    "transcribe_voice",
     "_wizard_step",
     "add_history",
     "appliance_get",
     "appliance_set",
-    "call_claude",
+    "call_llm",
     "battery_get_last_alert",
     "battery_set",
     "battery_set_alert",
@@ -110,18 +110,18 @@ __all__ = [
     "code_auth",
     "last_audit",
     "pending_response",
-    "enregistrer_saving",
+    "record_saving",
     "known_entities_get_all",
-    "known_entities_maj",
+    "known_entities_update",
     "send_code_sms",
     "send_email",
     "filter_analyze_messages",
-    "filter_apprendre_pattern",
-    "generer_code_auth",
+    "filter_learn_pattern",
+    "generate_auth_code",
     "get_savings_month",
     "get_history",
     "get_token_usage",
-    "ha_est_day",
+    "ha_is_day",
     "ha_get",
     "ha_get_state",
     "ha_get_forecast",
@@ -133,16 +133,16 @@ __all__ = [
     "log_token_usage",
     "mem_get",
     "mem_set",
-    "role_decouvrir",
-    "role_decouvrir_baselines",
+    "discover_roles",
+    "role_baseline_entities",
     "role_get",
     "role_get_all",
     "role_set",
-    "role_val",
+    "role_value",
     "role_definition_details",
     "skill_get",
     "skill_set",
-    "rate_est_hour_creuse",
+    "rate_is_off_peak_hour",
     "rate_get",
     "rate_current_kwh_price",
     "telegram_answer_callback",
@@ -154,7 +154,7 @@ __all__ = [
     "check_code",
     "zigbee_absence_create",
     "zigbee_absence_get",
-    "zigbee_absence_retour",
+    "zigbee_absence_returned",
     "zigbee_absence_status",
 ]
 
@@ -183,13 +183,13 @@ log = logging.getLogger(__name__)
 # =============================================================================
 
 BASELINE_ENTITIES = {
-    "sensor.ecojoko_realtime_consumption": "consumption_edf_w",
+    "sensor.ecojoko_realtime_consumption": "grid_consumption_w",
     "sensor.ecu_current_power": "production_aps_w",
     "sensor.air_water_heat_pump_energy_current": "consumption_heat_pump_w",
-    "sensor.ecojoko_temperature_interieure": "temp_interieure",
-    "sensor.ecojoko_temperature_exterieure": "temp_exterieure",
+    "sensor.ecojoko_indoor_temperature": "indoor_temperature",
+    "sensor.ecojoko_outdoor_temperature": "outdoor_temperature",
 }
-HA_DOMAINES_AUTORISES = {"light", "switch", "lock", "cover", "climate", "fan", "vacuum", "media_player", "scene", "script"}
+HA_ALLOWED_DOMAINS = {"light", "switch", "lock", "cover", "climate", "fan", "vacuum", "media_player", "scene", "script"}
 HA_TOOLS = [
     {
         "name": "ha_call_service",
@@ -273,14 +273,14 @@ HA_TOOLS = [
         "description": "Creates an automatic alert on one or more HA devices. "
                        "The assistant will check every minute and send a Telegram notification "
                        "when the condition is met. "
-                       "Examples: alert if an ingreenr goes offline, if a temperature exceeds a threshold, "
+                       "Examples: alert if an inverter goes offline, if a temperature exceeds a threshold, "
                        "if a door stays open, if a light is on at night, etc.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "entity_pattern": {
                     "type": "string",
-                    "description": "Entity ID or glob pattern (e.g.: sensor.ecu_* for all ingreenrs)"
+                    "description": "Entity ID or glob pattern (e.g.: sensor.ecu_* for all inverters)"
                 },
                 "condition": {
                     "type": "string",
@@ -312,15 +312,15 @@ _eco_proactive_state = {}
 _entities_already_detected = set()
 _entity_areas = {}
 _errors_buffer = []  # [(timestamp, message, source)]
-_errors_vues = {}    # {signature: last_reported} anti-spam
+_errors_seen = {}    # {signature: last_reported} anti-spam
 _state_plugs           = {}
 _grace_ended_at             = {}
-_intelligence_compteur = 0  # Cycle counter for periodic actions
+_intelligence_counter = 0  # Cycle counter for periodic actions
 _md_last_hash = None
 _plugs_snapshot = {}       # Continuous snapshot: {entity_id: "on"/"off"}
 _powers_history = {}   # {entity_id: [(timestamp, watts), ...]}
 _laundry_reminder_sent = {}     # {entity_id: True} — "warm laundry" reminder already sent
-_snapshot_valide = False     # True after at least 2 normal cycles
+_snapshot_valid = False     # True after at least 2 normal cycles
 _watchdog = {
     "monitoring_last_run" : datetime.now(),
     "plugs_last_run"     : datetime.now(),
@@ -339,7 +339,7 @@ def _install_matplotlib_bg():
         import matplotlib
     except ImportError:
         import subprocess
-        subprocess.run(["pip3", "install", "matplotlib", "--break-system-heat_pumpkages", "-q"], timeout=300)
+        subprocess.run(["pip3", "install", "matplotlib", "--break-system-packages", "-q"], timeout=300)
 
 threading.Thread(target=_install_matplotlib_bg, daemon=True).start()
 
@@ -921,7 +921,7 @@ def init_db():
     try:
         conn_room = sqlite3.connect(DB_PATH)
         nb_fix = conn_room.execute(
-            "UPDATE entity_map SET room='kitchen' WHERE entity_id LIKE '%lave_vaiselle%' AND (room IS NULL OR room='')"
+            "UPDATE entity_map SET room='kitchen' WHERE entity_id LIKE '%dishwasher%' AND (room IS NULL OR room='')"
         ).rowcount
         conn_room.commit()
         if nb_fix > 0:
@@ -943,7 +943,7 @@ def init_db():
         for failure_type in ["FAILURE_nas_false_positives", "FAILURE_printer_false_positives",
                            "FAILURE_silent_mode_spam", "FAILURE_entities_missing_entities_spam",
                            "FAILURE_shell_script_empty", "FAILURE_formula_solar",
-                           "FAILURE_haiku_forgot_data", "FAILURE_budget_without_alert"]:
+                           "FAILURE_lightweight_model_forgot_data", "FAILURE_budget_without_alert"]:
             ids = [r[0] for r in conn_fix.execute(
                 "SELECT id FROM decisions_log WHERE action=? ORDER BY id ASC", (failure_type,)
             ).fetchall()]
@@ -960,12 +960,12 @@ def init_db():
 
     # ═══ INJECT FOUNDING LESSONS (only once) ═══
     try:
-        _injecter_lessons_founding(DB_PATH)
+        _inject_founding_lessons(DB_PATH)
     except Exception as ex_lf:
         log.error(f"⚠️ Founding lessons: {ex_lf}")
 
 
-def _injecter_lessons_founding(conn_or_path=None):
+def _inject_founding_lessons(conn_or_path=None):
     """Injects lessons learned from failures — run only once at first startup.
     Each lesson is a documented failure + the rule derived from it."""
     import sqlite3 as _sq
@@ -990,7 +990,7 @@ def _injecter_lessons_founding(conn_or_path=None):
         # ═══ FAILURE 1: NAS false positives (13/03/2026) ═══
         ("monitoring",
          "NAS: NEVER monitor button.*, automation.*, switch.*, update.*, binary_sensor.* — only sensor.* matter",
-         0.9, "failure:28_false_positives_nas_13mars"),
+         0.9, "failure:28_false_positives_nas_march13"),
         ("monitoring",
          "NAS: a numeric state (temperature, disk sheet in TB) is NOT a degraded volume — verify it is text before alerting",
          0.9, "failure:temperature_26C_confondue_volume_degrade"),
@@ -1022,20 +1022,20 @@ def _injecter_lessons_founding(conn_or_path=None):
          "Missing entities: ONE alert with buttons, then silence — never spam every 4h",
          0.9, "failure:spam_entities_missing_entities_4h"),
 
-        # ═══ FAILURE 5: cmd_claude_autonomous shell script (11/03/2026) ═══
+        # ═══ FAILURE 5: cmd_ai_autonomous shell script (11/03/2026) ═══
         ("code",
          "NEVER depend on an external shell script when Python can read the file directly",
-         0.85, "failure:cmd_claude_shell_script_empty"),
+         0.85, "failure:cmd_ai_shell_script_empty"),
 
         # ═══ FAILURE 6: Solar formula (11/03/2026) ═══
         ("energy",
          "Solar coverage = production / (grid + production) × 100 — Ecojoko = grid only, NOT total consumption",
-         0.95, "failure:formula_solar_incorrecte"),
+         0.95, "failure:formula_solar_incorrect"),
 
-        # ═══ FAILURE 7: cmd_energy Haiku dependency (12/03/2026) ═══
+        # ═══ FAILURE 7: cmd_energy lightweight model dependency (12/03/2026) ═══
         ("code",
-         "Raw data reports must be structured in Python — DO NOT send to Haiku to summarize, it forgets data",
-         0.9, "failure:haiku_forgot_heat_pump_dryer"),
+         "Raw data reports must be structured in Python — DO NOT send to lightweight model to summarize, it forgets data",
+         0.9, "failure:lightweight_model_forgot_heat_pump_dryer"),
 
         # ═══ FAILURE 8: Budget without alert (12/03/2026) ═══
         ("monitoring",
@@ -1045,22 +1045,22 @@ def _injecter_lessons_founding(conn_or_path=None):
         # ═══ ARCHITECTURAL RULES ═══
         ("code",
          "Each entity_id pattern must be tested against the REAL HA entity_ids — never use too broad a pattern",
-         0.8, "principe:patterns_precis"),
+         0.8, "principle:precise_patterns"),
         ("code",
          "A domain (button, automation, switch, update) is NEVER a physical sensor — always filter by domain first",
-         0.95, "principe:domains_no_physiques"),
+         0.95, "principle:no_nonphysical_domains"),
         ("general",
          "Every alert must be deduplicated via _alert_if_new — NEVER repeat a raw alert",
-         0.9, "principe:deduplication_alerts"),
+         0.9, "principle:deduplicate_alerts"),
         ("general",
          "Every error must be logged in decisions_log via learning_log_failure — not just in file logs",
-         0.8, "principe:tracer_les_failures"),
+         0.8, "principle:trace_failures"),
         ("general",
          "Before monitoring a category, verify real entity_ids with /diag_carto — do not guess",
-         0.85, "principe:check_before_coding"),
+         0.85, "principle:check_before_coding"),
         ("monitoring",
          "Baselines: minimum 30 measurements before alerting — 10 measurements = too much noise, false positives guaranteed",
-         0.9, "failure:baselines_10_samples_false_positives_14mars"),
+         0.9, "failure:baselines_10_samples_false_positives_march14"),
         ("monitoring",
          "Solar production baselines: ignore if baseline < 50W, deviation threshold > 200% (clouds = normal variations)",
          0.9, "failure:baseline_solar_0w_night_alerted"),
@@ -1072,13 +1072,13 @@ def _injecter_lessons_founding(conn_or_path=None):
          0.85, "failure:21pct_entities_unavailable_false_positive"),
         ("monitoring",
          "Extreme grid consumption: threshold 8000W (not 5000W) — oven + heat pump + machine = easily 5000W in normal use",
-         0.8, "principe:seuil_consumption_realiste"),
+         0.8, "principle:realistic_consumption_threshold"),
         ("code",
          "Monitoring (monitoring + plugs) must run ALWAYS — never blocked by channel_locked or SMS code",
-         0.95, "failure:dryer_no_detecte_channel_locked_14mars"),
+         0.95, "failure:dryer_not_detected_channel_locked_march14"),
         ("code",
          "channel_locked must block ONLY interactive Telegram commands — not background threads",
-         0.95, "failure:monitoring_froste_apres_restart"),
+         0.95, "failure:monitoring_frozen_after_restart"),
     ]
 
     for cat, insight, conf, source in lessons:
@@ -1090,27 +1090,27 @@ def _injecter_lessons_founding(conn_or_path=None):
 
     # Guard: check if already injected (avoids duplicates on each restart)
     existing_failures = conn.execute(
-        "SELECT COUNT(*) FROM decisions_log WHERE context LIKE '%history_fondateur%'"
+        "SELECT COUNT(*) FROM decisions_log WHERE context LIKE '%founding_history%'"
     ).fetchone()[0]
     if existing_failures == 0:
-        failures_historys = [
+        failure_history = [
             ("FAILURE_nas_false_positives", "28 NAS false positives: button.*, automation.*, temperatures and raw disk sheet alerted as 'degraded volume'"),
             ("FAILURE_printer_false_positives", "28 printer false positives: OctoPrint + automations alerted as 'printer offline'"),
             ("FAILURE_silent_mode_spam", "switch.air_water_heat_pump_silent_mode was spamming 'Zigbee device offline'"),
             ("FAILURE_entities_missing_entities_spam", "5 deleted entities alerted every 4h endlessly"),
-            ("FAILURE_shell_script_empty", "cmd_claude_autonomous called a shell script that returned empty output"),
+            ("FAILURE_shell_script_empty", "cmd_ai_autonomous called a shell script that returned empty output"),
             ("FAILURE_formula_solar", "Solar coverage calculated on grid only instead of grid+production"),
-            ("FAILURE_haiku_forgot_data", "cmd_energy sent everything to Haiku which forgot heat pump and dryer"),
+            ("FAILURE_lightweight_model_forgot_data", "cmd_energy sent everything to lightweight model which forgot heat pump and dryer"),
             ("FAILURE_budget_without_alert", "API budget exhausted with no prior alert"),
         ]
-        for action, description in failures_historys:
+        for action, description in failure_history:
             conn.execute(
                 "INSERT INTO decisions_log (action, context, result, success, created_at) VALUES (?, ?, ?, 0, ?)",
-                (action, '{"source": "history_fondateur"}', description, now_iso)
+                (action, '{"source": "founding_history"}', description, now_iso)
             )
 
     conn.commit()
-    log.info(f"📕 {len(lessons)} founding lessons injected + {len(failures_historys)} historical failures")
+    log.info(f"📕 {len(lessons)} founding lessons injected + {len(failure_history)} historical failures")
 
 
 def mem_set(key_name, value_text):
@@ -1263,7 +1263,7 @@ def role_get_all():
     return {r[0]: {"entity_id": r[1], "confidence": r[2]} for r in rows}
 
 
-def role_val(role, states_index, default="?"):
+def role_value(role, states_index, default="?"):
     """Shortcut: returns the value of a role from the state index"""
     eid = role_get(role)
     if not eid:
@@ -1301,7 +1301,7 @@ def role_definition_details(definition):
     }
 
 
-def role_decouvrir(states):
+def discover_roles(states):
     """Auto-discovery of roles — analyzes all HA entity_ids.
     Works on ANY HA installation."""
     import re as _re
@@ -1309,7 +1309,7 @@ def role_decouvrir(states):
     roles_currents = role_get_all()
     discovery_count = 0
 
-    for role, definition in ROLES_DEFINIS.items():
+    for role, definition in ROLE_DEFINITIONS.items():
         details = role_definition_details(definition)
         # If already assigned with high confidence, do not overwrite
         if role in roles_currents and roles_currents[role]["confidence"] >= 0.8:
@@ -1317,10 +1317,10 @@ def role_decouvrir(states):
             if roles_currents[role]["entity_id"] in index:
                 continue
 
-        dc_cibles = details.get("device_class", [])
-        unit_cibles = details.get("unit", [])
+        target_device_classes = details.get("device_class", [])
+        target_units = details.get("unit", [])
         patterns = details.get("patterns", [])
-        domain_cible = details.get("domain", "")
+        target_domain = details.get("domain", "")
 
         best_candidate = None
         best_score = 0
@@ -1329,8 +1329,8 @@ def role_decouvrir(states):
             domain = eid.split(".")[0]
 
             # Filter by domain if specified
-            if domain_cible and domain_cible != "sensor":
-                if domain != domain_cible:
+            if target_domain and target_domain != "sensor":
+                if domain != target_domain:
                     continue
             elif domain not in ("sensor",):
                 continue
@@ -1344,11 +1344,11 @@ def role_decouvrir(states):
             score = 0
 
             # device_class score
-            if dc_cibles and dc in dc_cibles:
+            if target_device_classes and dc in target_device_classes:
                 score += 3
 
             # unit score
-            if unit_cibles and unit in unit_cibles:
+            if target_units and unit in target_units:
                 score += 2
 
             # entity_id or friendly_name pattern score
@@ -1360,7 +1360,7 @@ def role_decouvrir(states):
                     break
 
             # exact domain score
-            if domain_cible and domain == domain_cible:
+            if target_domain and domain == target_domain:
                 score += 1
 
             # Penalty if unavailable
@@ -1387,14 +1387,14 @@ def role_decouvrir(states):
     return discovery_count
 
 
-def role_decouvrir_baselines():
+def role_baseline_entities():
     """Dynamically builds BASELINE_ENTITIES from discovered roles."""
     roles_baseline = {
         "realtime_consumption": "consumption_w",
         "solar_production_w": "production_w",
         "heat_pump_consumption": "consumption_heat_pump_w",
-        "temp_interieure": "temp_int",
-        "temp_exterieure": "temp_ext",
+        "indoor_temperature": "temp_int",
+        "outdoor_temperature": "temp_ext",
     }
     result = {}
     for role, label in roles_baseline.items():
@@ -1404,7 +1404,7 @@ def role_decouvrir_baselines():
     return result
 
 
-def known_entities_maj(entity_id, category):
+def known_entities_update(entity_id, category):
     conn = sqlite3.connect(DB_PATH)
     conn.execute(
         '''INSERT OR REPLACE INTO known_entities
@@ -1457,17 +1457,17 @@ def appliance_set(entity_id, appliance_type, name=None):
         log.error(f"appliance_set: {e}")
 
 
-def enregistrer_saving(type_eco, description, euros, kwh=0, source="auto"):
+def record_saving(saving_type, description, euros, kwh=0, source="auto"):
     """Records a saving in the savings table + logs success."""
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.execute(
             "INSERT INTO savings (type, description, euros, kwh_saved, source, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (type_eco, description, round(euros, 4), round(kwh, 4), source, datetime.now().isoformat())
+            (saving_type, description, round(euros, 4), round(kwh, 4), source, datetime.now().isoformat())
         )
         conn.execute(
             "INSERT INTO decisions_log (action, context, result, success, created_at) VALUES (?, ?, ?, 1, ?)",
-            ("ECONAMEIE", json.dumps({"type": type_eco, "eur": round(euros, 4)}, ensure_ascii=False),
+            ("ECONAMEIE", json.dumps({"type": saving_type, "eur": round(euros, 4)}, ensure_ascii=False),
              description[:100], datetime.now().isoformat())
         )
         conn.commit()
@@ -1533,7 +1533,7 @@ def zigbee_absence_status(entity_id, status):
     conn.close()
 
 
-def zigbee_absence_retour(entity_id):
+def zigbee_absence_returned(entity_id):
     conn = sqlite3.connect(DB_PATH)
     r = conn.execute(
         'SELECT status FROM zigbee_outages WHERE entity_id=? AND back_online IS NULL',
@@ -1546,7 +1546,7 @@ def zigbee_absence_retour(entity_id):
         )
         conn.commit()
         conn.close()
-        return True  # Signaler the retour
+        return True  # Signal that the device returned
     conn.execute(
         'UPDATE zigbee_outages SET back_online=? WHERE entity_id=? AND back_online IS NULL',
         (datetime.now().isoformat(), entity_id)
@@ -1640,7 +1640,7 @@ def telegram_send(text, parse_mode=None, force=False):
         log.warning(f"🚫 Filtered [{filter_reason}]: {text[:80]}")
         return None
 
-    # ═══ ENVOI ═══
+    # Telegram delivery
     if not hasattr(telegram_send, "_recent"):
         telegram_send._recent = []
     telegram_send._recent.append((now_ts, text))
@@ -1661,8 +1661,8 @@ def telegram_send(text, parse_mode=None, force=False):
     return None
 
 
-def filter_apprendre_pattern(pattern, reason, action="block"):
-    """L'IA apprend a new pattern of filtrage"""
+def filter_learn_pattern(pattern, reason, action="block"):
+    """Teach the assistant a new message filtering pattern."""
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.execute(
@@ -1678,9 +1678,9 @@ def filter_apprendre_pattern(pattern, reason, action="block"):
 
 
 def filter_analyze_messages():
-    """Analysis the messages sents and filters for apprendre of nouveaux patterns.
+    """Analyze sent and filtered messages to learn new noise patterns.
     Called every 12h by the intelligence engine."""
-    call_claude._search_count = 0
+    call_llm._search_count = 0
     if not check_budget():
         return
 
@@ -1697,28 +1697,28 @@ def filter_analyze_messages():
         "WHERE sent=1 ORDER BY id DESC LIMIT 30"
     ).fetchall()
 
-    # Patterns existants
-    patterns_actives = conn.execute(
+    # Existing patterns
+    active_patterns = conn.execute(
         "SELECT pattern, applied_count FROM message_filters WHERE active=1"
     ).fetchall()
 
     conn.close()
 
     if len(sents) < 10:
-        return  # Pas assez of data
+        return  # Not enough data
 
     prefixes = {}
     for msg, dt in sents:
         prefix = msg[:40]
         prefixes[prefix] = prefixes.get(prefix, 0) + 1
 
-    repetitifs = [(p, n) for p, n in prefixes.items() if n >= 3]
-    if repetitifs:
+    repetitive_prefixes = [(p, n) for p, n in prefixes.items() if n >= 3]
+    if repetitive_prefixes:
         prompt = (
             "You are the noise filter of the home assistant.\n"
             "Here are frequently sent Telegram messages:\n"
         )
-        for prefix, nb in repetitifs[:5]:
+        for prefix, nb in repetitive_prefixes[:5]:
             prompt += f"  {nb}x : {prefix}...\n"
         prompt += (
             "\nAre these messages NOISE (repetitive, useless) or LEGITIMATE?\n"
@@ -1736,11 +1736,11 @@ def filter_analyze_messages():
             text = llm_provider.stream_text(blocks).strip().replace("```json", "").replace("```", "").strip()
             result = json.loads(text)
 
-            for pattern in result.get("patterns_bruit", []):
+            for pattern in result.get("noise_patterns", []):
                 if pattern and len(pattern) >= 10:
-                    filter_apprendre_pattern(pattern, "detecte_auto_repetitif")
+                    filter_learn_pattern(pattern, "auto_repeated_detection")
 
-            log.info(f"🧠 Analysis filter: {len(result.get('patterns_bruit', []))} nouveaux patterns")
+            log.info(f"🧠 Filter analysis: {len(result.get('noise_patterns', []))} new patterns")
         except Exception as ex:
             log.error(f"❌ filter_analyze: {ex}")
 
@@ -1818,7 +1818,7 @@ def telegram_get_updates(offset=None):
     return []
 
 
-def generer_code_auth():
+def generate_auth_code():
     global code_auth
     code_auth = str(random.randint(100000, 999999))
     return code_auth
@@ -1826,13 +1826,13 @@ def generer_code_auth():
 
 def send_code_sms():
     """Send the security code through the configured channel.
-    Methodes supportees (priorite) :
+    Supported methods, in priority order:
     1. Free Mobile API (sms_method=free_mobile)
     2. Notification HA Companion (sms_method=ha_notify)
     3. Email (sms_method=email)
     """
     global code_auth
-    code = generer_code_auth()
+    code = generate_auth_code()
     if not code or code == "None" or not code.isdigit() or len(code) != 6:
         log.error(f"Invalid SMS code: '{code}' — forced regeneration")
         code = str(random.randint(100000, 999999))
@@ -1846,7 +1846,7 @@ def send_code_sms():
         passwd = CFG.get("free_mobile_pass", "")
         if user and passwd:
             try:
-                url = f"https://smsapi.free-mobile.fr/sendmsg?user={user}&pass={passwd}&msg=CodeIA:{code}"
+                url = f"https://smsapi.free-mobile.fr/sendmsg?user={user}&pass={passwd}&msg=AICode:{code}"
                 r = requests.get(url, timeout=10)
                 if r.status_code == 200:
                     log.info(f"✅ SMS Free sent: {code}")
@@ -1881,7 +1881,7 @@ def send_code_sms():
         if email and CFG.get("smtp_host"):
             try:
                 msg_email = MIMEText(f"Your AI Companion security code: {code}")
-                msg_email["Subject"] = f"🔐 Code AI Companion : {code}"
+                msg_email["Subject"] = f"🔐 AI Companion code : {code}"
                 msg_email["From"] = CFG.get("smtp_user", "")
                 msg_email["To"] = email
                 with smtplib.SMTP(CFG["smtp_host"], CFG.get("smtp_port", 587)) as s:
@@ -1975,7 +1975,7 @@ def ha_get_state(entity_id):
     return ha_get(f"states/{entity_id}")
 
 
-def ha_est_day(states):
+def ha_is_day(states):
     """Returns True between sunrise and sunset."""
     index = {e["entity_id"]: e for e in states}
 
@@ -2008,7 +2008,7 @@ def ha_get_current_solar_production(states):
     Returns 0 if no solar sensors are installed."""
     if not role_get("solar_production_w"):
         return 0
-    if not ha_est_day(states):
+    if not ha_is_day(states):
         return 0
 
     index = {e["entity_id"]: e for e in states}
@@ -2085,7 +2085,7 @@ def rate_get():
     return DEFAULT_RATES["base"]  # Default if not configured
 
 
-def _est_hour_creuse_ranges(off_peak_hours):
+def _is_off_peak_hour_ranges(off_peak_hours):
     """Checks whether the current time is in an off-peak range"""
     now = datetime.now()
     current_minute = now.hour * 60 + now.minute
@@ -2107,12 +2107,12 @@ def _est_hour_creuse_ranges(off_peak_hours):
     return False
 
 
-def _est_weekend_ou_ferie():
+def _is_weekend_or_holiday():
     """Checks whether today is a weekend or holiday"""
     now = datetime.now()
     if now.weekday() >= 5:  # Samedi=5, Dimanche=6
         return True
-    # French public holidays
+    # Fixed-date public holidays
     y = now.year
     holidays = [
         (1, 1), (5, 1), (5, 8), (7, 14), (8, 15),
@@ -2140,41 +2140,41 @@ def rate_current_kwh_price():
         return rate.get("price_kwh", 0.2516)
 
     if ttype == "hphc":
-        hc = _est_hour_creuse_ranges(rate.get("off_peak_hours", []))
+        hc = _is_off_peak_hour_ranges(rate.get("off_peak_hours", []))
         return rate.get("price_hc" if hc else "price_hp", 0.25)
 
     if ttype == "weekend":
-        if _est_weekend_ou_ferie():
+        if _is_weekend_or_holiday():
             return rate.get("price_weekend", 0.1538)
         return rate.get("price_weekday", 0.2038)
 
     if ttype == "weekend_hphc":
-        if _est_weekend_ou_ferie():
+        if _is_weekend_or_holiday():
             return rate.get("price_weekend", 0.1618)
-        hc = _est_hour_creuse_ranges(rate.get("off_peak_hours", []))
+        hc = _is_off_peak_hour_ranges(rate.get("off_peak_hours", []))
         return rate.get("price_hc" if hc else "price_hp_weekday", 0.2153)
 
     if ttype == "weekend_plus":
-        if _est_weekend_ou_ferie() or _est_chosen_day(rate):
+        if _is_weekend_or_holiday() or _est_chosen_day(rate):
             return rate.get("price_weekend_day", 0.1604)
         return rate.get("price_weekday", 0.2133)
 
     if ttype == "weekend_plus_hphc":
-        if _est_weekend_ou_ferie() or _est_chosen_day(rate):
+        if _is_weekend_or_holiday() or _est_chosen_day(rate):
             return rate.get("price_hc_weekend_day", 0.166)
-        hc = _est_hour_creuse_ranges(rate.get("off_peak_hours", []))
+        hc = _is_off_peak_hour_ranges(rate.get("off_peak_hours", []))
         if hc:
             return rate.get("price_hc_weekend_day", 0.166)
         return rate.get("price_hp_weekday", 0.2213)
 
     if ttype == "tempo":
-        hc = _est_hour_creuse_ranges(rate.get("off_peak_hours", []))
+        hc = _is_off_peak_hour_ranges(rate.get("off_peak_hours", []))
         return rate.get("price_blue_hc" if hc else "price_blue_hp", 0.12)
 
     return 0.2516
 
 
-def rate_est_hour_creuse():
+def rate_is_off_peak_hour():
     """Returns True during off-peak hours"""
     rate = rate_get()
     if rate.get("type") != "hphc":
@@ -2215,7 +2215,7 @@ def _wizard_step():
 
 
 def _wizard_save_config():
-    """Sauvegarde the config pendant the wizard."""
+    """Save config changes during the wizard."""
     with open(CONFIG_PATH, "w") as f:
         json.dump(CFG, f, indent=2)
 
@@ -2297,8 +2297,8 @@ def _appel_api_avec_retry(cfg, messages, model, max_tokens, system_prompt=None, 
     return None, 0, 0
 
 
-def call_claude(user_message, context_ha=None):
-    call_claude._search_count = 0
+def call_llm(user_message, context_ha=None):
+    call_llm._search_count = 0
     if not check_budget():
         return "⚠️ Budget API monthly atteint."
 
@@ -2358,12 +2358,12 @@ AUTOMATIONS — MANDATORY METHOD:
             elif block["type"] == "tool_use" and block["name"] == "ha_call_service":
                 requested_action = block["input"]
             elif block["type"] == "tool_use" and block["name"] == "ha_search_entities":
-                _search_count = getattr(call_claude, '_search_count', 0) + 1
+                _search_count = getattr(call_llm, '_search_count', 0) + 1
                 if _search_count > 2:
                     log.warning(f"⚠️ Search loop detected ({_search_count} calls) — stopping")
                     text_response = "I could not find the necessary entities. Please rephrase your request."
                     break
-                call_claude._search_count = _search_count
+                call_llm._search_count = _search_count
                 search_input = block["input"]
                 keyword = search_input.get("keyword", "").lower()
                 domain_filter = search_input.get("domain", "")
@@ -2425,7 +2425,7 @@ AUTOMATIONS — MANDATORY METHOD:
             entity_id = requested_action.get("entity_id", "")
             data = requested_action.get("data", {})
 
-            if domain not in HA_DOMAINES_AUTORISES:
+            if domain not in HA_ALLOWED_DOMAINS:
                 msg = f"❌ Domain '{domain}' not authorized."
                 add_history("assistant", msg)
                 return msg
@@ -2530,15 +2530,15 @@ AUTOMATIONS — MANDATORY METHOD:
                     above = t.get("above", "")
                     below = t.get("below", "")
                     to_state = t.get("to", "")
-                    trad = TRAD_PLATFORM.get(platform, platform)
+                    translated_label = TRAD_PLATFORM.get(platform, platform)
                     if above:
-                        msg += f"  • {trad} {eid_short} exceeds {above}\n"
+                        msg += f"  • {translated_label} {eid_short} exceeds {above}\n"
                     elif below:
-                        msg += f"  • {trad} {eid_short} drops below {below}\n"
+                        msg += f"  • {translated_label} {eid_short} drops below {below}\n"
                     elif to_state:
-                        msg += f"  • {trad} {eid_short} changes to {to_state}\n"
+                        msg += f"  • {translated_label} {eid_short} changes to {to_state}\n"
                     else:
-                        msg += f"  • {trad} {eid_short} changes\n"
+                        msg += f"  • {translated_label} {eid_short} changes\n"
 
                 def _format_action(a):
                     lines = []
@@ -2595,8 +2595,8 @@ AUTOMATIONS — MANDATORY METHOD:
         log.error(f"❌ LLM API error: {e}")
         return "⚠️ The AI could not process this request. Please retry or check your provider configuration."
 
-def transcrire_vocal(file_id):
-    """Transcrit a message vocal Telegram via Google Speech API. CRASH-PROOF."""
+def transcribe_voice(file_id):
+    """Transcribe a Telegram voice message with Google Speech API."""
     ogg_path = None
     wav_path = None
     try:
@@ -2607,7 +2607,7 @@ def transcrire_vocal(file_id):
             if os.path.exists(local_ffmpeg):
                 ffmpeg_bin = local_ffmpeg
             else:
-                log.warning("Vocal: ffmpeg not found")
+                log.warning("Voice: ffmpeg not found")
                 return None
         import tempfile, subprocess
         url_info = f"https://api.telegram.org/bot{CFG['telegram_token']}/getFile?file_id={file_id}"
@@ -2631,7 +2631,7 @@ def transcrire_vocal(file_id):
             capture_output=True, timeout=30
         )
         if result.returncode != 0:
-            log.error(f"Vocal: ffmpeg error")
+            log.error(f"Voice: ffmpeg error")
             return None
         with open(flac_path, "rb") as f_audio:
             audio_data = f_audio.read()
@@ -2649,14 +2649,14 @@ def transcrire_vocal(file_id):
                     if alternatives:
                         text = alternatives[0].get("transcript", "")
                         if text:
-                            log.info(f"🎤 Vocal: {text}")
+                            log.info(f"🎤 Voice: {text}")
                             return text
             except json.JSONDecodeError:
                 continue
-        log.warning("Vocal: Google n'a not reconnu of text")
+        log.warning("Voice: Google n'a not reconnu of text")
         return None
     except Exception as e:
-        log.error(f"Vocal: {e}")
+        log.error(f"Voice: {e}")
         return None
     finally:
         for f in [ogg_path, wav_path]:

@@ -5,15 +5,15 @@ if _os.path.exists(_cache): _shutil.rmtree(_cache, ignore_errors=True)
 
 from skills import *
 from skills import (
-    _alert_consumption_fantome_nocturne,
+    _alert_night_ghost_consumption,
     _alert_freezer_outage,
     _alert_zigbee_device_mort,
     _backup_auto_db,
-    _check_vocal_scripts,
+    _check_voice_scripts,
     _cycle_intelligence,
     _detect_water_leak,
-    _detecter_mode_vacances,
-    _detecter_outage_internet,
+    _detect_vacation_mode,
+    _detect_internet_outage,
     _heartbeat_observe,
     _monitoring_deploy_server,
     _notif_tempo_ejp,
@@ -21,10 +21,10 @@ from skills import (
     _start_questionnaire_appliances,
     _start_questionnaire_household,
 )
-from shared import (_wizard_step, _wizard_save_config, _is_authorized_chat, transcrire_vocal,
+from shared import (_wizard_step, _wizard_save_config, _is_authorized_chat, transcribe_voice,
     _state_plugs, _grace_ended_at, _powers_history, _last_high_phase,
     _laundry_reminder_sent, _anti_crease_detected, _watchdog, _entities_already_detected,
-    _plugs_snapshot, _power_outage_alertd, _snapshot_valide)
+    _plugs_snapshot, _power_outage_alertd, _snapshot_valid)
 import shared
 
 import json, os, re, requests, sqlite3, smtplib, time, threading
@@ -178,7 +178,7 @@ def _wizard_handle_message(text):
                 # Count entities
                 r2 = requests.get(f"{CFG['ha_url']}/api/states", headers=headers, verify=False, timeout=15)
                 nb_entities = len(r2.json()) if r2.status_code == 200 else "?"
-                CFG["_wizard_step"] = "anthropic_key"
+                CFG["_wizard_step"] = "provider_key"
                 _wizard_save_config()
                 provider_name = CFG.get("llm_provider", "anthropic")
                 provider = llm_provider.PROVIDERS.get(provider_name, llm_provider.PROVIDERS["anthropic"])
@@ -201,7 +201,7 @@ def _wizard_handle_message(text):
             return True
 
     # ═══ STEP 3: LLM API Key ═══
-    if step == "anthropic_key":
+    if step == "provider_key":
         key = text.strip()
         provider_name = CFG.get("llm_provider", "anthropic")
         provider = llm_provider.PROVIDERS.get(provider_name, llm_provider.PROVIDERS["anthropic"])
@@ -488,7 +488,7 @@ def validation_started():
     return summary
 
 
-def est_hour_nuit():
+def is_night_hour():
     """Night = sun below the horizon"""
     try:
         states = ha_get("states")
@@ -591,7 +591,7 @@ def audit_auto():
 
             # (removed: skip audit if channel locked)
 
-            if est_hour_nuit():
+            if is_night_hour():
                 alerts = check_night_urgencies()
                 for a in alerts:
                     telegram_send(a)
@@ -633,7 +633,7 @@ def monitoring_batteries():
                     attrs_b = e.get("attributes", {})
                     is_battery = (
                         attrs_b.get("device_class") == "battery" or
-                        "state_de_charge" in eid.lower() or
+                        "state_of_charge" in eid.lower() or
                         (("battery" in eid.lower() or "battery" in eid.lower()) and
                          "power" not in eid.lower() and "power" not in eid.lower())
                     )
@@ -661,8 +661,8 @@ def monitoring_batteries():
                             except Exception:
                                 pass
                         room_str = f" [{room}]" if room else ""
-                        icone = "🚨" if val < 10 else "⚠️"
-                        alerts.append(f"{icone} {eid}{room_str} : {int(val)}%")
+                        icon = "🚨" if val < 10 else "⚠️"
+                        alerts.append(f"{icon} {eid}{room_str} : {int(val)}%")
                         battery_set_alert(eid)
 
                 if alerts:
@@ -757,12 +757,12 @@ def monitoring_core():
                     log.error(f"monitoring_core intelligence: {e}")
 
                 for fn in (
-                    _alert_consumption_fantome_nocturne,
+                    _alert_night_ghost_consumption,
                     _alert_freezer_outage,
                     _detect_water_leak,
                     _alert_zigbee_device_mort,
                     _heartbeat_observe,
-                    _check_vocal_scripts,
+                    _check_voice_scripts,
                 ):
                     try:
                         fn(index, now)
@@ -770,9 +770,9 @@ def monitoring_core():
                         log.debug(f"{fn.__name__}: {e}")
 
                 for fn in (
-                    _detecter_mode_vacances,
+                    _detect_vacation_mode,
                     _backup_auto_db,
-                    _detecter_outage_internet,
+                    _detect_internet_outage,
                     _notif_tempo_ejp,
                     _rollback_si_errors_repetees,
                     _monitoring_deploy_server,
@@ -783,7 +783,7 @@ def monitoring_core():
                         log.debug(f"{fn.__name__}: {e}")
             else:
                 try:
-                    _detecter_outage_internet(now)
+                    _detect_internet_outage(now)
                 except Exception:
                     pass
         except Exception as e:
@@ -928,8 +928,8 @@ def main():
         CFG.update(load_config())
 
     # Force timestamp if missing (migration v1.5.0)
-    if not mem_get("canal_deverrouille_at"):
-        mem_set("canal_deverrouille_at", datetime.now().isoformat())
+    if not mem_get("channel_unlocked_at"):
+        mem_set("channel_unlocked_at", datetime.now().isoformat())
 
     # Initialize last_unlock on first launch
     if not mem_get("last_unlock"):
@@ -954,7 +954,7 @@ def main():
             pass
 
     if skip_sms:
-        telegram_send(summary + "\n\n✅ Canal ouvert", force=True)
+        telegram_send(summary + "\n\n✅ Channel open", force=True)
     else:
         shared.channel_locked = True
         send_code_sms()
@@ -971,7 +971,7 @@ def main():
     # Role discovery at startup
     if current_states:
         try:
-            role_decouvrir(current_states)
+            discover_roles(current_states)
         except Exception:
             pass
 
@@ -1045,7 +1045,7 @@ def main():
         pass
 
     log.info(f"✅ 8 threads started")
-    mem_set("send_md_maintenant", "yes")
+    mem_set("send_md_now", "yes")
 
     # First startup: rate questionnaire if not yet configured
     current_rate, nb_rate = skill_get("pricing")
@@ -1059,13 +1059,13 @@ def main():
         nb_plugs_carto = conn_check.execute(
             "SELECT COUNT(*) FROM entity_map WHERE category='connected_plug' AND entity_id LIKE '%_power'"
         ).fetchone()[0]
-        nb_appliances = conn_check.execute("SELECT COUNT(*) FROM appliances").fetchone()[0]
+        appliance_count = conn_check.execute("SELECT COUNT(*) FROM appliances").fetchone()[0]
         plugs_without_appliance = conn_check.execute(
             "SELECT entity_id, friendly_name FROM entity_map "
             "WHERE category='connected_plug' AND entity_id LIKE '%_power' "
             "AND entity_id NOT IN (SELECT entity_id FROM appliances)"
         ).fetchall()
-        log.debug(f"Devices: {nb_plugs_carto} outlets, {nb_appliances} identified, {len(plugs_without_appliance)} remaining")
+        log.debug(f"Devices: {nb_plugs_carto} outlets, {appliance_count} identified, {len(plugs_without_appliance)} remaining")
         conn_check.close()
         if plugs_without_appliance:
             mem_set("appliances_configured", "")
@@ -1139,14 +1139,14 @@ def main():
                             file_id = msg["voice"].get("file_id")
                             if file_id:
                                 telegram_send("🎤 Transcribing...")
-                                text = transcrire_vocal(file_id)
+                                text = transcribe_voice(file_id)
                                 if text:
                                     telegram_send(f"🎤 _{text}_", force=True)
                                 else:
                                     telegram_send("❌ Transcription failed.")
                                     continue
-                        except Exception as e_vocal:
-                            log.error(f"Vocal: {e_vocal}")
+                        except Exception as e_voice:
+                            log.error(f"Voice: {e_voice}")
                             continue
 
                 if not text or not _is_authorized_chat(chat_id):

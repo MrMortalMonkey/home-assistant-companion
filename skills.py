@@ -87,7 +87,7 @@ PROFILE_QUESTIONS = [
         "skill_key": "household",
     },
     {
-        "id": "household_assistant_vocal",
+        "id": "household_voice_assistant",
         "question": "🗣️ Voice assistant / home automation?",
         "buttons": [
             {"text": "Google Nest/Home", "value": "google"},
@@ -120,26 +120,26 @@ VALID_CATEGORIES = [
     "grid_zigbee",      # Z2M bridge
     "matter",             # Matter Bridge
     "nas",                # synology
-    "impression",         # printer
+    "printer",         # printer
     "security",           # alarms, cameras
     "multimedia",         # TV, speakers
     "home_appliances",     # home appliances
-    "systeme_ha",         # updates, addons
+    "home_assistant_system",         # updates, addons
     "ignore",          # ignored entities
 ]
 
 PATTERNS_AUTO = [
-    ("solarbank_e1600", "state_de_charge",      "energy_battery",   "soc",        "Anker Solarbank Battery"),
+    ("solarbank_e1600", "state_of_charge",      "energy_battery",   "soc",        "Anker Solarbank Battery"),
     ("solarbank_e1600", "mode",                "energy_battery",   "mode",       "Anker Solarbank mode"),
     ("solarbank_e1600", "power_solar",   "energy_production", "production", "Anker panels W"),
-    ("solarbank_e1600", "power_de_charge", "energy_battery",   "charge",     "Anker charge W"),
+    ("solarbank_e1600", "charge_power", "energy_battery",   "charge",     "Anker charge W"),
     ("solarbank_e1600", "power_output", "energy_production", "injection",  "Anker injection W"),
-    ("solarbank_e1600", "power_de_decharge","energy_battery",  "decharge",   "Anker discharge W"),
-    ("system_anker",    "state_de_charge",      "energy_battery",   "soc",        "Anker System SOC"),
+    ("solarbank_e1600", "discharge_power","energy_battery",  "discharge",   "Anker discharge W"),
+    ("system_anker",    "state_of_charge",      "energy_battery",   "soc",        "Anker System SOC"),
     ("system_anker",    "energy_solar",     "energy_production", "production", "Anker system W"),
-    ("solar", "production.*maintenant",  "energy_forecast", "temps_reel",  "Real-time solar forecast"),
-    ("solar", "production.*demain",      "energy_forecast", "j_plus_1",    "Solar forecast tomorrow"),
-    ("weather", "",                      "weather",             "prevision",    "Weather station"),
+    ("solar", "production.*now",  "energy_forecast", "realtime",  "Real-time solar forecast"),
+    ("solar", "production.*tomorrow",      "energy_forecast", "j_plus_1",    "Solar forecast tomorrow"),
+    ("weather", "",                      "weather",             "forecast",    "Weather station"),
 ]
 
 ENTITY_CRITICALITY = {
@@ -148,7 +148,7 @@ ENTITY_CRITICALITY = {
     "matter":        {"alert_after_h": 2,  "label": "Matter Bridge"},
     "energy_solar":{"alert_after_h": 4, "label": "Solar energy"},
     "connected_plug":{"alert_after_h": 24,"label": "Smart plug"},
-    "impression":    {"alert_after_h": 24, "label": "Printer"},
+    "printer":    {"alert_after_h": 24, "label": "Printer"},
     "multimedia":    {"alert_after_h": 48, "label": "Multimedia"},
 }
 
@@ -156,52 +156,52 @@ PROVIDERS = {
     "edf": {
         "name": "EDF",
         "offers": {
-            "base": {"name": "Rate Blue Base", "type": "base", "price_kwh": 0.2516, "abo_month": 12.44},
-            "hphc": {"name": "Rate Blue HP/HC", "type": "hphc", "price_hp": 0.27, "price_hc": 0.2068, "abo_month": 13.01},
+            "base": {"name": "Rate Blue Base", "type": "base", "price_kwh": 0.2516, "subscription_month": 12.44},
+            "hphc": {"name": "Rate Blue HP/HC", "type": "hphc", "price_hp": 0.27, "price_hc": 0.2068, "subscription_month": 13.01},
             "tempo": {"name": "Tempo", "type": "tempo", "price_blue_hp": 0.1369, "price_blue_hc": 0.1056,
-                       "price_white_hp": 0.1894, "price_white_hc": 0.1486, "price_red_hp": 0.7562, "price_red_hc": 0.1568, "abo_month": 13.01},
-            "zen": {"name": "Green Electric Zen", "type": "hphc", "price_hp": 0.2676, "price_hc": 0.2068, "abo_month": 12.44},
-            "weekend": {"name": "Zen Week-End", "type": "weekend", "price_weekday": 0.2038, "price_weekend": 0.1538, "abo_month": 14.83},
-            "weekend_hphc": {"name": "Zen Week-End HP/HC", "type": "weekend_hphc", "price_hp_weekday": 0.2153, "price_hc": 0.1618, "price_weekend": 0.1618, "abo_month": 15.08},
-            "weekend_plus": {"name": "Zen Week-End Plus (Selected day)", "type": "weekend_plus", "price_weekday": 0.2133, "price_weekend_day": 0.1604, "abo_month": 14.83},
+                       "price_white_hp": 0.1894, "price_white_hc": 0.1486, "price_red_hp": 0.7562, "price_red_hc": 0.1568, "subscription_month": 13.01},
+            "zen": {"name": "Green Electric Zen", "type": "hphc", "price_hp": 0.2676, "price_hc": 0.2068, "subscription_month": 12.44},
+            "weekend": {"name": "Zen Week-End", "type": "weekend", "price_weekday": 0.2038, "price_weekend": 0.1538, "subscription_month": 14.83},
+            "weekend_hphc": {"name": "Zen Week-End HP/HC", "type": "weekend_hphc", "price_hp_weekday": 0.2153, "price_hc": 0.1618, "price_weekend": 0.1618, "subscription_month": 15.08},
+            "weekend_plus": {"name": "Zen Week-End Plus (Selected day)", "type": "weekend_plus", "price_weekday": 0.2133, "price_weekend_day": 0.1604, "subscription_month": 14.83},
             "weekend_plus_hphc": {"name": "Zen Week-End Plus HP/HC (Selected day)", "type": "weekend_plus_hphc",
-                "price_hp_weekday": 0.2213, "price_hc_weekend_day": 0.166, "abo_month": 15.08,
+                "price_hp_weekday": 0.2213, "price_hc_weekend_day": 0.166, "subscription_month": 15.08,
                 "description": "Peak weekdays | Off-peak + weekend + chosen day + holidays = same reduced price"},
         }
     },
     "totalenergies": {
         "name": "TotalEnergies",
         "offers": {
-            "base": {"name": "Essentielle Base", "type": "base", "price_kwh": 0.2516, "abo_month": 12.44},
-            "hphc": {"name": "Essentielle HP/HC", "type": "hphc", "price_hp": 0.27, "price_hc": 0.2068, "abo_month": 13.01},
-            "online": {"name": "Online Base", "type": "base", "price_kwh": 0.2177, "abo_month": 12.44},
+            "base": {"name": "Essentielle Base", "type": "base", "price_kwh": 0.2516, "subscription_month": 12.44},
+            "hphc": {"name": "Essentielle HP/HC", "type": "hphc", "price_hp": 0.27, "price_hc": 0.2068, "subscription_month": 13.01},
+            "online": {"name": "Online Base", "type": "base", "price_kwh": 0.2177, "subscription_month": 12.44},
         }
     },
     "engie": {
         "name": "Engie",
         "offers": {
-            "base": {"name": "Reference Base", "type": "base", "price_kwh": 0.2516, "abo_month": 12.44},
-            "hphc": {"name": "Reference HP/HC", "type": "hphc", "price_hp": 0.27, "price_hc": 0.2068, "abo_month": 13.01},
-            "elec_adapt": {"name": "Elec Adapt", "type": "base", "price_kwh": 0.2346, "abo_month": 12.44},
+            "base": {"name": "Reference Base", "type": "base", "price_kwh": 0.2516, "subscription_month": 12.44},
+            "hphc": {"name": "Reference HP/HC", "type": "hphc", "price_hp": 0.27, "price_hc": 0.2068, "subscription_month": 13.01},
+            "elec_adapt": {"name": "Elec Adapt", "type": "base", "price_kwh": 0.2346, "subscription_month": 12.44},
         }
     },
     "octopus": {
         "name": "Octopus Energy",
         "offers": {
-            "base": {"name": "Eco-Consumption Base", "type": "base", "price_kwh": 0.1994, "abo_month": 12.44},
-            "hphc": {"name": "Eco-Consumption HP/HC", "type": "hphc", "price_hp": 0.2252, "price_hc": 0.1606, "abo_month": 13.01},
+            "base": {"name": "Eco-Consumption Base", "type": "base", "price_kwh": 0.1994, "subscription_month": 12.44},
+            "hphc": {"name": "Eco-Consumption HP/HC", "type": "hphc", "price_hp": 0.2252, "price_hc": 0.1606, "subscription_month": 13.01},
         }
     },
     "ekwateur": {
         "name": "Ekwateur",
         "offers": {
-            "base": {"name": "Electricity Base", "type": "base", "price_kwh": 0.2364, "abo_month": 12.44},
+            "base": {"name": "Electricity Base", "type": "base", "price_kwh": 0.2364, "subscription_month": 12.44},
         }
     },
     "mint": {
         "name": "Mint Energy",
         "offers": {
-            "base": {"name": "Classic Base", "type": "base", "price_kwh": 0.2041, "abo_month": 12.44},
+            "base": {"name": "Classic Base", "type": "base", "price_kwh": 0.2041, "subscription_month": 12.44},
         }
     },
     "other": {
@@ -216,9 +216,9 @@ PROVIDERS = {
 def cmd_roles():
     """Display discovered roles"""
     roles = role_get_all()
-    report = f"🎯 AUTO-DISCOVERED ROLES — {len(roles)}/{len(ROLES_DEFINIS)}\n━━━━━━━━━━━━━━━━━━\n"
+    report = f"🎯 AUTO-DISCOVERED ROLES — {len(roles)}/{len(ROLE_DEFINITIONS)}\n━━━━━━━━━━━━━━━━━━\n"
 
-    for role, definition in ROLES_DEFINIS.items():
+    for role, definition in ROLE_DEFINITIONS.items():
         details = role_definition_details(definition)
         desc = details.get("description", "Auto-discovered role")
         if role in roles:
@@ -229,7 +229,7 @@ def cmd_roles():
         else:
             report += f"  ❌ {role} — {desc}\n    Not discovered\n"
 
-    no_assignes = len(ROLES_DEFINIS) - len(roles)
+    no_assignes = len(ROLE_DEFINITIONS) - len(roles)
     if no_assignes > 0:
         report += f"\n⚠️ {no_assignes} unassigned role(s) — /scan to restart discovery"
     else:
@@ -290,7 +290,7 @@ def _start_questionnaire_household():
         "household_solar_kwc": "☀️ Capacity",
         "household_heating": "🌡️ Heating",
         "household_hot_water": "🚿 Hot water",
-        "household_assistant_vocal": "🗣️ Assistant",
+        "household_voice_assistant": "🗣️ Assistant",
         "household_goal": "🎯 Goal",
     }
     msg = "✅ HOUSEHOLD PROFILEE SAVED\n━━━━━━━━━━━━━━━━━━\n"
@@ -470,8 +470,8 @@ def _engine_savings_proactive(states, index, now):
         profile_household, _ = skill_get("household")
         if not profile_household:
             profile_household = {}
-        has_assistant = profile_household.get("household_assistant_vocal", "none") not in ("none", "n/a")
-        name_assistant = profile_household.get("household_assistant_vocal", "").title()
+        has_assistant = profile_household.get("household_voice_assistant", "none") not in ("none", "n/a")
+        name_assistant = profile_household.get("household_voice_assistant", "").title()
         goal = profile_household.get("household_goal", "reduce_bill")
 
         msg = f"💡 MORNING BRIEFING\n━━━━━━━━━━━━━━━━━━"
@@ -524,12 +524,12 @@ def _engine_savings_proactive(states, index, now):
                 if e_temp and e_temp["state"] not in ("unavailable", "unknown"):
                     weather_parts.append(f"{e_temp['state']}°C")
             # Rain
-            pluie_eid = role_get("weather_risque_pluie")
-            if pluie_eid:
-                e_pluie = index.get(pluie_eid)
-                if e_pluie and e_pluie["state"] not in ("unavailable", "unknown", "0"):
+            rain_entity_id = role_get("weather_rain_chance")
+            if rain_entity_id:
+                rain_entity = index.get(rain_entity_id)
+                if rain_entity and rain_entity["state"] not in ("unavailable", "unknown", "0"):
                     try:
-                        pct = int(float(e_pluie["state"]))
+                        pct = int(float(rain_entity["state"]))
                         if pct > 30:
                             weather_parts.append(f"🌧️ rain {pct}%")
                     except (ValueError, TypeError):
@@ -538,7 +538,7 @@ def _engine_savings_proactive(states, index, now):
             alert_eid = role_get("weather_alert")
             if alert_eid:
                 e_alert = index.get(alert_eid)
-                if e_alert and e_alert["state"] not in ("unavailable", "unknown", "Vert"):
+                if e_alert and e_alert["state"] not in ("unavailable", "unknown", "Green"):
                     weather_parts.append(f"⚠️ {e_alert['state']}")
             if weather_parts:
                 msg += f"\n\n🌤️ Weather: {' | '.join(weather_parts)}"
@@ -624,9 +624,9 @@ def _engine_savings_proactive(states, index, now):
                 best = waze_rortes[0]
                 msg += f"\n\n🚗 TRAJET"
                 for wr in waze_rortes:
-                    icone = "🟢" if wr["duration"] < 30 else ("🟡" if wr["duration"] < 45 else "🔴")
+                    icon = "🟢" if wr["duration"] < 30 else ("🟡" if wr["duration"] < 45 else "🔴")
                     best_marker = " ← best" if wr == best and len(waze_rortes) > 1 else ""
-                    msg += f"\n  {icone} {wr['name']}{wr['dist']} : {int(wr['duration'])} min{best_marker}"
+                    msg += f"\n  {icon} {wr['name']}{wr['dist']} : {int(wr['duration'])} min{best_marker}"
                 msg += f"\n\n🚗 Bonne route !"
             else:
                 msg += f"\n\n🚗 Have a great day!"
@@ -641,11 +641,11 @@ def _engine_savings_proactive(states, index, now):
         last_solar_alert = _eco_proactive_state.get("solar_alert", "")
         if not has_cycle and last_solar_alert != now.strftime("%Y-%m-%d-%H"):
             _eco_proactive_state["solar_alert"] = now.strftime("%Y-%m-%d-%H")
-            eco_potentialle = round(1.5 * price_kwh * (production_w / 2000), 2)
+            eco_potential = round(1.5 * price_kwh * (production_w / 2000), 2)
             telegram_send(
                 f"☀️ SOLAR PEAK — {int(production_w)}W available !\n"
                 f"No machine running.\n"
-                f"💰 Start an appliance now → ~{eco_potentialle:.2f}€ saved"
+                f"💰 Start an appliance now → ~{eco_potential:.2f}€ saved"
             )
 
     # ═══ 3. FORGOTTEN STANDBY (every 2h if switch ON + consumption < 15W) ═══
@@ -700,8 +700,8 @@ def _engine_savings_proactive(states, index, now):
                 "rate_optimal": "⚡ Rate",
             }
             msg = f"📊 DAILY SUMMARY — {today}\n━━━━━━━━━━━━━━━━━━"
-            for type_eco, euros, nb in eco_day:
-                label = type_labels.get(type_eco, type_eco)
+            for saving_type, euros, nb in eco_day:
+                label = type_labels.get(saving_type, saving_type)
                 msg += f"\n  {label} : +{euros:.2f}€ ({nb}x)"
             msg += f"\n━━━\n💰 Today: +{total_day:.2f}€"
             msg += f"\n📈 This month: {eco_month_total:.2f}€"
@@ -728,7 +728,7 @@ def _engine_savings_proactive(states, index, now):
             eco_sem_eur, eco_sem_nb = eco_week
 
             # Previous week savings
-            eco_prec = conn.execute(
+            previous_savings = conn.execute(
                 "SELECT COALESCE(SUM(euros), 0) FROM savings WHERE created_at >= ? AND created_at < ?",
                 (monday_prev, monday)
             ).fetchone()[0]
@@ -770,10 +770,10 @@ def _engine_savings_proactive(states, index, now):
             # Savings
             msg += f"💰 SAVINGS\n"
             msg += f"  This week: +{eco_sem_eur:.2f}€ ({eco_sem_nb} actions)\n"
-            if eco_prec > 0:
-                delta_pct = ((eco_sem_eur - eco_prec) / eco_prec * 100) if eco_prec > 0.01 else 0
+            if previous_savings > 0:
+                delta_pct = ((eco_sem_eur - previous_savings) / previous_savings * 100) if previous_savings > 0.01 else 0
                 tendance = "📈" if delta_pct > 5 else ("📉" if delta_pct < -5 else "➡️")
-                msg += f"  Previous week: {eco_prec:.2f}€ {tendance} ({delta_pct:+.0f}%)\n"
+                msg += f"  Previous week: {previous_savings:.2f}€ {tendance} ({delta_pct:+.0f}%)\n"
             msg += f"  This month: {eco_month:.2f}€\n"
 
             # Breakdown by type
@@ -801,7 +801,7 @@ def _engine_savings_proactive(states, index, now):
                 msg += f"  {nb_success}✅ {nb_failures}❌ ({rate:.0f}%)\n"
 
             # Closing note
-            if eco_sem_eur > eco_prec and eco_prec > 0:
+            if eco_sem_eur > previous_savings and previous_savings > 0:
                 msg += f"\n🎯 Great progress this week!"
             elif eco_sem_eur > 0:
                 msg += f"\n💡 Every euro counts."
@@ -816,14 +816,14 @@ def _engine_savings_proactive(states, index, now):
     if now.day == 1 and hour == 10 and minute < 5 and _eco_proactive_state.get("summary_month") != now.strftime("%Y-%m"):
         _eco_proactive_state["summary_month"] = now.strftime("%Y-%m")
 
-        month_prec = (now.replace(day=1) - timedelta(days=1))
-        month_prec_str = month_prec.strftime("%Y-%m")
+        previous_month = (now.replace(day=1) - timedelta(days=1))
+        month_prec_str = previous_month.strftime("%Y-%m")
         current_month_str = now.strftime("%Y-%m")
-        month_2prec = (month_prec.replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+        month_2prec = (previous_month.replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
 
         names_month = {1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June",
                      7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December"}
-        name_month = names_month.get(month_prec.month, str(month_prec.month))
+        month_name = names_month.get(previous_month.month, str(previous_month.month))
 
         try:
             # ═══ MONTHLY SAVINGS ═══
@@ -851,11 +851,11 @@ def _engine_savings_proactive(states, index, now):
 
             # Accumulate daily cost from baselines
             consumption_eid = role_get("consumption_day_kwh")
-            depense_eid = role_get("consumption_day_eur")
+            cost_entity_id = role_get("consumption_day_cost")
 
-            nb_days = month_prec.day  # Last day of previors month
+            day_count = previous_month.day  # Last day of previors month
             consumption_kwh_month = 0
-            cost_edf_month = 0
+            grid_cost_month = 0
 
             # Method 1: from baselines
             try:
@@ -864,23 +864,23 @@ def _engine_savings_proactive(states, index, now):
                     (consumption_eid,)
                 ).fetchone()
                 if baselines_consumption and baselines_consumption[0]:
-                    consumption_kwh_month = baselines_consumption[0] * nb_days
+                    consumption_kwh_month = baselines_consumption[0] * day_count
             except Exception:
                 pass
 
             try:
                 baselines_eur = conn.execute(
                     "SELECT AVG(avg_value) FROM baselines WHERE entity_id=?",
-                    (depense_eid,)
+                    (cost_entity_id,)
                 ).fetchone()
                 if baselines_eur and baselines_eur[0]:
-                    cost_edf_month = baselines_eur[0] * nb_days
+                    grid_cost_month = baselines_eur[0] * day_count
             except Exception:
                 pass
 
             # If no baselines, estimate from rate
-            if cost_edf_month == 0 and consumption_kwh_month > 0:
-                cost_edf_month = consumption_kwh_month * rate_current_kwh_price()
+            if grid_cost_month == 0 and consumption_kwh_month > 0:
+                grid_cost_month = consumption_kwh_month * rate_current_kwh_price()
 
             # ═══ SOLAR PRODUCTION ═══
             prod_solar_kwh = 0
@@ -892,31 +892,31 @@ def _engine_savings_proactive(states, index, now):
                         (prod_eid,)
                     ).fetchone()
                     if baselines_sol and baselines_sol[0]:
-                        prod_solar_kwh = baselines_sol[0] * nb_days
+                        prod_solar_kwh = baselines_sol[0] * day_count
                 except Exception:
                     pass
 
             # ═══ BUILD MESSAGE ═══
-            msg = f"📊 MONTHLY SUMMARY — {name_month} {month_prec.year}\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            msg = f"📊 MONTHLY SUMMARY — {month_name} {previous_month.year}\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
 
-            # EDF
-            if consumption_kwh_month > 0 or cost_edf_month > 0:
-                msg += f"\n⚡ RESEAU EDF\n"
+            # Grid consumption
+            if consumption_kwh_month > 0 or grid_cost_month > 0:
+                msg += f"\n⚡ POWER GRID\n"
                 if consumption_kwh_month > 0:
                     msg += f"  Consumption: ~{consumption_kwh_month:.0f} kWh\n"
-                if cost_edf_month > 0:
-                    msg += f"  Estimated cost: ~{cost_edf_month:.0f}€\n"
+                if grid_cost_month > 0:
+                    msg += f"  Estimated cost: ~{grid_cost_month:.0f}€\n"
 
             # Solar
             if prod_solar_kwh > 0:
                 msg += f"\n☀️ PRODUCTION SOLAR\n"
                 msg += f"  Production: ~{prod_solar_kwh:.0f} kWh\n"
                 if consumption_kwh_month > 0:
-                    consumption_totale = consumption_kwh_month + prod_solar_kwh
-                    coverage = prod_solar_kwh / consumption_totale * 100 if consumption_totale > 0 else 0
+                    total_consumption = consumption_kwh_month + prod_solar_kwh
+                    coverage = prod_solar_kwh / total_consumption * 100 if total_consumption > 0 else 0
                     msg += f"  Solar coverage: {coverage:.0f}%\n"
-                eco_solar = prod_solar_kwh * rate_current_kwh_price()
-                msg += f"  Value produced: ~{eco_solar:.0f}€\n"
+                solar_saving = prod_solar_kwh * rate_current_kwh_price()
+                msg += f"  Value produced: ~{solar_saving:.0f}€\n"
 
             # AI Savings
             msg += f"\n💰 SAVINGS AI\n"
@@ -942,8 +942,8 @@ def _engine_savings_proactive(states, index, now):
                 msg += f"  {nb_c} cycles | {kwh_c:.1f} kWh | {eco_c:.2f}€ saved\n"
 
             # Summary
-            if cost_edf_month > 0 and eco_month[0] > 0:
-                pct_recup = eco_month[0] / cost_edf_month * 100 if cost_edf_month > 0 else 0
+            if grid_cost_month > 0 and eco_month[0] > 0:
+                pct_recup = eco_month[0] / grid_cost_month * 100 if grid_cost_month > 0 else 0
                 msg += f"\n🎯 AI recovered {pct_recup:.1f}% of your energy bill"
 
             telegram_send(msg)
@@ -1016,11 +1016,11 @@ def cycle_ended_at(entity_id, consumption_kwh=0.0):
     except Exception:
         pass
 
-    # Average production solar pendant the cycle
+    # Average solar production during the cycle
     prod_started_at = prod_solar_started_at or 0
     prod_avg = (prod_started_at + prod_solar_ended_at) / 2
 
-    # Power medium machine pendant the cycle
+    # Average appliance power during the cycle
     power_avg = (consumption_kwh / (duration / 60)) * 1000 if duration > 0 else 0
 
     if power_avg > 0 and prod_avg > 0:
@@ -1226,7 +1226,7 @@ def _learning_cycle(entity_id, signature, duration_min, consumption_kwh):
 
 
 def cmd_programs():
-    """Show thes programs learned for chaque machine."""
+    """Show the learned programs for each appliance."""
     programs, _ = skill_get("machine_programs")
     if not programs:
         return "📋 No program learned yet.\nPrograms are learned automatically after each cycle."
@@ -1253,8 +1253,8 @@ def cycle_in_progress(entity_id):
     return r
 
 
-def generer_graphique_energy(states, index):
-    """Generate a graphique consumption EDF + solar of the day → bytes PNG."""
+def generate_energy_graph(states, index):
+    """Generate a graph of grid consumption and solar production of the day → bytes PNG."""
     try:
         import matplotlib
         matplotlib.use("Agg")
@@ -1317,7 +1317,7 @@ def generer_graphique_energy(states, index):
     ax.set_facecolor("#16213e")
 
     if consumption_baseline and any(v > 0 for v in consumption_baseline):
-        ax.fill_between(hours, consumption_baseline, alpha=0.3, color="#e74c3c", label="Consumption EDF (baseline)")
+        ax.fill_between(hours, consumption_baseline, alpha=0.3, color="#e74c3c", label="Grid consumption (baseline)")
         ax.plot(hours, consumption_baseline, color="#e74c3c", linewidth=2)
 
     if solar_data and any(v > 0 for v in solar_data):
@@ -1360,7 +1360,7 @@ def handle_callback(callback_query):
 
     telegram_answer_callback(cqid)
 
-    if shared.canal_verrorille:
+    if shared.channel_locked:
         if not data.startswith("wizard_"):
             telegram_send("🔐 Channel locked — enter the SMS code first.")
             return
@@ -1808,7 +1808,7 @@ def handle_callback(callback_query):
         return
 
     # Auto-correction: apply or cancel the AI-generated patch
-    if data.startswith("patch_appliquer:"):
+    if data.startswith("patch_apply:"):
         old_code = mem_get("patch_pending_old", "")
         new_code = mem_get("patch_pending_new", "")
         explanation = mem_get("patch_pending_expl", "")
@@ -2012,7 +2012,7 @@ def ha_refresh_areas():
     shared._entity_areas     = ha_get_entity_areas()
     log.info(f"✅ HA Areas: {len(shared._areas_id_to_name)} rooms, {len(shared._entity_areas)} entities")
 
-    _PIECES_CONNUES_REFRESH = [
+    _KNOWN_ROOMS_REFRESH = [
         "kitchen", "living_room", "guest bedroom", "child bedroom", "bedroom",
         "laundry_room", "garage", "office", "salle of bain", "sdb",
         "entree", "corloir", "jardin", "terrasse", "attic", "basement",
@@ -2030,7 +2030,7 @@ def ha_refresh_areas():
             # Essai 2 : extraire since friendly_name
             if not norvelle_room and fname:
                 fn = fname.lower()
-                for p in _PIECES_CONNUES_REFRESH:
+                for p in _KNOWN_ROOMS_REFRESH:
                     if p in fn:
                         norvelle_room = p
                         break
@@ -2083,7 +2083,7 @@ def _monitored_heat_pump_correlee(index, states):
 
     temp_ext = None
     try:
-        e_ext = index.get(role_get("temp_exterieure") or "sensor.ecojoko_temperature_exterieure")
+        e_ext = index.get(role_get("outdoor_temperature") or "sensor.ecojoko_outdoor_temperature")
         if e_ext and e_ext["state"] not in ["unavailable", "unknown"]:
             temp_ext = float(e_ext["state"])
     except Exception:
@@ -2094,7 +2094,7 @@ def _monitored_heat_pump_correlee(index, states):
 
     temp_int = None
     try:
-        e_int = index.get(role_get("temp_interieure") or "sensor.ecojoko_temperature_interieure")
+        e_int = index.get(role_get("indoor_temperature") or "sensor.ecojoko_indoor_temperature")
         if e_int and e_int["state"] not in ["unavailable", "unknown"]:
             temp_int = float(e_int["state"])
     except Exception:
@@ -2104,7 +2104,7 @@ def _monitored_heat_pump_correlee(index, states):
         return  # Indoor temperature is still warm — not urgent
 
     try:
-        prev_json = mem_get("snapshot_precedent")
+        prev_json = mem_get("previous_snapshot")
         if prev_json:
             prev = json.loads(prev_json)
             prev_int = prev.get("temp_int")
@@ -2149,15 +2149,15 @@ def ha_get_context_intelligent(question, states=None):
         )
         log_token_usage(t_in, t_out)
         response_text = llm_provider.stream_text(blocks)
-        categories_cibles = [c.strip() for c in response_text.strip().split(",") if c.strip()]
+        target_categories = [c.strip() for c in response_text.strip().split(",") if c.strip()]
     except Exception as e:
         log.error(f"❌ Category detection: {e}")
         return _ha_summary_generique(states)
 
     lines = []
-    for cat in categories_cibles:
+    for cat in target_categories:
         entities_cat = entity_map_get_by_category(cat)
-        for entity_id, sors_cat, room in entities_cat:
+        for entity_id, subcategory, room in entities_cat:
             if entity_id in index:
                 e = index[entity_id]
                 unit = e.get("attributes", {}).get("unit_of_measurement", "")
@@ -2272,10 +2272,10 @@ def ha_get_context_intelligent(question, states=None):
         price_now = rate_current_kwh_price()
         ttype = rate.get("type", "base")
         provider = rate.get("provider", "?")
-        est_we = _est_weekend_or_ferie()
+        est_we = _is_weekend_or_holiday()
         info_rate = f"RATE: {provider} {ttype} | Price current: {price_now}€/kWh"
         if ttype in ("hphc", "weekend_hphc", "weekend_plus_hphc"):
-            hc = _est_hour_creuse_ranges(rate.get("off_peak_hours", []))
+            hc = _is_off_peak_hour_ranges(rate.get("off_peak_hours", []))
             info_rate += f" ({'HC' if hc else 'HP'})"
         if est_we:
             info_rate += " (weekend/holiday)"
@@ -2287,8 +2287,8 @@ def ha_get_context_intelligent(question, states=None):
         # Summary rate of the month
         data_rate, nb_rate = skill_get("optimisation_rate")
         if data_rate and data_rate.get("total_kwh", 0) > 1:
-            periodes = data_rate.get("periodes", {})
-            summary = " | ".join(f"{p}:{v['kwh']:.0f}kWh/{v['eur']:.1f}€" for p, v in periodes.items())
+            periods = data_rate.get("periods", {})
+            summary = " | ".join(f"{p}:{v['kwh']:.0f}kWh/{v['eur']:.1f}€" for p, v in periods.items())
             memory_store_extra.append(f"SUMMARY RATE MONTH: {data_rate['total_kwh']:.0f}kWh {data_rate['total_eur']:.1f}€ | {summary}")
     except Exception:
         pass
@@ -2325,7 +2325,7 @@ def ha_get_context_intelligent(question, states=None):
         ).fetchone()
         if score_row:
             details = json.loads(score_row[1]) if score_row[1] else {}
-            memory_store_extra.append(f"SCORE INTELLIGENCE: {score_row[0]}/100 ({details.get('niveau', '?')})")
+            memory_store_extra.append(f"SCORE INTELLIGENCE: {score_row[0]}/100 ({details.get('level', '?')})")
         conn_hyp.close()
     except Exception:
         pass
@@ -2372,17 +2372,17 @@ def ha_get_context_intelligent(question, states=None):
             )
             for t, d in eco_month["by_type"].items():
                 memory_store_extra.append(f"  {t}: {d['eur']:.2f}€ ({d['nb']} actions)")
-        month_prec = (datetime.now().replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
-        eco_prec = get_savings_month(month_prec)
-        if eco_prec["nb_actions"] > 0:
+        previous_month = (datetime.now().replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+        previous_savings = get_savings_month(previous_month)
+        if previous_savings["nb_actions"] > 0:
             memory_store_extra.append(
-                f"SAVINGS MONTH PRECEDENT ({month_prec}): {eco_prec['total_eur']:.2f}€ | "
-                f"{eco_prec['total_kwh']:.1f} kWh | {eco_prec['nb_actions']} actions"
+                f"SAVINGS MONTH PRECEDENT ({previous_month}): {previous_savings['total_eur']:.2f}€ | "
+                f"{previous_savings['total_kwh']:.1f} kWh | {previous_savings['nb_actions']} actions"
             )
     except Exception:
         pass
 
-    # Projection bill EDF ended_at of month
+    # Grid bill projection at the end of the month
     try:
         import calendar as _cal
         data_rate, nb_rate = skill_get("optimisation_rate")
@@ -2390,7 +2390,7 @@ def ha_get_context_intelligent(question, states=None):
             now_proj = datetime.now()
             current_day = now_proj.day
             days_month = _cal.monthrange(now_proj.year, now_proj.month)[1]
-            days_restants = days_month - current_day
+            days_remaining = days_month - current_day
 
             consumption_kwh = data_rate["total_kwh"]
             consumption_eur = data_rate["total_eur"]
@@ -2401,20 +2401,20 @@ def ha_get_context_intelligent(question, states=None):
                 proj_kwh = kwh_by_day * days_month
                 proj_eur = eur_by_day * days_month
 
-                # Abonnement EDF (~16€/month for 9kVA, ajustable)
-                abo_monthly = CFG.get("edf_abonnement_monthly", 16.0)
-                proj_total = proj_eur + abo_monthly
+                # Grid subscription (~16€/month for 9kVA, ajustable)
+                subscription_monthly = CFG.get("grid_subscription_monthly", 16.0)
+                proj_total = proj_eur + subscription_monthly
 
                 memory_store_extra.append(
-                    f"EDF BILL PROJECTION: "
+                    f"GRID BILL PROJECTION: "
                     f"Consumption {current_day}j = {consumption_kwh:.0f} kWh / {consumption_eur:.1f}€ | "
-                    f"Projection month = {proj_kwh:.0f} kWh / {proj_eur:.1f}€ consumption + {abo_monthly:.0f}€ abo = ~{proj_total:.0f}€ TTC | "
+                    f"Projected month = {proj_kwh:.0f} kWh / {proj_eur:.1f}€ consumption + {subscription_monthly:.0f}€ subscription = ~{proj_total:.0f}€ total | "
                     f"Average {kwh_by_day:.1f} kWh/day / {eur_by_day:.2f}€/day"
                 )
 
-                periodes = data_rate.get("periodes", {})
+                periods = data_rate.get("periods", {})
                 names_p = {"hp": "HP", "hc": "HC", "base": "Base", "weekday": "Weekday", "weekend_day": "WE/Selected day"}
-                for p, vals in periodes.items():
+                for p, vals in periods.items():
                     pct = vals["kwh"] / consumption_kwh * 100 if consumption_kwh > 0 else 0
                     memory_store_extra.append(f"  {names_p.get(p, p)}: {vals['kwh']:.0f} kWh ({pct:.0f}%) / {vals['eur']:.1f}€")
 
@@ -2474,14 +2474,14 @@ def _match_pattern(entity_id, fname):
     eid_low = entity_id.lower()
     fname_low = (fname or "").lower()
     combined = eid_low + " " + fname_low
-    for p_id, p_name, cat, sors, desc in PATTERNS_AUTO:
+    for p_id, p_name, cat, subcategory, desc in PATTERNS_AUTO:
         if p_id in combined:
             if not p_name or re.search(p_name, combined):
-                return cat, sors, desc
+                return cat, subcategory, desc
     return None, None, None
 
 
-def _construire_question_intelligente(entity_id, fname, state, attrs):
+def _build_intelligent_question(entity_id, fname, state, attrs):
     """Use the configured AI provider to build a precise question."""
     unit = attrs.get("unit_of_measurement", "")
     device_class = attrs.get("device_class", "")
@@ -2615,7 +2615,7 @@ def handle_pending_entities(index):
         "automation", "button", "select", "update", "number"
     }
 
-    nb_questions = 0
+    question_count = 0
     for entity_id, e in index.items():
         if entity_id in known or entity_id in pending:
             continue
@@ -2629,7 +2629,7 @@ def handle_pending_entities(index):
         fname = attrs.get("friendly_name", entity_id)
         state  = e.get("state", "")
 
-        cat, sors, desc = _match_pattern(entity_id, fname)
+        cat, subcategory, desc = _match_pattern(entity_id, fname)
         if cat:
             if cat in ("energy_battery", "energy_production", "energy_forecast"):
                 conn = sqlite3.connect(DB_PATH)
@@ -2638,24 +2638,24 @@ def handle_pending_entities(index):
                     """INSERT OR REPLACE INTO entity_map
                        (entity_id, category, subcategory, room, friendly_name, learned_at)
                        VALUES (?, ?, ?, ?, ?, ?)""",
-                    (entity_id, cat, sors, room, fname, datetime.now().isoformat())
+                    (entity_id, cat, subcategory, room, fname, datetime.now().isoformat())
                 )
                 conn.commit()
                 conn.close()
                 log.info(f"✅ Auto-categorized: {fname} → {cat}")
                 ask_entity_question(entity_id, fname, cat, desc)
-                nb_questions += 1
-                if nb_questions >= 3:
+                question_count += 1
+                if question_count >= 3:
                     break
                 continue
 
-        if nb_questions < 3:
-            cat_claude, desc_claude = _construire_question_intelligente(entity_id, fname, state, attrs)
-            ask_entity_question(entity_id, fname, cat_claude, desc_claude)
-            nb_questions += 1
+        if question_count < 3:
+            ai_category, ai_description = _build_intelligent_question(entity_id, fname, state, attrs)
+            ask_entity_question(entity_id, fname, ai_category, ai_description)
+            question_count += 1
 
-    if nb_questions > 0:
-        log.info(f"❓ {nb_questions} question(s) asked")
+    if question_count > 0:
+        log.info(f"❓ {question_count} question(s) asked")
 
     _check_entity_map_consistency(index)
 
@@ -2680,20 +2680,20 @@ def _forcer_reclassification_anker(index):
         attrs = index[entity_id].get("attributes", {})
         fname_ha = attrs.get("friendly_name", entity_id)
         
-        cat, sors, desc = _match_pattern(entity_id, fname_ha)
+        cat, subcategory, desc = _match_pattern(entity_id, fname_ha)
         
         if not cat:
             if "solarbank_e1600" in entity_id:
-                cat, sors, desc = "energy_battery", "other", "Anker Solarbank E1600"
+                cat, subcategory, desc = "energy_battery", "other", "Anker Solarbank E1600"
             elif "system_anker" in entity_id:
-                cat, sors, desc = "energy_production", "other", "Anker System"
+                cat, subcategory, desc = "energy_production", "other", "Anker System"
             else:
                 continue
         
         conn = sqlite3.connect(DB_PATH)
         conn.execute(
             "UPDATE entity_map SET category=?, subcategory=?, friendly_name=? WHERE entity_id=?",
-            (cat, sors, fname_ha, entity_id)
+            (cat, subcategory, fname_ha, entity_id)
         )
         conn.commit()
         conn.close()
@@ -2705,10 +2705,10 @@ def _forcer_reclassification_anker(index):
         log.info(f"🔴→⚡ {reclassifiees} Anker entity/entities reclassified")
 
 
-def _maj_baseline_entities():
+def _refresh_baseline_entities():
     """Refresh baseline entities from auto-discovered roles."""
     try:
-        dynamic = role_decouvrir_baselines()
+        dynamic = role_baseline_entities()
         if dynamic:
             BASELINE_ENTITIES.update(dynamic)
             log.debug(f"Baseline entities refreshed: {len(dynamic)} role-based entries")
@@ -2718,7 +2718,7 @@ def _maj_baseline_entities():
 
 def discover_automatically(states=None):
     ha_refresh_areas()
-    _maj_baseline_entities()
+    _refresh_baseline_entities()
     log.info("🧠 Automatic discovery...")
 
     if states is None:
@@ -2747,13 +2747,13 @@ def discover_automatically(states=None):
     if not new_items:
         log.info("✅ All entities already mapped")
         mem_set("discovery_date", datetime.now().isoformat())
-        _maj_known_entities()
+        _refresh_known_entities()
         return
 
-    auto_categorisees = []
-    a_send_claude  = []
+    auto_categorized = []
+    items_for_ai  = []
 
-    _PIECES_CONNUES = [
+    _KNOWN_ROOMS = [
         "kitchen", "living_room", "bedroom", "laundry_room", "garage", "office",
         "salle of bain", "sdb", "entree", "corloir", "jardin", "terrasse",
         "attic", "basement", "wc", "toilet", "guest bedroom", "child bedroom",
@@ -2762,7 +2762,7 @@ def discover_automatically(states=None):
     def _extraire_room(fname):
         """Extracts the room from friendly_name when the HA API does not respond."""
         fn = fname.lower()
-        for p in _PIECES_CONNUES:
+        for p in _KNOWN_ROOMS:
             if p in fn:
                 return p
         return ""
@@ -2777,28 +2777,28 @@ def discover_automatically(states=None):
 
         if "plug" in name_lower:
             if domain == "sensor" and name_lower.endswith("_power"):
-                auto_categorisees.append((eid, "connected_plug", "power", room, fname))
+                auto_categorized.append((eid, "connected_plug", "power", room, fname))
             elif domain == "switch" and not name_lower.endswith("_child_lock"):
-                auto_categorisees.append((eid, "connected_plug", "command", room, fname))
+                auto_categorized.append((eid, "connected_plug", "command", room, fname))
             else:
-                auto_categorisees.append((eid, "ignore", "", room, fname))
+                auto_categorized.append((eid, "ignore", "", room, fname))
         else:
-            a_send_claude.append(e)
+            items_for_ai.append(e)
 
-    if auto_categorisees:
+    if auto_categorized:
         conn = sqlite3.connect(DB_PATH)
-        for eid, cat, sors, pc, fn in auto_categorisees:
+        for eid, cat, subcategory, pc, fn in auto_categorized:
             conn.execute(
                 '''INSERT OR REPLACE INTO entity_map
                    (entity_id, category, subcategory, room, friendly_name, learned_at)
                    VALUES (?, ?, ?, ?, ?, ?)''',
-                (eid, cat, sors, pc, fn, datetime.now().isoformat())
+                (eid, cat, subcategory, pc, fn, datetime.now().isoformat())
             )
-        nb_plugs = sum(1 for _, cat, _, _, _ in auto_categorisees if cat == "connected_plug")
+        nb_plugs = sum(1 for _, cat, _, _, _ in auto_categorized if cat == "connected_plug")
         conn.commit()
         conn.close()
         if nb_plugs > 0:
-            names = [fn for _, cat, _, _, fn in auto_categorisees if cat == "connected_plug"]
+            names = [fn for _, cat, _, _, fn in auto_categorized if cat == "connected_plug"]
             telegram_send(
                 f"🔌 {nb_plugs} new plug(s) detected:\n"
                 + "\n".join(f"  • {n}" for n in names) +
@@ -2806,7 +2806,7 @@ def discover_automatically(states=None):
             )
         log.info(f"✅ Plugs: {nb_plugs} useful ones categorized")
 
-    new_items = a_send_claude
+    new_items = items_for_ai
     batch_size = 40
     total = 0
 
@@ -2847,7 +2847,7 @@ def discover_automatically(states=None):
             for item in results:
                 eid = item.get("entity_id", "")
                 cat = item.get("category", "ignore")
-                sors = item.get("subcategory", "")
+                subcategory = item.get("subcategory", "")
                 e_orig = next((e for e in batch if e["entity_id"] == eid), None)
                 fname = e_orig.get("attributes", {}).get("friendly_name", "") if e_orig else ""
                 room_ha = ha_get_area(eid)
@@ -2856,7 +2856,7 @@ def discover_automatically(states=None):
                     '''INSERT OR REPLACE INTO entity_map
                        (entity_id, category, subcategory, room, friendly_name, learned_at)
                        VALUES (?, ?, ?, ?, ?, ?)''',
-                    (eid, cat, sors, room, fname, datetime.now().isoformat())
+                    (eid, cat, subcategory, room, fname, datetime.now().isoformat())
                 )
                 total += 1
             conn.commit()
@@ -2868,14 +2868,14 @@ def discover_automatically(states=None):
 
     mem_set("discovery_date", datetime.now().isoformat())
     mem_set("discovery_count", total)
-    _maj_known_entities()
+    _refresh_known_entities()
 
 
-def _maj_known_entities():
+def _refresh_known_entities():
     """Met a day the snapshot of the entities knowns"""
     carto = entity_map_get_all()
     for eid, cat in carto.items():
-        known_entities_maj(eid, cat)
+        known_entities_update(eid, cat)
 
 
 def compare_entities_on_startup(states):
@@ -2935,16 +2935,16 @@ def scan_ha_complete():
     threading.Thread(target=discover_automatically, args=(states,), daemon=True).start()
 
     try:
-        nb_roles = role_decouvrir(states)
-        if nb_roles > 0:
-            log.info(f"🎯 {nb_roles} role(s) auto-discovered at scan")
+        role_count = discover_roles(states)
+        if role_count > 0:
+            log.info(f"🎯 {role_count} role(s) auto-discovered at scan")
     except Exception as ex_r:
-        log.error(f"❌ role_decouvrir: {ex_r}")
+        log.error(f"❌ discover_roles: {ex_r}")
 
     return True
 
 
-def _detecter_new_items_entities(index):
+def _detect_new_entities(index):
     """Detection antivirus — flags new entities in under 1ms, 0 token.
     Plugs and power sensors are auto-categorized immediately.
     Other items are reported for the next infiltration scan."""
@@ -3024,7 +3024,7 @@ def _detecter_new_items_entities(index):
         unit = attrs.get("unit_of_measurement", "")
         if domain == "sensor" and (dc == "power" or unit == "W"):
             cat_auto = "energy_consumption"
-            if any(k in name_lower for k in ["solar", "solar", "ecu", "ingreenr", "ingreenr"]):
+            if any(k in name_lower for k in ["solar", "solar", "ecu", "inverter", "inverter"]):
                 cat_auto = "energy_solar"
             elif any(k in name_lower for k in ["battery", "battery", "solarbank", "anker"]):
                 cat_auto = "energy_battery"
@@ -3130,7 +3130,7 @@ def _detecter_new_items_entities(index):
     conn.close()
 
 
-def _remonter_errors():
+def _surface_errors():
     """SKILL AUTO-GUERISON — Pipeline ferme, 0 intervention user.
 
     Cycle complete :
@@ -3143,7 +3143,7 @@ def _remonter_errors():
 
     The user sees NOTHING. Ever. Errors are the script's problem, not the user's.
     """
-    # # global _errors_buffer, _errors_vues    # via shared# via shared
+    # # global _errors_buffer, _errors_seen    # via shared# via shared
 
     if not _errors_buffer:
         return
@@ -3206,14 +3206,14 @@ def _remonter_errors():
             continue  # Already tried and failed → wait 24h
 
         # Anti-spam only on the action (not the comptage)
-        last_action = _errors_vues.get(sig)
+        last_action = _errors_seen.get(sig)
         if last_action:
             try:
                 if (now - datetime.fromisoformat(last_action)).total_seconds() < 3600:
                     continue
             except Exception:
                 pass
-        _errors_vues[sig] = now.isoformat()
+        _errors_seen[sig] = now.isoformat()
 
         # ═══ AUTO-CORRECTION ═══
         log.info(f"🔧 Auto-heal: {nb_1h} occurrences/1h → correction: {sig[:60]}")
@@ -3222,7 +3222,7 @@ def _remonter_errors():
             continue
 
         try:
-            result = _auto_guerison(sig, info["msg"])
+            result = _auto_heal(sig, info["msg"])
             action_db = "AUTO_FIX_OK" if result == "OK" else "AUTO_FIX_FAIL"
             try:
                 conn2 = sqlite3.connect(DB_PATH)
@@ -3236,16 +3236,16 @@ def _remonter_errors():
             except Exception:
                 pass
             if result == "FAIL":
-                _auto_guerison(sig, info["msg"], nb_occurrences, retry=True)
+                _auto_heal(sig, info["msg"], occurrence_count, retry=True)
         except Exception:
             pass
 
     # Clean the vieilles signatures
     cutoff = (now - timedelta(hours=24)).isoformat()
-    _errors_vues = {k: v for k, v in _errors_vues.items() if v > cutoff}
+    _errors_seen = {k: v for k, v in _errors_seen.items() if v > cutoff}
 
 
-def _auto_guerison(signature, message_error, nb_occurrences=2, retry=False):
+def _auto_heal(signature, message_error, occurrence_count=2, retry=False):
     """Autonomous correction: the configured strong model proposes a patch, applies it, restarts."""
 
     msg_clean = message_error
@@ -3317,7 +3317,7 @@ def _auto_guerison(signature, message_error, nb_occurrences=2, retry=False):
                "including every indentation sheet.\n" if retry else "")
         )
         user_patch = (
-            f"RECURRING ERROR ({nb_occurrences}x in 60s):\n{msg_clean[:300]}\n\n"
+            f"RECURRING ERROR ({occurrence_count}x in 60s):\n{msg_clean[:300]}\n\n"
             f"RECENT LOGS:\n{logs_recents[:1000]}\n\n"
             f"SCRIPT CONTEXT (relevant lines):\n{context[:15000]}"
         )
@@ -3451,7 +3451,7 @@ def cmd_roi():
         "SELECT tokens_in, tokens_out FROM tokens WHERE month=?", (month,)
     ).fetchone()
     total_tokens = (tokens_row[0] + tokens_row[1]) if tokens_row else 0
-    cost_tokens = round(total_tokens * 0.000001, 2)  # Haiku ~$1/1M
+    cost_tokens = round(total_tokens * 0.000001, 2)  # lightweight model ~$1/1M
 
     cycles_sol = conn.execute(
         "SELECT COUNT(*), SUM(consumption_kwh), SUM(cost_eur) FROM appliance_cycles "
@@ -3459,11 +3459,11 @@ def cmd_roi():
         (f"{month}%",)
     ).fetchall()
 
-    data_reco, _ = skill_get("recommandations")
+    recommendation_data, _ = skill_get("recommendations")
     conn.close()
 
     eco_data = get_savings_month(month)
-    eco_reelle = eco_data["total_eur"]
+    actual_savings = eco_data["total_eur"]
     eco_kwh = eco_data["total_kwh"]
     nb_actions = eco_data["nb_actions"]
 
@@ -3472,31 +3472,31 @@ def cmd_roi():
     report += f"\n🔑 INVESTMENT\n  {total_tokens:,} tokens | {cost_tokens:.2f}€\n"
 
     report += f"\n💰 REAL SAVINGS ({nb_actions} actions)\n"
-    for type_eco, info in eco_data.get("by_type", {}).items():
+    for saving_type, info in eco_data.get("by_type", {}).items():
         type_labels = {
             "cycle_solar": "☀️ Cycles solar",
             "rate_optimal": "⚡ Optimization rate",
             "surconsumption_evitee": "📉 Surconsumption evitee",
-            "recommandation_appliquee": "💡 Recommandations",
+            "recommendation_applied": "💡 Recommendations",
         }
-        label = type_labels.get(type_eco, type_eco)
+        label = type_labels.get(saving_type, saving_type)
         report += f"  {label} : +{info['eur']:.2f}€ ({info['nb']}x)\n"
-    report += f"  ━━━\n  Total measured: {eco_reelle:.2f}€ | {eco_kwh:.1f} kWh\n"
+    report += f"  ━━━\n  Total measured: {actual_savings:.2f}€ | {eco_kwh:.1f} kWh\n"
 
-    eco_potentialle = 0
-    if data_reco and "recommandations" in data_reco:
-        eco_potentialle = sum(r.get("saving_month_eur", 0) for r in data_reco["recommandations"])
-        score = data_reco.get("score_optimisation", 0)
+    eco_potential = 0
+    if recommendation_data and "recommendations" in recommendation_data:
+        eco_potential = sum(r.get("saving_month_eur", 0) for r in recommendation_data["recommendations"])
+        score = recommendation_data.get("optimization_score", 0)
         report += f"\n💡 UNUSED POTENTIAL\n"
-        for r in data_reco["recommandations"][:3]:
+        for r in recommendation_data["recommendations"][:3]:
             report += f"  • {r.get('action', '?')} → ~{r.get('saving_month_eur', 0):.0f}€/month\n"
         report += f"  Optimization score : {score}/100\n"
 
     report += f"\n━━━━━━━━━━━━━━━━━━\n"
     report += f"📊 THE VIRTUOUS CYCLE\n"
     report += f"  Tokens    : {cost_tokens:.2f}€/month\n"
-    report += f"  Savings: {eco_reelle:.2f}€ (actual) + ~{eco_potentialle:.0f}€ (potential)\n"
-    total_eco = eco_reelle + eco_potentialle
+    report += f"  Savings: {actual_savings:.2f}€ (actual) + ~{eco_potential:.0f}€ (potential)\n"
+    total_eco = actual_savings + eco_potential
     if cost_tokens > 0:
         roi = total_eco / cost_tokens
         report += f"  ROI       : x{roi:.1f}\n"
@@ -3546,15 +3546,15 @@ def skill_suggestion_machine(states):
 
                 if production_w > 500:
                     telegram_send(
-                        f"⏰ RAPPEL MACHINE — {hour_str}\n"
+                        f"⏰ APPLIANCE REMINDER — {hour_str}\n"
                         f"☀️ Solar production: {int(production_w)} W\n"
-                        f"C'is the bon moment for start the machine !"
+                        f"This is a good time to start the appliance."
                     )
                 else:
                     telegram_send(
-                        f"⏰ RAPPEL MACHINE — {hour_str}\n"
-                        f"☁️ Production solar faible : {int(production_w)} W\n"
-                        f"You can start anyway or wait for key_namearer skies."
+                        f"⏰ APPLIANCE REMINDER — {hour_str}\n"
+                        f"☁️ Solar production is low: {int(production_w)} W\n"
+                        f"You can start anyway or wait for clearer skies."
                     )
                 log.info(f"⏰ Appliance reminder triggered: {hour_str}, prod={int(production_w)}W")
         except Exception:
@@ -3605,19 +3605,19 @@ def skill_suggestion_machine(states):
 
         info_rate = ""
         if ttype in ("weekend", "weekend_hphc", "weekend_plus", "weekend_plus_hphc"):
-            if _est_weekend_or_ferie() or _est_chosen_day(rate):
+            if _is_weekend_or_holiday() or _est_chosen_day(rate):
                 info_rate = f"\n💰 Reduced rate (WE/day choisi) : {price_now}€/kWh"
             else:
                 info_rate = f"\n💰 Weekday rate : {price_now}€/kWh"
         elif ttype == "hphc":
-            hc = _est_hour_creuse_ranges(rate.get("off_peak_hours", []))
+            hc = _is_off_peak_hour_ranges(rate.get("off_peak_hours", []))
             info_rate = f"\n💰 {'HC' if hc else 'HP'} : {price_now}€/kWh"
 
         cov_pct = min(100, int(production_w / 2000 * 100))
         part_grid = max(0, 100 - cov_pct) / 100
-        cost_estime = round(1.5 * price_now * part_grid, 2)
-        eco_solar = round(1.5 * price_now - cost_estime, 2)
-        info_eco = f"\n💡 ~{cov_pct}% solar → ~{cost_estime}€ grid, ~{eco_solar}€ saved"
+        estimated_cost = round(1.5 * price_now * part_grid, 2)
+        solar_saving = round(1.5 * price_now - estimated_cost, 2)
+        info_eco = f"\n💡 ~{cov_pct}% solar → ~{estimated_cost}€ grid, ~{solar_saving}€ saved"
 
         telegram_send(
             f"☀️ BON CRENEAU MACHINE\n"
@@ -3748,15 +3748,15 @@ def check_markdown_change():
         pass
 
 
-def cognitif_generer_hypotheses(states, index):
+def generate_cognitive_hypotheses(states, index):
     """Generate testable hypotheses from the data.
-    A hypothesis is a verifiable prediction abort home behavior."""
+    A hypothesis is a verifiable prediction about home behavior."""
 
     conn = sqlite3.connect(DB_PATH)
 
     # Limit active hypotheses
-    nb_actives = conn.execute("SELECT COUNT(*) FROM hypotheses WHERE active=1").fetchone()[0]
-    if nb_actives >= 15:
+    active_count = conn.execute("SELECT COUNT(*) FROM hypotheses WHERE active=1").fetchone()[0]
+    if active_count >= 15:
         conn.close()
         return
 
@@ -3790,19 +3790,19 @@ def cognitif_generer_hypotheses(states, index):
                 best_h = int(best[0])
                 best_w = best[1][0]
 
-                demain = (day + 1) % 7
-                demain_str = str(demain)
-                if demain_str in data_sol:
-                    slotx_d = data_sol[demain_str]
+                tomorrow = (day + 1) % 7
+                tomorrow_str = str(tomorrow)
+                if tomorrow_str in data_sol:
+                    slotx_d = data_sol[tomorrow_str]
                     if slotx_d:
                         best_d = max(slotx_d.items(), key=lambda x: x[1][0])
                         hypotheses_candidates.append({
-                            "statement": f"Tomorrow {days[demain]} at {best_d[0]}h, solar production > {int(best_d[1][0] * 0.7)}W",
+                            "statement": f"Tomorrow {days[tomorrow]} at {best_d[0]}h, solar production > {int(best_d[1][0] * 0.7)}W",
                             "category": "solar",
                             "condition_test": json.dumps({
                                 "type": "value_text_min",
                                 "entity_id": role_get("solar_production_w") or "sensor.ecu_current_power",
-                                "day": demain,
+                                "day": tomorrow,
                                 "hour": int(best_d[0]),
                                 "threshold": best_d[1][0] * 0.7
                             })
@@ -3810,7 +3810,7 @@ def cognitif_generer_hypotheses(states, index):
 
     if heat_pump_data and heat_pump_count >= 20:
         temp_ext = None
-        e_ext = index.get(role_get("temp_exterieure") or "sensor.ecojoko_temperature_exterieure")
+        e_ext = index.get(role_get("outdoor_temperature") or "sensor.ecojoko_outdoor_temperature")
         if e_ext and e_ext["state"] not in ("unavailable", "unknown"):
             try:
                 temp_ext = float(e_ext["state"])
@@ -3832,12 +3832,12 @@ def cognitif_generer_hypotheses(states, index):
                             "condition_test": json.dumps({
                                 "type": "state_attendu",
                                 "entity_pattern": "climate.",
-                                "states_valides": ["auto", "heat", "cool", "fan_only", "heat_cool"],
+                                "valid_states": ["auto", "heat", "cool", "fan_only", "heat_cool"],
                                 "temp_ext_range": [temp_ext - 2, temp_ext + 2]
                             })
                         })
 
-    consumption_baseline = baselines.get("consumption_edf_w")
+    consumption_baseline = baselines.get("grid_consumption_w")
     if consumption_baseline and consumption_baseline > 100:
         hypotheses_candidates.append({
             "statement": f"Grid consumption {days[day]} {hour}h should be ~{consumption_baseline:.0f}W ±40%",
@@ -3869,9 +3869,9 @@ def cognitif_generer_hypotheses(states, index):
     conn.close()
 
 
-def cognitif_tester_hypotheses(states, index):
-    """Teste the hypotheses actives contre the realite.
-    Chaque test renforce or affaiblit the confidence."""
+def test_cognitive_hypotheses(states, index):
+    """Test active hypotheses against observed reality.
+    Each test strengthens or weakens confidence."""
 
     conn = sqlite3.connect(DB_PATH)
     now = datetime.now()
@@ -3887,7 +3887,7 @@ def cognitif_tester_hypotheses(states, index):
         try:
             cond = json.loads(cond_json)
             cond_type = cond.get("type", "")
-            result = None  # None = not testable maintenant, True = confirme, False = refute
+            result = None  # None = not testable now, True = confirmed, False = refuted
 
             if cond_type == "value_text_min":
                 if cond.get("day") == day and cond.get("hour") == hour:
@@ -3913,12 +3913,12 @@ def cognitif_tester_hypotheses(states, index):
 
             elif cond_type == "state_attendu":
                 pattern = cond.get("entity_pattern", "")
-                states_valides = cond.get("states_valides", [])
+                valid_states = cond.get("valid_states", [])
                 for eid, e in index.items():
                     if pattern in eid:
                         carto = entity_map_get(eid)
                         if carto and "heating" in carto[0]:
-                            result = e["state"] in states_valides
+                            result = e["state"] in valid_states
                             break
 
             if result is not None:
@@ -3956,7 +3956,7 @@ def cognitif_tester_hypotheses(states, index):
                                 "ORDER BY confidence ASC LIMIT 1)")
                         conn.execute(
                             "INSERT INTO expertise (category, insight, confidence, nb_validations, source, created_at, updated_at) "
-                            "VALUES (?, ?, ?, ?, 'hypothese_validee', ?, ?)",
+                            "VALUES (?, ?, ?, ?, 'hypothesis_validated', ?, ?)",
                             (cond.get("category", "general"),
                              f"VALIDE: {statement}",
                              new_conf, predictions,
@@ -3978,7 +3978,7 @@ def cognitif_calculer_score():
     today = now.strftime("%Y-%m-%d")
 
     expertise_count = conn.execute("SELECT COUNT(*) FROM expertise").fetchone()[0]
-    nb_hypotheses = conn.execute("SELECT COUNT(*) FROM hypotheses WHERE active=1").fetchone()[0]
+    hypothesis_count = conn.execute("SELECT COUNT(*) FROM hypotheses WHERE active=1").fetchone()[0]
 
     hyp_stats = conn.execute(
         "SELECT SUM(predictions), SUM(confirmations) FROM hypotheses WHERE predictions > 0"
@@ -4007,7 +4007,7 @@ def cognitif_calculer_score():
     saving = round(kwh_solar * 0.22, 2)  # ~0.22€/kWh blue rate
 
     # ═══ CALCUL SCORE ═══
-    # Score composite : chaque dimension contribute
+    # Composite score: each dimension contributes
     score = 0.0
 
     avg_conf = conn.execute("SELECT AVG(confidence) FROM expertise").fetchone()[0] or 0
@@ -4033,15 +4033,15 @@ def cognitif_calculer_score():
 
     # Niveau
     if score >= 80:
-        niveau = "🏆 EXPERT"
+        level = "🏆 EXPERT"
     elif score >= 60:
-        niveau = "🥇 AVANCE"
+        level = "🥇 AVANCE"
     elif score >= 40:
-        niveau = "🥈 INTERMEDAIIRE"
+        level = "🥈 INTERMEDAIIRE"
     elif score >= 20:
-        niveau = "🥉 DEBUTANT"
+        level = "🥉 DEBUTANT"
     else:
-        niveau = "🌱 INITAIL"
+        level = "🌱 INITAIL"
 
     # Store
     conn.execute(
@@ -4049,16 +4049,16 @@ def cognitif_calculer_score():
         "(date, score_global, expertise_count, active_hypothesis_count, prediction_rate, "
         "skill_count, baseline_count, daily_failure_count, daily_success_count, estimated_savings, details) "
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (today, score, expertise_count, nb_hypotheses, round(prediction_rate, 1),
+        (today, score, expertise_count, hypothesis_count, round(prediction_rate, 1),
          skill_count, baseline_count, nb_failures, nb_success, saving,
-         json.dumps({"niveau": niveau, "coverage": round(coverage, 1)}, ensure_ascii=False))
+         json.dumps({"level": level, "coverage": round(coverage, 1)}, ensure_ascii=False))
     )
     conn.commit()
     conn.close()
 
     return {
-        "score": score, "niveau": niveau,
-        "expertise": expertise_count, "hypotheses": nb_hypotheses,
+        "score": score, "level": level,
+        "expertise": expertise_count, "hypotheses": hypothesis_count,
         "prediction_rate": prediction_rate, "skills": skill_count,
         "baselines": baseline_count, "coverage": coverage,
         "failures_day": nb_failures, "success_day": nb_success,
@@ -4091,7 +4091,7 @@ def cmd_intelligence():
 
     s = metrics
     report = (
-        f"🧠 INTELLIGENCE — {s['niveau']}\n"
+        f"🧠 INTELLIGENCE — {s['level']}\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"\n"
         f"📊 SCORE GLOBAL : {s['score']}/100\n"
@@ -4120,7 +4120,7 @@ def cmd_intelligence():
             report += f"  {date[5:10]} [{bar_h}] {score:.0f}\n"
 
     if hypotheses:
-        report += f"\n🔮 HYPOTHESES ACTIVES ({s['hypotheses']}) :\n"
+        report += f"\n🔮 ACTIVE HYPOTHESES ({s['hypotheses']}) :\n"
         for statement, conf, pred, confirm in hypotheses:
             rate = f"{confirm}/{pred}" if pred > 0 else "not tested"
             stars = "★" * min(5, int(conf * 5))
@@ -4334,8 +4334,8 @@ def learning_auto_correction():
 
 def _cycle_intelligence(states, index, now):
     """Autonomous brain - runs every 5 minutes"""
-    # global _intelligence_compteur  # via shared
-    shared._intelligence_compteur += 1
+    # global _intelligence_counter  # via shared
+    shared._intelligence_counter += 1
 
     snapshot = _observer(states, index, now)
 
@@ -4345,12 +4345,12 @@ def _cycle_intelligence(states, index, now):
     skill_heat_pump_behavior(states)
     skill_optimisation_rate(states)
     try:
-        _rate_apprendre_ranges_hc(states)
+        _rate_learn_off_peak_ranges(states)
     except Exception:
         pass
     skill_dynamic_collect(states)
 
-    if _intelligence_compteur % 3 == 0:
+    if _intelligence_counter % 3 == 0:
         try:
             skill_health_host()
         except Exception as ex_sh:
@@ -4362,53 +4362,53 @@ def _cycle_intelligence(states, index, now):
 
     skill_suggestion_machine(states)
 
-    if _intelligence_compteur % 12 == 0:  # Every hour
-        _auto_apprendre(states, index, now)
+    if _intelligence_counter % 12 == 0:  # Every hour
+        _auto_learn(states, index, now)
 
     try:
-        cognitif_tester_hypotheses(states, index)
-        if _intelligence_compteur % 12 == 0:  # Every hour
-            cognitif_generer_hypotheses(states, index)
-        if _intelligence_compteur % 288 == 0:  # Every the 24h
+        test_cognitive_hypotheses(states, index)
+        if _intelligence_counter % 12 == 0:  # Every hour
+            generate_cognitive_hypotheses(states, index)
+        if _intelligence_counter % 288 == 0:  # Every the 24h
             score_data = cognitif_calculer_score()
             if score_data["score"] > 0:
-                log.info(f"🧠 Score intelligence: {score_data['score']}/100 ({score_data['niveau']})")
+                log.info(f"🧠 Score intelligence: {score_data['score']}/100 ({score_data['level']})")
     except Exception as ex_cog:
         log.error(f"❌ cognitif: {ex_cog}")
 
-    if _intelligence_compteur % 72 == 0 and _intelligence_compteur > 0:
+    if _intelligence_counter % 72 == 0 and _intelligence_counter > 0:
         try:
             _analysis_ia_periodique(states, index, now)
         except Exception as ex_ia:
             log.error(f"❌ analysis_ia: {ex_ia}")
             learning_log_failure("analysis_ia", str(ex_ia))
 
-    if _intelligence_compteur % 144 == 0 and _intelligence_compteur > 0:
+    if _intelligence_counter % 144 == 0 and _intelligence_counter > 0:
         try:
             learning_tirer_lessons()
         except Exception as ex_app:
             log.error(f"❌ learning: {ex_app}")
 
-    if _intelligence_compteur % 144 == 0 and _intelligence_compteur > 0:
+    if _intelligence_counter % 144 == 0 and _intelligence_counter > 0:
         try:
             filter_analyze_messages()
         except Exception as ex_fa:
             log.error(f"❌ filter_analyze: {ex_fa}")
 
-    if _intelligence_compteur % 288 == 0 and _intelligence_compteur > 0:
+    if _intelligence_counter % 288 == 0 and _intelligence_counter > 0:
         try:
             learning_auto_correction()
         except Exception as ex_ctrl:
             log.error(f"❌ auto_correction: {ex_ctrl}")
 
-    if _intelligence_compteur % 288 == 72 and _intelligence_compteur > 72:
+    if _intelligence_counter % 288 == 72 and _intelligence_counter > 72:
         try:
-            skill_recommandations_proactives()
-        except Exception as ex_reco:
-            log.error(f"❌ recommandations: {ex_reco}")
+            skill_proactive_recommendations()
+        except Exception as ex_recommendation:
+            log.error(f"❌ recommendations: {ex_recommendation}")
 
     # Log discret
-    if _intelligence_compteur % 60 == 0:  # Every the 5h
+    if _intelligence_counter % 60 == 0:  # Every the 5h
         skill_count = 0
         try:
             conn = sqlite3.connect(DB_PATH)
@@ -4417,7 +4417,7 @@ def _cycle_intelligence(states, index, now):
             conn.close()
         except Exception:
             pass
-        log.info(f"🧠 Intelligence: cycle #{_intelligence_compteur} | {skill_count} skills | {baseline_count} baselines")
+        log.info(f"🧠 Intelligence: cycle #{_intelligence_counter} | {skill_count} skills | {baseline_count} baselines")
 
 
 def _observer(states, index, now):
@@ -4434,17 +4434,17 @@ def _observer(states, index, now):
     except Exception:
         snapshot["production_w"] = 0
 
-    # Consumption EDF
+    # Grid consumption
     e_eco = index.get(role_get("realtime_consumption") or "sensor.ecojoko_realtime_consumption")
     if e_eco and e_eco["state"] not in ("unavailable", "unknown"):
         try:
-            snapshot["consumption_edf_w"] = float(e_eco["state"])
+            snapshot["grid_consumption_w"] = float(e_eco["state"])
         except Exception:
             pass
 
     for eid, key in [
-        (role_get("temp_interieure") or "sensor.ecojoko_temperature_interieure", "temp_int"),
-        (role_get("temp_exterieure") or "sensor.ecojoko_temperature_exterieure", "temp_ext"),
+        (role_get("indoor_temperature") or "sensor.ecojoko_indoor_temperature", "temp_int"),
+        (role_get("outdoor_temperature") or "sensor.ecojoko_outdoor_temperature", "temp_ext"),
     ]:
         e = index.get(eid)
         if e and e["state"] not in ("unavailable", "unknown"):
@@ -4462,8 +4462,8 @@ def _observer(states, index, now):
                 snapshot["heat_pump_on"] = e["state"] in ("auto", "heat", "cool", "fan_only", "heat_cool")
                 break
 
-    # Plugs actives
-    snapshot["plugs_actives"] = sum(1 for eid, state in _state_plugs.items() if state == "active")
+    # Active plugs
+    snapshot["active_plugs"] = sum(1 for eid, state in _state_plugs.items() if state == "active")
 
     mem_set("last_snapshot", json.dumps(snapshot))
 
@@ -4474,10 +4474,10 @@ def _compare(states, index, now, snapshot):
     """Phase 4: Compares current state with memory and baselines"""
     anomalies = []
 
-    # Anomalys baselines
-    baseline_detecter_anomalies(states)
+    # Baseline anomalies
+    baseline_detect_anomalies(states)
 
-    # Anamealy: abnormally high number of unavailable entities
+    # Anomaly: abnormally high number of unavailable entities
     pct_ko = snapshot["nb_unavailable"] / max(snapshot["nb_entities"], 1) * 100
     if pct_ko > 30:
         anomalies.append({
@@ -4486,13 +4486,13 @@ def _compare(states, index, now, snapshot):
             "severity": "high" if pct_ko > 50 else "medium",
         })
 
-    # Anomaly : production solar zero in full daylight
-    if ha_est_day(states) and snapshot.get("production_w", 0) == 0:
+    # Anomaly: solar production is zero in full daylight
+    if ha_is_day(states) and snapshot.get("production_w", 0) == 0:
         hour = now.hour
         if 9 <= hour <= 16:
             prev_zero = False
             try:
-                prev_json = mem_get("snapshot_precedent")
+                prev_json = mem_get("previous_snapshot")
                 if prev_json:
                     prev = json.loads(prev_json)
                     if prev.get("production_w", 0) == 0:
@@ -4506,8 +4506,8 @@ def _compare(states, index, now, snapshot):
                     "severity": "high",
                 })
 
-    # Anomaly : consumption EDF abnormally high
-    consumption = snapshot.get("consumption_edf_w", 0)
+    # Anomaly: grid consumption is abnormally high
+    consumption = snapshot.get("grid_consumption_w", 0)
     if consumption > 8000:
         anomalies.append({
             "type": "consumption_extreme",
@@ -4526,7 +4526,7 @@ def _compare(states, index, now, snapshot):
 
 
     # Save for the next cycle
-    mem_set("snapshot_precedent", json.dumps(snapshot))
+    mem_set("previous_snapshot", json.dumps(snapshot))
 
     return anomalies
 
@@ -4552,7 +4552,7 @@ def _decider(anomalies, states, index, now):
             )
 
 
-def _auto_apprendre(states, index, now):
+def _auto_learn(states, index, now):
     """Phase 7 : Analysis the patterns recurring and cree of new_items competences"""
     conn = sqlite3.connect(DB_PATH)
 
@@ -4596,7 +4596,7 @@ def _auto_apprendre(states, index, now):
                 "action": "collect",
                 "threshold": None,
                 "cree_le": now.isoformat(),
-                "created_by": "auto_apprendre",
+                "created_by": "auto_learn",
                 "history": []
             }
             name = f"dyn_auto_{eid.split('.')[1][:30]}"
@@ -4622,7 +4622,7 @@ def _analysis_ia_periodique(states, index, now):
 
     conn = sqlite3.connect(DB_PATH)
 
-    data_ia = []
+    ai_data = []
 
     # 1. Baselines : patterns by day/hour
     baselines_summary = {}
@@ -4638,15 +4638,15 @@ def _analysis_ia_periodique(states, index, now):
         baselines_summary[label][key_name] = round(avg, 1)
 
     if baselines_summary:
-        data_ia.append("BEHAVIOR BASELINES (averages by slot) :")
+        ai_data.append("BEHAVIOR BASELINES (averages by slot) :")
         for label, slotx in baselines_summary.items():
             vals = list(slotx.values())
             if vals:
                 pic_slot = max(slotx.items(), key=lambda x: x[1])
-                creux_slot = min(slotx.items(), key=lambda x: x[1])
-                data_ia.append(
+                low_slot = min(slotx.items(), key=lambda x: x[1])
+                ai_data.append(
                     f"  {label}: pic={pic_slot[0]}→{pic_slot[1]} | "
-                    f"creux={creux_slot[0]}→{creux_slot[1]} | "
+                    f"creux={low_slot[0]}→{low_slot[1]} | "
                     f"medium={sum(vals)/len(vals):.0f} ({len(slotx)} slotx)"
                 )
 
@@ -4664,11 +4664,11 @@ def _analysis_ia_periodique(states, index, now):
                         best = max(data[j_str].items(), key=lambda x: x[1][0])
                         pics.append(f"{days[j]} {best[0]}h={int(best[1][0])}W")
                 if pics:
-                    data_ia.append(f"SKILL SOLAR WINDOW ({nb} learning samples) : " + " | ".join(pics))
+                    ai_data.append(f"SKILL SOLAR WINDOW ({nb} learning samples) : " + " | ".join(pics))
 
             elif name == "cycle_signatures" and data:
                 for eid, info in data.items():
-                    data_ia.append(
+                    ai_data.append(
                         f"SKILL MACHINE {info['name']}: {info['duration_avg']:.0f}min, "
                         f"{info['consumption_avg']:.2f}kWh, {info['power_avg']:.0f}W, "
                         f"{info['nb_cycles']} cycles"
@@ -4684,7 +4684,7 @@ def _analysis_ia_periodique(states, index, now):
                         pct = int(t["heat_pump_on"] / total * 100)
                         heat_pump_summary.append(f"{temp}°C→heat pump:{pct}%on/{t['consumption_avg']:.0f}W")
                 if heat_pump_summary:
-                    data_ia.append(f"SKILL heat pump ({nb} obs) : " + " | ".join(heat_pump_summary))
+                    ai_data.append(f"SKILL heat pump ({nb} obs) : " + " | ".join(heat_pump_summary))
 
             elif name.startswith("dyn_") and "history" in data and len(data["history"]) >= 5:
                 desc = data.get("description", name)
@@ -4696,7 +4696,7 @@ def _analysis_ia_periodique(states, index, now):
                         if isinstance(val, (int, float)):
                             vals_num.append(val)
                 if vals_num:
-                    data_ia.append(
+                    ai_data.append(
                         f"SKILL DYN {desc}: avg={sum(vals_num)/len(vals_num):.1f} "
                         f"min={min(vals_num):.1f} max={max(vals_num):.1f} ({len(hist)} points)"
                     )
@@ -4709,33 +4709,33 @@ def _analysis_ia_periodique(states, index, now):
         "FROM appliance_cycles WHERE ended_at IS NOT NULL ORDER BY created_at DESC LIMIT 10"
     ).fetchall()
     if cycles:
-        data_ia.append("HISTORY CYCLES (last 10) :")
+        ai_data.append("HISTORY CYCLES (last 10) :")
         total_kwh = 0
         total_cost = 0
         for fname, started_at, duration, consumption, cost, prod in cycles:
             date = started_at[:10] if started_at else "?"
             solar = f" | solar:{prod}W" if prod else ""
-            data_ia.append(f"  {fname} {date} {duration}min {consumption:.2f}kWh {cost:.2f}€{solar}")
+            ai_data.append(f"  {fname} {date} {duration}min {consumption:.2f}kWh {cost:.2f}€{solar}")
             total_kwh += consumption or 0
             total_cost += cost or 0
-        data_ia.append(f"  TOTAL: {total_kwh:.2f}kWh | {total_cost:.2f}€")
+        ai_data.append(f"  TOTAL: {total_kwh:.2f}kWh | {total_cost:.2f}€")
 
     snapshot_json = mem_get("last_snapshot", "{}")
     try:
         snapshot = json.loads(snapshot_json)
-        data_ia.append(f"SNAPSHOT ACTUEL: prod={snapshot.get('production_w', 0)}W | "
-                         f"consumption_edf={snapshot.get('consumption_edf_w', 0)}W | "
+        ai_data.append(f"CURRENT SNAPSHOT: prod={snapshot.get('production_w', 0)}W | "
+                         f"grid_consumption={snapshot.get('grid_consumption_w', 0)}W | "
                          f"temp_int={snapshot.get('temp_int', '?')}°C | "
                          f"temp_ext={snapshot.get('temp_ext', '?')}°C | "
                          f"heat pump={'ON' if snapshot.get('heat_pump_on') else 'OFF'} | "
-                         f"machines_actives={snapshot.get('plugs_actives', 0)}")
+                         f"active_plugs={snapshot.get('active_plugs', 0)}")
     except Exception:
         pass
 
     conn.close()
 
-    if len(data_ia) < 3:
-        return  # Pas assez of data for a analysis pertinente
+    if len(ai_data) < 3:
+        return  # Not enough data for a useful analysis
 
     existing_expertise = []
     try:
@@ -4751,26 +4751,26 @@ def _analysis_ia_periodique(states, index, now):
 
     conn.close()
 
-    if len(data_ia) < 3:
+    if len(ai_data) < 3:
         return
 
     prompt_system = (
         "You are the user's lead home automation and energy expert. "
         "You build expertise with each analysis — every token spent makes your smarter.\n\n"
-        "Tu as acces a :\n"
-        "1. Raw data of the home (baselines, skills, cycles, snapshot)\n"
-        "2. Ton expertise ACCUMULEE of the analysiss precedentes\n\n"
-        "TON ROLE :\n"
-        "- CORRELER : trorver of the liens invisibles entre the data\n"
-        "- PREDIRE : anticiper the problems and the opportunits\n"
-        "- OPTIMISER : propose of the actions concrete for save\n"
-        "- CAPITALISER : extraire of the rules reutilisables\n\n"
+        "You have access to:\n"
+        "1. Raw home data (baselines, skills, cycles, snapshot)\n"
+        "2. Accumulated expertise from previous analyses\n\n"
+        "Your role:\n"
+        "- Correlate: find hidden relationships in the data\n"
+        "- Predict: anticipate problems and opportunities\n"
+        "- Optimize: propose concrete actions that save energy or cost\n"
+        "- Capture: extract reusable rules\n\n"
         "RESPOND WITH STRICT JSON :\n"
         "{\n"
-        "  \"analysis\": \"ton analysis concise (max 400 chars)\",\n"
+        "  \"analysis\": \"concise analysis (max 400 chars)\",\n"
         "  \"insights\": [\n"
         "    {\"category\": \"energy|heat_pump|solar|machine|zigbee|general\",\n"
-        "     \"insight\": \"the rule/correlation applug (max 100 chars)\",\n"
+        "     \"insight\": \"the applied rule or correlation (max 100 chars)\",\n"
         "     \"confidence\": 0.5}\n"
         "  ],\n"
         "  \"recommended_actions\": [\"action 1\", \"action 2\"],\n"
@@ -4780,7 +4780,7 @@ def _analysis_ia_periodique(states, index, now):
         "If there is not enough data : {\"analysis\": \"Insufficient data\", \"insights\": [], \"recommended_actions\": [], \"expertise_obsolete\": []}"
     )
 
-    prompt_user = "ACCUMULATED DATA :\n" + "\n".join(data_ia)
+    prompt_user = "ACCUMULATED DATA :\n" + "\n".join(ai_data)
     if existing_expertise:
         prompt_user += "\n\nACCUMULATED EXPERTISE (build on it, do not repeat it) :\n" + "\n".join(existing_expertise)
 
@@ -4825,7 +4825,7 @@ def _analysis_ia_periodique(states, index, now):
             else:
                 nb_total = conn2.execute("SELECT COUNT(*) FROM expertise").fetchone()[0]
                 if nb_total >= 50:
-                    # Remove the plus faible no-foundational
+                    # Remove the weakest non-foundational insight
                     conn2.execute(
                         "DELETE FROM expertise WHERE id = ("
                         "SELECT id FROM expertise WHERE source NOT LIKE 'founding_lesson%' "
@@ -4848,7 +4848,7 @@ def _analysis_ia_periodique(states, index, now):
 
         conn2.execute(
             "INSERT INTO decisions_log (action, context, result, created_at) VALUES (?, ?, ?, ?)",
-            ("analysis_periodique", json.dumps({"nb_data": len(data_ia)}, ensure_ascii=False),
+            ("periodic_analysis", json.dumps({"nb_data": len(ai_data)}, ensure_ascii=False),
              json.dumps({"nb_insights": len(insights), "nb_actions": len(actions)}, ensure_ascii=False),
              now.isoformat())
         )
@@ -4934,8 +4934,8 @@ def rate_cost_cycle(consumption_kwh, duration_min, started_at_iso=None):
         price_ended_at = rate_current_kwh_price()
         price_avg = (price_started_at + price_ended_at) / 2
         cost = round(consumption_kwh * price_avg, 3)
-        detail_hp = f"HP:{rate.get('price_hp')}€" if not rate_est_hour_creuse() else ""
-        detail_hc = f"HC:{rate.get('price_hc')}€" if rate_est_hour_creuse() else ""
+        detail_hp = f"HP:{rate.get('price_hp')}€" if not rate_is_off_peak_hour() else ""
+        detail_hc = f"HC:{rate.get('price_hc')}€" if rate_is_off_peak_hour() else ""
         return {
             "cost_total": cost,
             "detail": f"{price_avg:.4f}€/kWh ({detail_hp or detail_hc})",
@@ -4945,7 +4945,7 @@ def rate_cost_cycle(consumption_kwh, duration_min, started_at_iso=None):
     return {"cost_total": round(consumption_kwh * 0.2516, 3), "detail": "default", "price_avg_kwh": 0.2516}
 
 
-def _rate_detecter_off_peak_hours():
+def _rate_detect_off_peak_hours():
     """Automatically detects the off-peak hours in HA.
     Supports: Lixee ZLinky, LinkYTIC, ESPHome TIC, HA-Linky, Ecojoko, all HC sensors.
     If ranges cannot be found directly, enable auto-learning."""
@@ -4965,21 +4965,21 @@ def _rate_detecter_off_peak_hours():
         # ═══ 1. Attribute direct attribute with hour ranges ═══
         for k, v in attrs.items():
             k_low = str(k).lower()
-            if any(kw in k_low for kw in ["hour_creuse", "off_peak", "offpeak_hours",
+            if any(kw in k_low for kw in ["off_peak", "off_peak", "offpeak_hours",
                                            "hc_hours", "off_peak_hours_ranges"]):
                 if isinstance(v, str) and "-" in v:
                     return [p.strip() for p in v.split(",") if "-" in p]
                 if isinstance(v, list):
                     return v
 
-        # PTEC = "HC.." (off-peak hours) or "HP.." (hours pleines)
+        # PTEC = "HC.." (off-peak hours) or "HP.." (peak hours)
         if any(kw in eid_low for kw in ["ptec", "current_rate", "periode_rate",
                                          "current_rate", "rate_index"]):
             ptec_entity = eid
             if "hc" in state.lower():
                 hc_confirmee = True
 
-        # ═══ 3. Index HCHC / HCHP (confirme abonnement HC) ═══
+        # ═══ 3. Index HCHC/HCHP index confirms off-peak subscription ═══
         if any(kw in eid_low for kw in ["hchc", "hchp", "index_hc", "index_hp",
                                          "consumption_hc", "consumption_hp",
                                          "off_peak_hours_index", "peak_hours_index"]):
@@ -5003,7 +5003,7 @@ def _rate_detecter_off_peak_hours():
         if ptec_entity:
             mem_set("rate_ptec_entity", ptec_entity)
             # Start learning HC ranges
-            mem_set("rate_apprendre_hc", "yes")
+            mem_set("rate_learn_off_peak", "yes")
             log.info(f"🔍 Off-peak confirmed via {ptec_entity} — range learning activated")
         else:
             log.info("🔍 Off-peak confirmed (HCHC/HP index) but no real-time PTEC sensor")
@@ -5011,10 +5011,10 @@ def _rate_detecter_off_peak_hours():
     return None
 
 
-def _rate_apprendre_ranges_hc(states):
+def _rate_learn_off_peak_ranges(states):
     """Learn HC ranges by observing PTEC transitions.
     Called every 5 minutes by monitoring. Deduces exact ranges within 24h."""
-    if mem_get("rate_apprendre_hc") != "yes":
+    if mem_get("rate_learn_off_peak") != "yes":
         return
 
     ptec_eid = mem_get("rate_ptec_entity")
@@ -5030,7 +5030,7 @@ def _rate_apprendre_ranges_hc(states):
     now = datetime.now()
     hour_min = f"{now.hour}:{now.minute:02d}"
 
-    # Store chaque observation (hour → HC or HP)
+    # Store each peak/off-peak observation by hour
     data, nb = skill_get("learning_hc")
     if not data:
         data = {"observations": {}, "ranges_deduites": []}
@@ -5038,10 +5038,10 @@ def _rate_apprendre_ranges_hc(states):
     minute_arrondie = 0 if now.minute < 30 else 30
     key_name = f"{now.hour:02d}:{minute_arrondie:02d}"
 
-    est_hc = "hc" in state
+    is_off_peak = "hc" in state
     if key_name not in data["observations"]:
         data["observations"][key_name] = {"hc": 0, "hp": 0}
-    data["observations"][key_name]["hc" if est_hc else "hp"] += 1
+    data["observations"][key_name]["hc" if is_off_peak else "hp"] += 1
 
     nb_obs = sum(v["hc"] + v["hp"] for v in data["observations"].values())
     if nb_obs >= 48:
@@ -5054,7 +5054,7 @@ def _rate_apprendre_ranges_hc(states):
 
         if hours_hc:
             # Convert to continuors ranges
-            ranges = _construire_ranges(hours_hc)
+            ranges = _build_ranges(hours_hc)
             data["ranges_deduites"] = ranges
 
             # Appliquer at the rate
@@ -5064,7 +5064,7 @@ def _rate_apprendre_ranges_hc(states):
                 rate["hc_source"] = "auto_learned"
                 rate["configured_at"] = now.isoformat()
                 skill_set("pricing", rate)
-                mem_set("rate_apprendre_hc", "termine")
+                mem_set("rate_learn_off_peak", "termine")
                 telegram_send(
                     f"🧠 Off-peak hours auto-applied !\n"
                     f"Detected ranges: {', '.join(ranges)}\n"
@@ -5075,7 +5075,7 @@ def _rate_apprendre_ranges_hc(states):
     skill_set("learning_hc", data, nb + 1)
 
 
-def _construire_ranges(hours_hc):
+def _build_ranges(hours_hc):
     """Convert an HC hour list ['22:00', '22:30', '23:00', ...] en ranges ['22:00-06:00']"""
     if not hours_hc:
         return []
@@ -5122,7 +5122,7 @@ def rate_configure_questionnaire():
         if key_name != "other":
             list.append(f"  {idx} → {provider['name']}")
             idx += 1
-    list.append(f"  {idx} → Autre provider")
+    list.append(f"  {idx} → Other provider")
 
     telegram_send(
         "⚡ ELECTRICITY RATE CONFIGURATION\n"
@@ -5172,8 +5172,8 @@ def rate_handle_response(text):
         # Listr the offers
         offers = provider["offers"]
         if len(offers) == 1:
-            key_name_offre = list(offers.keys())[0]
-            return _rate_appliquer_offre(idx, key_name_offre)
+            offer_key_name = list(offers.keys())[0]
+            return _rate_apply_offer(idx, offer_key_name)
 
         msg = f"⚡ {provider['name']} — Which offer ?\n\n"
         for i, (key_name, offer) in enumerate(offers.items(), 1):
@@ -5199,11 +5199,11 @@ def rate_handle_response(text):
         if t in ("1", "base"):
             mem_set("pending_rate_step", "custom_price")
             mem_set("rate_temp_type", "base")
-            telegram_send("💰 Price of the kWh TTC ?\nExample : 0.2516")
+            telegram_send("💰 Price per kWh, tax included ?\nExample : 0.2516")
         else:
             mem_set("pending_rate_step", "custom_hp")
             mem_set("rate_temp_type", "hphc")
-            telegram_send("💰 Price Hours Pleines (€/kWh TTC) ?")
+            telegram_send("💰 Price Peak hours (€/kWh tax included) ?")
         return True
 
     if step == "custom_price":
@@ -5228,7 +5228,7 @@ def rate_handle_response(text):
             price = float(t.replace(",", ".").replace("€", "").strip())
             mem_set("rate_temp_hp", str(price))
             mem_set("pending_rate_step", "custom_hc")
-            telegram_send(f"✅ HP : {price}€\n💰 Price Hours Creuses (€/kWh TTC) ?")
+            telegram_send(f"✅ HP : {price}€\n💰 Price Off-peak hours (€/kWh tax included) ?")
             return True
         except Exception:
             telegram_send("Invalid format.")
@@ -5275,13 +5275,13 @@ def rate_handle_response(text):
             return False
 
         offers = PROVIDERS[provider_key_name]["offers"]
-        key_names_offres = list(offers.keys())
+        offer_key_names = list(offers.keys())
 
         idx = None
         try:
             num = int(t)
-            if 1 <= num <= len(key_names_offres):
-                idx = key_names_offres[num - 1]
+            if 1 <= num <= len(offer_key_names):
+                idx = offer_key_names[num - 1]
         except ValueError:
             for c, o in offers.items():
                 if t in c or t in o["name"].lower():
@@ -5292,7 +5292,7 @@ def rate_handle_response(text):
             telegram_send("Plan not recognized. Reply with the number.")
             return True
 
-        return _rate_appliquer_offre(provider_key_name, idx)
+        return _rate_apply_offer(provider_key_name, idx)
 
     if step == "chosen_day":
         days_map = {"1": 0, "Monday": 0, "2": 2, "Wednesday": 2, "3": 4, "Friday": 4}
@@ -5357,10 +5357,10 @@ def rate_handle_response(text):
     return False
 
 
-def _rate_appliquer_offre(provider_key_name, offre_key_name):
+def _rate_apply_offer(provider_key_name, offer_key_name):
     """Applies a known provider offer with prefilled rates"""
     provider = PROVIDERS[provider_key_name]
-    offer = provider["offers"][offre_key_name]
+    offer = provider["offers"][offer_key_name]
     name_f = provider["name"]
 
     if offer["type"] == "base":
@@ -5369,7 +5369,7 @@ def _rate_appliquer_offre(provider_key_name, offre_key_name):
             "provider": name_f,
             "name": offer["name"],
             "price_kwh": offer["price_kwh"],
-            "abo_month": offer.get("abo_month", 0),
+            "subscription_month": offer.get("subscription_month", 0),
             "configured_at": datetime.now().isoformat()
         }
         skill_set("pricing", data)
@@ -5377,7 +5377,7 @@ def _rate_appliquer_offre(provider_key_name, offre_key_name):
         telegram_send(
             f"✅ Rate configured automatically\n"
             f"{name_f} — {offer['name']}\n"
-            f"Price : {offer['price_kwh']}€/kWh TTC"
+            f"Price : {offer['price_kwh']}€/kWh tax included"
         )
         return True
 
@@ -5388,10 +5388,10 @@ def _rate_appliquer_offre(provider_key_name, offre_key_name):
             "name": offer["name"],
             "price_hp": offer["price_hp"],
             "price_hc": offer["price_hc"],
-            "abo_month": offer.get("abo_month", 0),
+            "subscription_month": offer.get("subscription_month", 0),
         }
         # Search the off-peak hours automatically in HA
-        hc_auto = _rate_detecter_off_peak_hours()
+        hc_auto = _rate_detect_off_peak_hours()
         if hc_auto:
             data["off_peak_hours"] = hc_auto
             data["configured_at"] = datetime.now().isoformat()
@@ -5425,7 +5425,7 @@ def _rate_appliquer_offre(provider_key_name, offre_key_name):
             "price_white_hc": offer["price_white_hc"],
             "price_red_hp": offer["price_red_hp"],
             "price_red_hc": offer["price_red_hc"],
-            "abo_month": offer.get("abo_month", 0),
+            "subscription_month": offer.get("subscription_month", 0),
         }
         mem_set("rate_temp_data", json.dumps(data))
         mem_set("pending_rate_step", "off_peak_hours")
@@ -5443,7 +5443,7 @@ def _rate_appliquer_offre(provider_key_name, offre_key_name):
             "type": offer["type"],
             "provider": name_f,
             "name": offer["name"],
-            "abo_month": offer.get("abo_month", 0),
+            "subscription_month": offer.get("subscription_month", 0),
         }
         for k, v in offer.items():
             if k.startswith("price_"):
@@ -5491,9 +5491,9 @@ def cmd_md():
 
 
 def cmd_sms():
-    """Rsend a code SMS and verrorille the canal (security)"""
-    # global canal_verrorille  # via shared
-    shared.canal_verrorille = True
+    """Resend a security code and lock the channel."""
+    # global channel_locked  # via shared
+    shared.channel_locked = True
     send_code_sms()
     return "📱 SMS code sent — channel locked."
 
@@ -5502,7 +5502,7 @@ def cmd_rate():
     """Show or configure the electricity rate"""
     rate = rate_get()
     current_price = rate_current_kwh_price()
-    est_hc = rate_est_hour_creuse()
+    is_off_peak = rate_is_off_peak_hour()
 
     report = "⚡ ELECTRICITY RATE\n━━━━━━━━━━━━━━━━━━\n"
     report += f"Provider : {rate.get('provider', 'EDF')}\n"
@@ -5512,7 +5512,7 @@ def cmd_rate():
         report += f"HP : {rate.get('price_hp')}€/kWh\n"
         report += f"HC : {rate.get('price_hc')}€/kWh\n"
         report += f"HC ranges : {', '.join(rate.get('off_peak_hours', []))}\n"
-        report += f"\nActuellement : {'🔵 HC' if est_hc else '🔴 HP'} — {current_price}€/kWh"
+        report += f"\nCurrent period: {'🔵 HC' if is_off_peak else '🔴 HP'} — {current_price}€/kWh"
     else:
         report += f"Price : {rate.get('price_kwh', current_price)}€/kWh\n"
 
@@ -5594,7 +5594,7 @@ def skill_dynamic_collect(states):
 
 
 def skill_create_auto(question, states):
-    """Haiku decides whether a new skill is necessary and creates it."""
+    """lightweight model decides whether a new skill is necessary and creates it."""
     index = {e["entity_id"]: e for e in states}
 
     conn = sqlite3.connect(DB_PATH)
@@ -5634,13 +5634,13 @@ def skill_create_auto(question, states):
             name = f"dyn_{name}"
 
         entities = result.get("entities", [])
-        entities_valides = [eid for eid in entities if eid in index]
-        if not entities_valides:
+        valid_entities = [eid for eid in entities if eid in index]
+        if not valid_entities:
             return None
 
         definition = {
             "description": result.get("description", name),
-            "entities": entities_valides,
+            "entities": valid_entities,
             "action": result.get("action", "collect"),
             "threshold": result.get("threshold"),
             "cree_le": datetime.now().isoformat(),
@@ -5654,7 +5654,7 @@ def skill_create_auto(question, states):
             f"🧠 NEW SKILL CREATED\n"
             f"Name : {name}\n"
             f"Role: {definition['description']}\n"
-            f"Entities: {', '.join(entities_valides)}\n"
+            f"Entities: {', '.join(valid_entities)}\n"
             f"Action : {definition['action']}"
         )
         return name
@@ -5694,7 +5694,7 @@ def cmd_audit():
         + "\n".join(f"  • {e['entity_id']}" for e in offline[:20])
         + "\n\nTo chacune, a line : normal or abnormal ? Sois concis."
     )
-    analysis = call_claude(prompt, context)
+    analysis = call_llm(prompt, context)
     report += f"\n🤖 {analysis}"
     return report
 
@@ -5727,16 +5727,16 @@ def cmd_energy(detail=False):
 
     if _has_solar:
         report += "\n☀️ SOLAR\n"
-        ecu_w = role_val("solar_production_w", index, "0")
-        ecu_kwh = role_val("solar_production_kwh", index, "0")
-        ecu_inv = role_val("ingreenr_total", index, None)
-        ecu_inv_on = role_val("ingreenr_online", index, None)
+        ecu_w = role_value("solar_production_w", index, "0")
+        ecu_kwh = role_value("solar_production_kwh", index, "0")
+        ecu_inv = role_value("inverters_total", index, None)
+        ecu_inv_on = role_value("inverters_online", index, None)
         report += f"  Production : {ecu_w} W | Today : {ecu_kwh} kWh\n"
         if ecu_inv and ecu_inv_on:
             if str(ecu_inv) != str(ecu_inv_on):
-                est_day = ha_est_day(states)
-                if not est_day or (ecu_w in ("0", "?") and str(ecu_inv_on) in ("0", "1")):
-                    report += f"  🌙 Ingreenrs : {ecu_inv_on}/{ecu_inv} (standby nocturne)\n"
+                is_day = ha_is_day(states)
+                if not is_day or (ecu_w in ("0", "?") and str(ecu_inv_on) in ("0", "1")):
+                    report += f"  🌙 Ingreenrs : {ecu_inv_on}/{ecu_inv} (standby night)\n"
                 else:
                     report += f"  🚨 Ingreenrs : {ecu_inv_on}/{ecu_inv} online\n"
             else:
@@ -5744,7 +5744,7 @@ def cmd_energy(detail=False):
 
     if _has_battery:
         report += "\n🔋 BATTERY\n"
-        anker_soc = role_val("battery_soc", index, None) or role_val("battery_soc_anker", index, None)
+        anker_soc = role_value("battery_soc", index, None) or role_value("battery_soc_anker", index, None)
         if anker_soc and anker_soc != "?":
             try:
                 soc_val = float(anker_soc) if anker_soc not in ("?", None) else 0
@@ -5752,13 +5752,13 @@ def cmd_energy(detail=False):
                 report += f"  {soc_icone} SOC : {anker_soc}%\n"
             except (ValueError, TypeError):
                 report += f"  🔋 SOC: {anker_soc}% (no-numeric value)\n"
-        anker_prod = role_val("battery_prod_solar", index, None)
+        anker_prod = role_value("battery_prod_solar", index, None)
         if anker_prod and anker_prod != "?":
             report += f"  ☀️ Charge solar : {anker_prod} W\n"
-        anker_output = role_val("battery_output", index, None)
+        anker_output = role_value("battery_output", index, None)
         if anker_output and anker_output != "?":
             report += f"  🏠 Injection home : {anker_output} W\n"
-        anker_mode = role_val("battery_mode", index, None)
+        anker_mode = role_value("battery_mode", index, None)
         if anker_mode and anker_mode != "?":
             report += f"  Mode : {anker_mode}\n"
         anker_plug_eid = role_get("battery_power")
@@ -5777,20 +5777,20 @@ def cmd_energy(detail=False):
     if _has_solar:
         try:
             production_w = ha_get_current_solar_production(states)
-            consumption_rt = role_val("realtime_consumption", index, None)
+            consumption_rt = role_value("realtime_consumption", index, None)
             if consumption_rt and consumption_rt not in ("?", None) and production_w > 0:
-                edf_w = float(consumption_rt)
-                consumption_totale = edf_w + production_w
-                if consumption_totale > 0:
-                    cov = min(100, int(production_w / consumption_totale * 100))
+                grid_w = float(consumption_rt)
+                total_consumption = grid_w + production_w
+                if total_consumption > 0:
+                    cov = min(100, int(production_w / total_consumption * 100))
                     report += f"\n  ☀️ Solar coverage: {cov}%\n"
         except Exception:
             pass
 
-    report += "\n🔌 CONSOMMATION\n"
-    eco_rt = role_val("realtime_consumption", index)
-    eco_day = role_val("consumption_day_eur", index)
-    consumption_kwh = role_val("consumption_day_kwh", index)
+    report += "\n🔌 CONSUMPTION\n"
+    eco_rt = role_value("realtime_consumption", index)
+    eco_day = role_value("consumption_day_cost", index)
+    consumption_kwh = role_value("consumption_day_kwh", index)
     if eco_rt != "?":
         report += f"  Real-time (grid): {eco_rt} W\n"
     if eco_day != "?":
@@ -5815,12 +5815,12 @@ def cmd_energy(detail=False):
                         report += f"  ⚫ heat pump : {state}\n"
                     report += f"  Water: {water_temp}°C | Setpoint: {temp_consigne}°C\n"
                     break
-        heat_pump_energy = role_val("heat_pump_consumption", index)
+        heat_pump_energy = role_value("heat_pump_consumption", index)
         if heat_pump_energy != "?":
             report += f"  Consumption heat pump : {heat_pump_energy} W\n"
 
-    temp_int = role_val("temp_interieure", index)
-    temp_ext = role_val("temp_exterieure", index)
+    temp_int = role_value("indoor_temperature", index)
+    temp_ext = role_value("outdoor_temperature", index)
     if temp_int != "?" or temp_ext != "?":
         if not _has_heat_pump:
             report += "\n🌡️ TEMPERATURES\n"
@@ -5829,7 +5829,7 @@ def cmd_energy(detail=False):
         if temp_ext != "?":
             report += f"  Outdoor temp: {temp_ext}°C\n"
 
-    cycles_actives = []
+    active_cycles = []
     for eid, state_p in _state_plugs.items():
         if state_p == "active":
             e = index.get(eid)
@@ -5840,10 +5840,10 @@ def cmd_energy(detail=False):
                 started_at_dt = datetime.fromisoformat(in_progress[0])
                 mins = int((datetime.now() - started_at_dt).total_seconds() / 60)
                 duration = f" ({mins} min)"
-            cycles_actives.append(f"{fname}{duration}")
-    if cycles_actives:
+            active_cycles.append(f"{fname}{duration}")
+    if active_cycles:
         report += "\n🔄 CYCLES EN COURS\n"
-        for c in cycles_actives:
+        for c in active_cycles:
             report += f"  ▶️ {c}\n"
 
     for e in states:
@@ -5855,7 +5855,7 @@ def cmd_energy(detail=False):
             break
 
     try:
-        graph_bytes = generer_graphique_energy(states, index)
+        graph_bytes = generate_energy_graph(states, index)
         if graph_bytes:
             telegram_send_photo(graph_bytes, "⚡ Energy of the day")
     except Exception:
@@ -5892,23 +5892,23 @@ def cmd_energy(detail=False):
             app_type = app["type"] if app else ""
 
             if cycle_active:
-                icone = "🔵"
+                icon = "🔵"
                 status = f" [cycle running]"
             elif val > 5:
-                icone = "🟢"
+                icon = "🟢"
                 status = ""
             else:
-                icone = "⚫"
+                icon = "⚫"
                 status = ""
 
             # Exclude monitoring plugs from the active display"
             if app_type == "energy_monitor" and not cycle_active:
-                icone = "📊"
+                icon = "📊"
                 status = " [monitoring]"
             elif app_type == "ignore":
                 continue
 
-            report += f"  {icone} {app_name} : {int(val)} W{status}\n"
+            report += f"  {icon} {app_name} : {int(val)} W{status}\n"
         except Exception:
             report += f"  ❓ {fname} : {e['state']}\n"
 
@@ -5923,8 +5923,8 @@ def cmd_energy(detail=False):
                 if e:
                     unit = e.get("attributes", {}).get("unit_of_measurement", "")
                     state = e["state"]
-                    icone = "❌" if state in ("unavailable", "unknown") else "✅"
-                    report += f"    {icone} {eid} = {state} {unit}\n"
+                    icon = "❌" if state in ("unavailable", "unknown") else "✅"
+                    report += f"    {icon} {eid} = {state} {unit}\n"
 
     # Heating complete
     report += "\n🌡️ FULL HEATING\n"
@@ -5934,8 +5934,8 @@ def cmd_energy(detail=False):
         if e:
             unit = e.get("attributes", {}).get("unit_of_measurement", "")
             state = e["state"]
-            icone = "❌" if state in ("unavailable", "unknown") else "✅"
-            report += f"  {icone} {eid} = {state} {unit}\n"
+            icon = "❌" if state in ("unavailable", "unknown") else "✅"
+            report += f"  {icon} {eid} = {state} {unit}\n"
 
     return report
 
@@ -5952,7 +5952,7 @@ def cmd_solar():
     entities = entity_map_get_by_category("energy_solar")
     report = "☀️ PRODUCTION SOLAR\n━━━━━━━━━━━━━━━━━━\n"
     if entities:
-        for eid, sors, room in entities:
+        for eid, subcategory, room in entities:
             if eid in index:
                 e = index[eid]
                 unit = e.get("attributes", {}).get("unit_of_measurement", "")
@@ -5962,7 +5962,7 @@ def cmd_solar():
 
     # Graphique solar
     try:
-        graph_bytes = generer_graphique_energy(states, index)
+        graph_bytes = generate_energy_graph(states, index)
         if graph_bytes:
             telegram_send_photo(graph_bytes, "☀️ Solar of the day")
     except Exception:
@@ -5981,7 +5981,7 @@ def cmd_batteries():
         is_battery = (
             "battery" in eid.lower() or "battery" in eid.lower() or
             e.get("attributes", {}).get("device_class") == "battery" or
-            "state_de_charge" in eid.lower()
+            "state_of_charge" in eid.lower()
         )
         if not is_battery:
             continue
@@ -5995,9 +5995,9 @@ def cmd_batteries():
     batteries.sort(key=lambda x: x[2])
     report = "🔋 BATTERY STATUS\n━━━━━━━━━━━━━━━━━━\n"
     for eid, room, val in batteries:
-        icone = "🚨" if val < 10 else ("⚠️" if val < 20 else ("🟡" if val < 50 else "✅"))
+        icon = "🚨" if val < 10 else ("⚠️" if val < 20 else ("🟡" if val < 50 else "✅"))
         room_str = f" [{room}]" if room else ""
-        report += f"{icone} {eid}{room_str} : {val}%\n"
+        report += f"{icon} {eid}{room_str} : {val}%\n"
     return report if len(batteries) > 0 else "🔋 No battery detected"
 
 
@@ -6063,7 +6063,7 @@ def cmd_zigbee():
             room_str = f" [{room}]" if room else ""
             report += f"  LQI={lqi} — {fname}{room_str}\n"
 
-    # LQI faible
+    # Low LQI
     if weak:
         report += f"\n⚠️ LQI WEAK 31-50 ({len(weak)})\n"
         for eid, fname, room, lqi, state in weak:
@@ -6097,7 +6097,7 @@ def cmd_nas():
     report = "🗄️ NAS SYNOLOGY\n━━━━━━━━━━━━━━\n"
     if not entities_nas:
         return report + "No NAS mapped — run `scan`"
-    for eid, sors, room in entities_nas:
+    for eid, subcategory, room in entities_nas:
         if eid in index:
             e = index[eid]
             unit = e.get("attributes", {}).get("unit_of_measurement", "")
@@ -6110,14 +6110,14 @@ def cmd_automations():
     if not states:
         return "❌ AUTOMATISATIONS — HA unreachable"
     autos = [e for e in states if e["entity_id"].startswith("automation.")]
-    actives = [e for e in autos if e["state"] == "on"]
-    inactives = [e for e in autos if e["state"] == "off"]
+    active_items = [e for e in autos if e["state"] == "on"]
+    inactive_items = [e for e in autos if e["state"] == "off"]
     report  = f"⚙️ AUTOMATISATIONS\n━━━━━━━━━━━━━━━\n"
-    report += f"Total: {len(autos)} | Actives: {len(actives)} | Inactives: {len(inactives)}\n"
+    report += f"Total: {len(autos)} | Active: {len(active_items)} | Inactive: {len(inactive_items)}\n"
     report += "(unavailable = conditionnel, normal)\n"
-    if inactives:
+    if inactive_items:
         report += "\n⚠️ Disabled:\n"
-        for e in inactives[:10]:
+        for e in inactive_items[:10]:
             report += f"  • {e['entity_id']}\n"
     return report
 
@@ -6143,26 +6143,26 @@ def cmd_budget():
     remaining = max(0, budget - cost) if budget > 0 else None
 
     if budget <= 0:
-        icone = "ℹ️"
+        icon = "ℹ️"
         status = "NO INTERNAL CAP"
     elif pct >= 100:
-        icone = "🛑"
+        icon = "🛑"
         status = "EXCEEDED — AI commands disabled"
     elif pct >= 90:
-        icone = "🚨"
+        icon = "🚨"
         status = "CRITICAL"
     elif pct >= 80:
-        icone = "⚠️"
+        icon = "⚠️"
         status = "WARNING"
     elif pct >= 50:
-        icone = "📊"
+        icon = "📊"
         status = "HALFWAY"
     else:
-        icone = "✅"
+        icon = "✅"
         status = "OK"
 
     return (
-        f"💰 BUDGET API — {icone} {status}\n━━━━━━━━━━━━\n"
+        f"💰 BUDGET API — {icon} {status}\n━━━━━━━━━━━━\n"
         f"Tokens in  : {tokens_in:,}\n"
         f"Tokens out : {tokens_out:,}\n"
         f"Cost       : ${cost:.3f}\n"
@@ -6321,7 +6321,7 @@ def cmd_scan():
 
 
 def cmd_calendar():
-    """Show thes events of the calendar HA — utilise for the recommandations."""
+    """Show Home Assistant calendar events that are useful for recommendations."""
     if not CFG.get("ha_url"):
         return "❌ HA not configured"
 
@@ -6342,8 +6342,8 @@ def cmd_calendar():
         start = attrs.get("start_time", "")
         end = attrs.get("end_time", "")
 
-        icone = "🟢" if state == "on" else "⚪"
-        report += f"\n{icone} {fname}"
+        icon = "🟢" if state == "on" else "⚪"
+        report += f"\n{icon} {fname}"
         if state == "on" and message:
             report += f"\n  📌 {message}"
             if start:
@@ -6357,7 +6357,7 @@ def cmd_calendar():
                 report += f"\n  No upcoming events"
         report += "\n"
 
-    report += "\n💡 Le script utilise the calendar for optimiser the recommandations :"
+    report += "\n💡 The assistant uses the calendar to optimize recommendations :"
     report += "\n  • Absent → reporter the alerts no criticals"
     report += "\n  • Present → suggest appliances at the right time"
     return report
@@ -6386,7 +6386,7 @@ def _ha_get_calendar_events():
 
 def cmd_dashboard():
     """Push AI Assistant stats to HA as sensors.
-    L'user can ensuite the displaysr in Lovelace."""
+    Users can display these sensors in Lovelace."""
     if not CFG.get("ha_url") or not CFG.get("ha_token"):
         return "❌ HA not configured"
 
@@ -6459,7 +6459,7 @@ def cmd_profile():
         "household_solar_kwc": "☀️ Power installee",
         "household_heating": "🌡️ Heating",
         "household_hot_water": "🚿 Hot water",
-        "household_assistant_vocal": "🗣️ Assistant vocal",
+        "household_voice_assistant": "🗣️ Assistant voice",
         "household_goal": "🎯 Objectif principal",
     }
     report = "👥 PROFILE FOYER\n━━━━━━━━━━━━━━━━━━\n"
@@ -6470,13 +6470,13 @@ def cmd_profile():
 
     report += f"\n🧠 This profile feeds the skills :"
     if data.get("household_solar") == "yes":
-        report += f"\n  ☀️ window_solar, recommandations solar"
+        report += f"\n  ☀️ solar_window, solar recommendations"
     if data.get("household_heating") == "heat_pump":
         report += f"\n  🌡️ heat_pump_behavior, heat pump monitoring"
     if data.get("household_goal") == "reduce_bill":
         report += f"\n  💰 standby alerts enhanced, rate optimization"
-    if data.get("household_assistant_vocal") in ("google", "alexa"):
-        report += f"\n  🗣️ recommendations to cut standby via {data['household_assistant_vocal'].title()}"
+    if data.get("household_voice_assistant") in ("google", "alexa"):
+        report += f"\n  🗣️ recommendations to cut standby via {data['household_voice_assistant'].title()}"
     report += f"\n\n💡 /profile reset to reconfigure"
     return report
 
@@ -6521,12 +6521,12 @@ def cmd_savings():
         "standby_killer": "🔇 Standby avoided",
         "rate_optimal": "⚡ Optimization rate",
         "surconsumption_evitee": "📉 Surconsumption evitee",
-        "recommandation_appliquee": "💡 Recommandations",
+        "recommendation_applied": "💡 Recommendations",
     }
 
     report += f"\n📊 PAR SOURCE\n"
-    for type_eco, euros, kwh, nb in by_type:
-        label = type_labels.get(type_eco, type_eco)
+    for saving_type, euros, kwh, nb in by_type:
+        label = type_labels.get(saving_type, saving_type)
         report += f"  {label}\n    +{euros:.2f}€ | {kwh:.1f} kWh | {nb} actions\n"
 
     report += f"\n📅 PAR JOUR (7 lasts)\n"
@@ -6541,7 +6541,7 @@ def cmd_savings():
         roi = total[0] / cost_tokens
         report += f"\n📈 ROI: x{roi:.1f}"
         if roi >= 5:
-            report += f" — chaque 1€ reporte {roi:.0f}€"
+            report += f" — each 1€ returns {roi:.0f}€"
     report += f"\n\n💡 The script saves money while your sleep."
 
     return report
@@ -6555,9 +6555,9 @@ def cmd_monitoring():
 
     nb_ha = len(states)
     nb_carto = conn.execute("SELECT COUNT(*) FROM entity_map").fetchone()[0]
-    nb_appliances = conn.execute("SELECT COUNT(*) FROM appliances WHERE monitored=1").fetchone()[0]
+    appliance_count = conn.execute("SELECT COUNT(*) FROM appliances WHERE monitored=1").fetchone()[0]
     nb_ignores = conn.execute("SELECT COUNT(*) FROM appliances WHERE monitored=0").fetchone()[0]
-    nb_roles = conn.execute("SELECT COUNT(*) FROM roles").fetchone()[0]
+    role_count = conn.execute("SELECT COUNT(*) FROM roles").fetchone()[0]
     baseline_count = conn.execute("SELECT COUNT(*) FROM baselines").fetchone()[0]
     expertise_count = conn.execute("SELECT COUNT(*) FROM expertise").fetchone()[0]
 
@@ -6574,11 +6574,11 @@ def cmd_monitoring():
     report = "🛡️ ACTIVE MONITORING\n━━━━━━━━━━━━━━━━━━\n"
     report += f"\n📡 Home Assistant : {nb_ha} entities detected"
     report += f"\n📊 Cartographie : {nb_carto} entities mapped"
-    report += f"\n🎯 Roles: {nb_roles} auto-discovered"
+    report += f"\n🎯 Roles: {role_count} auto-discovered"
     report += f"\n📈 Baselines: {baseline_count} learned behaviors"
     report += f"\n🧠 Expertise: {expertise_count}/50 rules"
 
-    report += f"\n\n🔌 MONITORED APPLIANCES ({nb_appliances})"
+    report += f"\n\n🔌 MONITORED APPLIANCES ({appliance_count})"
     if appliances:
         for eid, type_app, name in appliances:
             e = index.get(eid)
@@ -6588,8 +6588,8 @@ def cmd_monitoring():
                 u = e.get("attributes", {}).get("unit_of_measurement", "")
                 if s not in ("unavailable", "unknown"):
                     state = f" — {s}{u}"
-            icone = APPLIANCE_TYPES.get(type_app, "🔌")
-            report += f"\n  {icone}{state}"
+            icon = APPLIANCE_TYPES.get(type_app, "🔌")
+            report += f"\n  {icon}{state}"
     else:
         report += "\n  (none — type /appliances reset)"
 
@@ -6677,8 +6677,8 @@ def cmd_appliances():
         cat_rows = [r for r in rows if r[1] in cat_info["types"]]
         if cat_rows:
             report += f"\n{cat_info['label']}\n"
-            for eid, type_app, name, surv in cat_rows:
-                report += f"  {'✅' if surv else '⬜'} {name or APPLIANCE_TYPES.get(type_app, type_app)}\n"
+            for eid, type_app, name, monitored in cat_rows:
+                report += f"  {'✅' if monitored else '⬜'} {name or APPLIANCE_TYPES.get(type_app, type_app)}\n"
 
     report += f"\n💡 /appliances reset to reconfigure"
     return report
@@ -6757,14 +6757,14 @@ Available commands :
 /addons         → HA Apps
 /cycles         → Appliance cycle history
 /budget         → Consumption tokens API
-/scan           → Rescanner and apprendre entities
+/scan           → Rescan and learn entities
 /debug          → Internal state of the script
 /logs           → 20 lasts lines of log
 /memory_store        → What the AI has memorized
 /documentation  → Cette help
 /export         → Exports the script assistant.py
 /script         → Exports the script assistant.py
-/claude         → Execute autonomous AI helper
+/ai             → Execute autonomous AI helper
 
 Free-form question → Response with context HA pertinent"""
     send_email("[AI Companion] Documentation", doc)
@@ -6786,19 +6786,19 @@ def cmd_problem(description):
         script_lines = script_data["lines"]
         telegram_send(f"📄 Script read : {script_lines} lines")
     except Exception as e:
-        return f"❌ Impossible of lire the script : {e}"
+        return f"❌ Unable to read the script: {e}"
 
     # 2. Build the prompt for the configured strong model
     system_prompt = (
         "You are an expert Python developer specialized in Home Assistant home automation.\n"
-        "L'user signale a problem in the script assistant.py.\n"
-        "You must analyze the code and propose ONE patch focused.\n\n"
-        "REGLES STRICTES :\n"
+        "The user reports a problem in assistant.py.\n"
+        "Analyze the code and propose one focused patch.\n\n"
+        "Strict rules:\n"
         "- Reply ONLY in valid JSON, nothing else\n"
-        "- Format : {\"old_str\": \"code_to_replace\", \"new_str\": \"new_code\", \"explanation\": \"what your are fixing\"}\n"
-        "- old_str must be a copy EXACTE of the code current (escapes, indentation, quotes)\n"
+        "- Format: {\"old_str\": \"code_to_replace\", \"new_str\": \"new_code\", \"explanation\": \"what you are fixing\"}\n"
+        "- old_str must exactly match the current code (escapes, indentation, quotes)\n"
         "- old_str must appear ONLY ONCE in the script\n"
-        "- Ne change that the minimum necattemptre\n"
+        "- Change only the minimum necessary code\n"
         "- No markdown, no ```json, only the JSON raw\n"
     )
 
@@ -6831,7 +6831,7 @@ def cmd_problem(description):
         explanation = patch_data.get("explanation", "no explanation")
     except Exception as e:
         telegram_send(f"❌ Unparseable AI response:\n{response_raw[:500]}")
-        return f"❌ JSON invalide : {e}"
+        return f"❌ Invalid JSON : {e}"
 
     if not old_code:
         return f"❌ Empty patch — the AI model found no fix.\nExplanation: {explanation}"
@@ -6853,7 +6853,7 @@ def cmd_problem(description):
     telegram_send_buttons(
         "Apply this patch ?",
         [
-            {"text": "✅ Appliquer + Restart", "callback_data": "patch_appliquer:auto"},
+            {"text": "✅ Apply + restart", "callback_data": "patch_apply:auto"},
             {"text": "❌ Cancel", "callback_data": "patch_cancel:auto"},
         ]
     )
@@ -6868,23 +6868,23 @@ def cmd_problem(description):
 def cmd_clean_carto():
     """Cleans the energy entity map and removes noisy entries"""
     conn = sqlite3.connect(DB_PATH)
-    modifs = 0
+    modifications = 0
 
-    # ecu_ingreenrs, ecu_ingreenrs_online, ingreenr_*_temperature
+    # ecu_inverters, ecu_inverters_online, inverter_*_temperature
     # Tort the remaining (frequency, voltage, signal, binary_sensor, switch, update) → ignore
     rows = conn.execute(
         "SELECT entity_id FROM entity_map WHERE category='energy_solar'"
     ).fetchall()
 
     useful_aps = set()
-    for r_solar in ["solar_production_w", "solar_production_kwh", "solar_production_lifetime", "ingreenr_total", "ingreenr_online"]:
+    for r_solar in ["solar_production_w", "solar_production_kwh", "solar_production_lifetime", "inverters_total", "inverters_online"]:
         eid_r = role_get(r_solar)
         if eid_r:
             useful_aps.add(eid_r)
     if not useful_aps:
         useful_aps = {"sensor.ecu_current_power", "sensor.ecu_today_energy",
-                      "sensor.ecu_lifetime_energy", "sensor.ecu_ingreenrs",
-                      "sensor.ecu_ingreenrs_online"}
+                      "sensor.ecu_lifetime_energy", "sensor.ecu_inverters",
+                      "sensor.ecu_inverters_online"}
 
     for (eid,) in rows:
         eid_low = eid.lower()
@@ -6893,58 +6893,58 @@ def cmd_clean_carto():
         if eid in useful_aps:
             continue
 
-        if "ingreenr_" in eid_low and "_temperature" in eid_low:
+        if "inverter_" in eid_low and "_temperature" in eid_low:
             continue
 
-        if "solarbank_e1600" in eid_low or "system_anker" in eid_low or "mi80_microingreenr" in eid_low:
+        if "solarbank_e1600" in eid_low or "system_anker" in eid_low or "mi80_microinverter" in eid_low:
             # SOC / battery
-            if any(k in eid_low for k in ["state_de_charge", "state_of_charge", "battery", "battery",
+            if any(k in eid_low for k in ["state_of_charge", "state_of_charge", "battery", "battery",
                                            "caheat_pumpite", "reserve_soc", "charge"]):
                 conn.execute("UPDATE entity_map SET category='energy_battery' WHERE entity_id=?", (eid,))
-                modifs += 1
+                modifications += 1
             # Production / power solar
             elif any(k in eid_low for k in ["power_solar", "solar_power", "energy_solar_sb",
                                              "dc_output", "home_power", "system_output",
-                                             "decharge", "alimentation_ac"]):
+                                             "discharge", "alimentation_ac"]):
                 conn.execute("UPDATE entity_map SET category='energy_production' WHERE entity_id=?", (eid,))
-                modifs += 1
+                modifications += 1
             # Config / info → ignore
             elif any(k in eid_low for k in ["firmware", "clord", "code_d_error", "informations",
                                              "mise_a_day", "devise", "price", "type_de_price",
-                                             "solar_banks", "ingreenr", "data_time",
+                                             "solar_banks", "inverter", "data_time",
                                              "savings", "rendement", "actualiser",
-                                             "autoriser_l_exportation", "decharge_prioritaire",
+                                             "autoriser_l_exportation", "discharge_prioritaire",
                                              "automatic_update", "administration",
                                              "ota", "mode"]):
                 conn.execute("UPDATE entity_map SET category='ignore' WHERE entity_id=?", (eid,))
-                modifs += 1
+                modifications += 1
             else:
                 conn.execute("UPDATE entity_map SET category='ignore' WHERE entity_id=?", (eid,))
-                modifs += 1
+                modifications += 1
             continue
 
         # Ingreenrs individuels (frequency, voltage, signal) → ignore
-        if "ingreenr_" in eid_low and any(k in eid_low for k in ["frequency", "voltage", "signal"]):
+        if "inverter_" in eid_low and any(k in eid_low for k in ["frequency", "voltage", "signal"]):
             conn.execute("UPDATE entity_map SET category='ignore' WHERE entity_id=?", (eid,))
-            modifs += 1
+            modifications += 1
             continue
 
         # binary_sensor, switch, button, update, automation in energy_solar → ignore
         domain = eid.split(".")[0]
         if domain in ("binary_sensor", "switch", "button", "update", "automation", "select", "number"):
             conn.execute("UPDATE entity_map SET category='ignore' WHERE entity_id=?", (eid,))
-            modifs += 1
+            modifications += 1
             continue
 
         # Ecojoko surplus → energy_consumption
         if "ecojoko" in eid_low and "surplus" in eid_low:
             conn.execute("UPDATE entity_map SET category='energy_consumption' WHERE entity_id=?", (eid,))
-            modifs += 1
+            modifications += 1
             continue
 
         if "energy_current_hour" in eid_low or "energy_next_hour" in eid_low:
             conn.execute("UPDATE entity_map SET category='energy_forecast' WHERE entity_id=?", (eid,))
-            modifs += 1
+            modifications += 1
             continue
 
     conn.execute(
@@ -6962,7 +6962,7 @@ def cmd_clean_carto():
     conn.close()
 
     report = f"🧹 MAP CLEANUP\n━━━━━━━━━━━━━━━━━━\n"
-    report += f"Modifications : {modifs}\n\n"
+    report += f"Modifications : {modifications}\n\n"
     for cat, nb in sorted(counts.items()):
         report += f"  [{cat}]: {nb} entities\n"
     report += f"\n✅ Done — /diag_carto to verify"
@@ -6970,7 +6970,7 @@ def cmd_clean_carto():
 
 
 def cmd_test_weather():
-    """Test monitoring weather — force a check immediat without filter day/hour"""
+    """Test weather monitoring without the usual day/hour filter."""
     states = ha_get("states")
     if not states:
         return "❌ HA unreachable"
@@ -6980,36 +6980,36 @@ def cmd_test_weather():
     alert_93 = index.get(role_get("weather_alert") or "sensor.weather_alert")
     if alert_93:
         attrs = alert_93.get("attributes", {})
-        report += f"\n📊 Vigilance 93 : {alert_93['state']}\n"
-        NIVEAUX = {"Vert": 0, "Jaune": 1, "Orange": 2, "Red": 3}
-        for risque in ["Wind violent", "Pluie-inodation", "Orages", "Snow-verglas", "Grand-cold", "Inodation"]:
-            color = attrs.get(risque, "Vert")
-            niveau = NIVEAUX.get(color, 0)
-            if niveau == 0:
-                icone = "🟢"
-            elif niveau == 1:
-                icone = "🟡"
-            elif niveau == 2:
-                icone = "🟠"
+        report += f"\n📊 Weather alert: {alert_93['state']}\n"
+        LEVELS = {"Green": 0, "Yellow": 1, "Orange": 2, "Red": 3}
+        for risk in ["violent wind", "rain flooding", "storms", "snow ice", "extreme cold", "flooding"]:
+            color = attrs.get(risk, "Green")
+            level = LEVELS.get(color, 0)
+            if level == 0:
+                icon = "🟢"
+            elif level == 1:
+                icon = "🟡"
+            elif level == 2:
+                icon = "🟠"
             else:
-                icone = "🔴"
-            report += f"  {icone} {risque} : {color}\n"
+                icon = "🔴"
+            report += f"  {icon} {risk} : {color}\n"
     else:
         report += "\n❌ sensor.weather_alert not found\n"
 
     # 2. Rain in the next hour
-    rain = index.get(role_get("weather_pluie") or "sensor.pavillons_sors_bois_next_rain")
+    rain = index.get(role_get("weather_next_rain") or "sensor.weather_next_rain")
     if rain:
         rain_attrs = rain.get("attributes", {})
         forecast_1h = rain_attrs.get("1_hour_forecast", {})
         report += f"\n🌧️ Rain in the next hour :\n"
         if isinstance(forecast_1h, dict):
-            pluie_prevue = [t for t, v in forecast_1h.items() if "pluie" in v.lower()]
-            sec = [t for t, v in forecast_1h.items() if "sec" in v.lower()]
-            if pluie_prevue:
-                report += f"  🌧️ Rain expected: {', '.join(pluie_prevue)}\n"
+            rain_expected = [t for t, v in forecast_1h.items() if "rain" in v.lower()]
+            dry_slots = [t for t, v in forecast_1h.items() if "dry" in v.lower()]
+            if rain_expected:
+                report += f"  🌧️ Rain expected: {', '.join(rain_expected)}\n"
             else:
-                report += f"  ✅ Dry weather ({len(sec)} slots)\n"
+                report += f"  ✅ Dry weather ({len(dry_slots)} slots)\n"
         else:
             report += f"  state: {rain['state']}\n"
 
@@ -7017,11 +7017,11 @@ def cmd_test_weather():
     weather = index.get("weather.home")
     if weather:
         w_attrs = weather.get("attributes", {})
-        vent = w_attrs.get("wind_speed", 0)
-        rafales = w_attrs.get("wind_gust_speed", 0)
-        report += f"\n💨 Wind : {vent} km/h | Gusts : {rafales} km/h\n"
+        wind = w_attrs.get("wind_speed", 0)
+        gusts = w_attrs.get("wind_gust_speed", 0)
+        report += f"\n💨 Wind : {wind} km/h | Gusts : {gusts} km/h\n"
         try:
-            r_val = float(rafales)
+            r_val = float(gusts)
             if r_val >= 80:
                 report += f"  🔴 STRONG GUSTS → alert triggered\n"
             elif r_val >= 60:
@@ -7032,14 +7032,14 @@ def cmd_test_weather():
             pass
 
     # 4. Snow
-    snow = index.get(role_get("weather_risque_neige") or "sensor.pavillons_sors_bois_snow_chance")
+    snow = index.get(role_get("weather_snow_chance") or "sensor.weather_snow_chance")
     if snow:
-        report += f"\n❄️ Risk neige : {snow['state']}%\n"
+        report += f"\n❄️ Snow risk: {snow['state']}%\n"
 
-    # 5. Pluie
-    rain_chance = index.get(role_get("weather_risque_pluie") or "sensor.pavillons_sors_bois_rain_chance")
+    # 5. Rain probability
+    rain_chance = index.get(role_get("weather_rain_chance") or "sensor.weather_rain_chance")
     if rain_chance:
-        report += f"🌧️ Risk pluie : {rain_chance['state']}%\n"
+        report += f"🌧️ Rain risk: {rain_chance['state']}%\n"
 
     report += "\n📅 FORECAST FOR UPCOMING DAYS :\n"
     forecast = ha_get_forecast("weather.home", "daily")
@@ -7053,30 +7053,30 @@ def cmd_test_weather():
                 temp_max = prev.get("temperature", "?")
                 temp_min = prev.get("templow", "?")
                 wind = prev.get("wind_speed", 0) or 0
-                alerts_j = []
+                day_alerts = []
                 try:
                     if float(precip) >= 10:
-                        alerts_j.append("🌧️ FORTES PLUIES")
+                        day_alerts.append("🌧️ HEAVY RAIN")
                     elif float(precip) >= 5:
-                        alerts_j.append("🌧️ Pluie")
+                        day_alerts.append("🌧️ Rain")
                 except Exception:
                     pass
                 try:
                     if float(wind) >= 50:
-                        alerts_j.append("💨 VENT FORT")
+                        day_alerts.append("💨 STRONG WIND")
                 except Exception:
                     pass
                 try:
                     if temp_min != "?" and float(temp_min) <= 0:
-                        alerts_j.append("🥶 GEL")
+                        day_alerts.append("🥶 FREEZE")
                 except Exception:
                     pass
                 if cond in ("snowy", "snowy-rainy"):
-                    alerts_j.append("❄️ NEIGE")
-                flag = " ← ⚠️" if alerts_j else ""
+                    day_alerts.append("❄️ SNOW")
+                flag = " ← ⚠️" if day_alerts else ""
                 report += f"  {dt} : {cond} | {temp_min}→{temp_max}°C | {precip}mm ({int(float(precip_prob))}%) | {int(float(wind))} km/h{flag}\n"
-                if alerts_j:
-                    report += f"    {' | '.join(alerts_j)}\n"
+                if day_alerts:
+                    report += f"    {' | '.join(day_alerts)}\n"
     else:
         report += "  ⚠️ No forecast available — check weather integration\n"
 
@@ -7085,9 +7085,9 @@ def cmd_test_weather():
     _alert_if_new(
         "weather_test_alert",
         "🧪 WEATHER ALERT TEST\n"
-        "Ceci is a test of the monitoring weather.\n"
+        "This is a weather monitoring test.\n"
         "Real alerts will work the same way.\n"
-        "✅ Systeme operationnel",
+        "✅ System operational",
         delay_h=0
     )
     report += "✅ Test alert sent"
@@ -7096,7 +7096,7 @@ def cmd_test_weather():
 
 
 def cmd_diag_forecast():
-    """Debug : teste all the avgs of recuperer the forecast"""
+    """Debug all available forecast retrieval paths."""
     report = "🔧 DIAG FORECAST\n━━━━━━━━━━━━━━\n"
 
     # Test 1 : attributes weather entity
@@ -7159,14 +7159,15 @@ def cmd_diag_forecast():
 
 
 def cmd_diag_weather():
-    """List all the entities weather France in HA"""
+    """List weather-related Home Assistant entities."""
     states = ha_get("states")
     if not states:
         return "❌ HA unreachable"
-    report = "🌦️ FRANCE WEATHER DIAG\n━━━━━━━━━━━━━━━━━━\n"
-    keywords = ["weather_france", "weatherfrance", "vigilance", "alert", "weather", "weather",
-                "pluie", "vent", "neige", "verglas", "orage", "inodation", "tempete",
-                "rain", "wind", "snow", "storm", "flood"]
+    report = "🌦️ WEATHER DIAG\n━━━━━━━━━━━━━━━━━━\n"
+    keywords = [
+        "weather", "alert", "rain", "wind", "snow", "storm", "flood",
+        "ice", "temperature", "humidity", "precipitation",
+    ]
     found = []
     for e in states:
         eid = e["entity_id"].lower()
@@ -7308,7 +7309,7 @@ def cmd_diag_hc():
 
         # Search in the entity_id
         eid_low = eid.lower()
-        if any(k in eid_low for k in ["hour_creuse", "off_peak", "offpeak", "hc_hp", "hp_hc", "linky", "rate"]):
+        if any(k in eid_low for k in ["off_peak", "off_peak", "offpeak", "hc_hp", "hp_hc", "linky", "rate"]):
             report += f"\n📌 {eid}\n  {fname} = {e['state']}\n"
             for k, v in attrs.items():
                 if isinstance(v, str) and len(v) < 200:
@@ -7321,11 +7322,11 @@ def cmd_diag_hc():
         for k, v in attrs.items():
             k_low = str(k).lower()
             v_str = str(v).lower()
-            if any(kw in k_low for kw in ["hour_creuse", "off_peak", "offpeak", "hc", "current_rate"]):
+            if any(kw in k_low for kw in ["off_peak", "off_peak", "offpeak", "hc", "current_rate"]):
                 if eid not in found:
                     report += f"\n📌 {eid} (attr: {k})\n  {fname} = {e['state']}\n  {k}: {v}\n"
                     found.append(eid)
-            if any(kw in v_str for kw in ["22:00", "23:00", "06:00", "hour creuse", "off peak"]):
+            if any(kw in v_str for kw in ["22:00", "23:00", "06:00", "off peak", "off peak"]):
                 if eid not in found:
                     report += f"\n📌 {eid} (value contains HC)\n  {fname} = {e['state']}\n  {k}: {v}\n"
                     found.append(eid)
@@ -7408,8 +7409,8 @@ def cmd_diag_ecojoko():
             unit = e.get("attributes", {}).get("unit_of_measurement", "")
             dc = e.get("attributes", {}).get("device_class", "")
             state = e["state"]
-            icone = "❌" if state in ("unavailable", "unknown") else "✅"
-            report += f"  {icone} {e['entity_id']}\n    {fname} = {state} {unit} (dc:{dc})\n"
+            icon = "❌" if state in ("unavailable", "unknown") else "✅"
+            report += f"  {icon} {e['entity_id']}\n    {fname} = {state} {unit} (dc:{dc})\n"
     return report
 
 
@@ -7429,8 +7430,8 @@ def cmd_diag_nas():
             unit = e.get("attributes", {}).get("unit_of_measurement", "")
             dc = e.get("attributes", {}).get("device_class", "")
             state = e["state"]
-            icone = "❌" if state in ("unavailable", "unknown") else "✅"
-            report += f"  {icone} [{domain}] {e['entity_id']}\n"
+            icon = "❌" if state in ("unavailable", "unknown") else "✅"
+            report += f"  {icon} [{domain}] {e['entity_id']}\n"
             report += f"    {fname} = {state} {unit} (dc:{dc})\n"
 
     return report
@@ -7460,15 +7461,15 @@ def cmd_diag_energy():
     index = {e["entity_id"]: e for e in states}
     report = "🔧 DIAG ENERGY\n━━━━━━━━━━━━━━\n"
 
-    # 1. Micro-ingreenr APSystems
+    # 1. Micro-inverter APSystems
     report += "\n📡 APSYSTEMS (HA entities):\n"
     for e in states:
         eid = e["entity_id"]
-        if "apsystem" in eid.lower() or "microingreenr" in eid.lower() or "micro_ingreenr" in eid.lower():
+        if "apsystem" in eid.lower() or "microinverter" in eid.lower() or "micro_inverter" in eid.lower():
             state = e["state"]
             unit = e.get("attributes", {}).get("unit_of_measurement", "")
-            icone = "❌" if state in ("unavailable", "unknown") else "✅"
-            report += f"  {icone} {eid} = {state} {unit}\n"
+            icon = "❌" if state in ("unavailable", "unknown") else "✅"
+            report += f"  {icon} {eid} = {state} {unit}\n"
 
     # 2. heat pump / climate
     report += "\n🌡️ heat pump / CLIMATE :\n"
@@ -7512,8 +7513,8 @@ def cmd_diag_energy():
         for (eid,) in rows[:5]:
             e = index.get(eid)
             state = e["state"] if e else "ABSENT HA"
-            icone = "❌" if state in ("unavailable", "unknown", "ABSENT HA") else "✅"
-            report += f"    {icone} {eid} = {state}\n"
+            icon = "❌" if state in ("unavailable", "unknown", "ABSENT HA") else "✅"
+            report += f"    {icon} {eid} = {state}\n"
     conn.close()
 
     return report
@@ -7535,7 +7536,7 @@ def cmd_script_export():
 
 
 def cmd_watches():
-    """List the alerts dynamic actives"""
+    """List active dynamic alerts."""
     try:
         conn = sqlite3.connect(DB_PATH)
         watches = conn.execute("SELECT id, entity_pattern, condition, state_value, message, cooldown_min, last_triggered, active FROM watches ORDER BY id").fetchall()
@@ -7544,7 +7545,7 @@ def cmd_watches():
         return f"❌ Error: {e}"
 
     if not watches:
-        return "📭 No alerts configured.\nAsk me in natural language, e.g.: \"Alert me if an ingreenr goes offline\""
+        return "📭 No alerts configured.\nAsk me in natural language, e.g.: \"Alert me if an inverter goes offline\""
 
     lines = ["🔔 DYNAMIC ALERTS", "━━━━━━━━━━━━━━━━━━"]
     for wid, pattern, cond, val, msg, cooldown, last, active in watches:
@@ -7565,7 +7566,7 @@ def cmd_watches():
 # =============================================================================
 # =============================================================================
 
-def _alert_consumption_fantome_nocturne(index, now):
+def _alert_night_ghost_consumption(index, now):
     """Detects an consumption abnormale entre 1h-5h. CRASH-PROOF."""
     try:
         if not (1 <= now.hour < 5):
@@ -7587,7 +7588,7 @@ def _alert_consumption_fantome_nocturne(index, now):
         threshold = baseline + 150
         if consumption_w > threshold:
             _alert_if_new(
-                "consumption_fantome_nuit",
+                "ghost_consumption_nuit",
                 f"👻 ABNORMAL NIGHT CONSUMPTION\n━━━━━━━━━━━━━━━━━━\n"
                 f"Il is {now.strftime('%H:%M')} — grid consumption: {consumption_w:.0f}W\n"
                 f"Habituellement : ~{baseline:.0f}W\nSurplus : +{consumption_w - baseline:.0f}W\n\n"
@@ -7599,7 +7600,7 @@ def _alert_consumption_fantome_nocturne(index, now):
 
 
 def _alert_freezer_outage(index, now):
-    """If outage EDF > 2h → alert freezer at the return. CRASH-PROOF."""
+    """Alert after a grid outage longer than 2h once power returns."""
     try:
         eid_consumption = role_get("realtime_consumption")
         if not eid_consumption:
@@ -7609,21 +7610,21 @@ def _alert_freezer_outage(index, now):
             return
         state = e.get("state", "")
         if state in ("unavailable", "unknown"):
-            started_at = mem_get("outage_edf_started_at")
+            started_at = mem_get("grid_outage_started_at")
             if not started_at:
-                mem_set("outage_edf_started_at", now.isoformat())
+                mem_set("grid_outage_started_at", now.isoformat())
         else:
-            started_at = mem_get("outage_edf_started_at")
+            started_at = mem_get("grid_outage_started_at")
             if started_at:
-                mem_set("outage_edf_started_at", "")
+                mem_set("grid_outage_started_at", "")
                 try:
                     dt_started_at = datetime.fromisoformat(started_at)
                     duration_h = (now - dt_started_at).total_seconds() / 3600
                     if duration_h >= 2:
                         _alert_if_new(
                             "freezer_outage",
-                            f"⚡ COUPURE EDF DE {duration_h:.1f}H\n━━━━━━━━━━━━━━━━━━\n"
-                            f"Debut : {dt_started_at.strftime('%H:%M')} | Retorr : {now.strftime('%H:%M')}\n\n"
+                            f"⚡ GRID OUTAGE FOR {duration_h:.1f}H\n━━━━━━━━━━━━━━━━━━\n"
+                            f"Started: {dt_started_at.strftime('%H:%M')} | Restored: {now.strftime('%H:%M')}\n\n"
                             f"⚠️ Check the freezer — cold chain potentially compromised.",
                             delay_h=24
                         )
@@ -7633,8 +7634,8 @@ def _alert_freezer_outage(index, now):
         log.debug(f"Freezer alert: {e}")
 
 
-def _detecter_mode_vacances(now):
-    """If no interaction Telegram + nonee machine since 48h → mode vacances. CRASH-PROOF."""
+def _detect_vacation_mode(now):
+    """Enable vacation mode after 48h without Telegram or appliance activity."""
     try:
         last_msg = mem_get("last_message_telegram")
         if not last_msg:
@@ -7645,7 +7646,7 @@ def _detecter_mode_vacances(now):
             return
         if (now - dt_msg).total_seconds() / 3600 < 48:
             return
-        if mem_get("mode_vacances") == "active":
+        if mem_get("vacation_mode") == "active":
             return
         try:
             conn = sqlite3.connect(DB_PATH)
@@ -7657,20 +7658,20 @@ def _detecter_mode_vacances(now):
                 return
         except Exception:
             pass
-        mem_set("mode_vacances", "active")
+        mem_set("vacation_mode", "active")
         log.info("🏖️ Vacation mode activated (48h without interaction)")
         telegram_send(
-            "🏖️ MODE VACANCES ACTIVE\n━━━━━━━━━━━━━━━━━━\n"
+            "🏖️ VACATION MODE ACTIVE\n━━━━━━━━━━━━━━━━━━\n"
             "No interaction since 48h.\n"
-            "Monitoring reduite (alerts criticalsonly).\n\n"
-            "Send any message for disable."
+            "Reduced monitoring is active; critical alerts still run.\n\n"
+            "Send any message to disable it."
         )
     except Exception as e:
-        log.debug(f"Mode vacances: {e}")
+        log.debug(f"Vacation mode: {e}")
 
 
 def _auto_update_github():
-    """Checks GitHub for of the updates all the 24h. CRASH-PROOF."""
+    """Check GitHub for updates every 24h."""
     try:
         repo = "MrMortalMonkey/home-assistant-companion"
         branch = "main"
@@ -7710,7 +7711,7 @@ def _auto_update_github():
                 py_compile.compile(tmp_path, doraise=True)
                 os.remove(tmp_path)
             except py_compile.PyCompileError as e:
-                log.error(f"Auto-update: syntaxe invalide {fname}: {e}")
+                log.error(f"Auto-update: invalid syntax {fname}: {e}")
                 try:
                     os.remove(tmp_path)
                 except Exception:
@@ -7747,7 +7748,7 @@ def _auto_update_github():
 # =============================================================================
 
 def _backup_auto_db(now):
-    """Backup memory.db + config.json chaque nuit a 3h. Garde 30 days. CRASH-PROOF."""
+    """Back up memory.db and config.json nightly at 3 AM, retaining 30 days."""
     try:
         if now.hour != 3 or now.minute > 5:
             return
@@ -7814,7 +7815,7 @@ def cmd_score():
         except Exception:
             pass
 
-        score_standby = 15  # Score max by default — lost if standbys actives
+        score_standby = 15  # Score max by default — lost if active standby loads
         try:
             nb_standby = conn.execute(
                 "SELECT COUNT(*) FROM memory_store WHERE key_name LIKE 'standby_alert_%' AND updated_at > datetime('now', '-7 days')"
@@ -7967,10 +7968,10 @@ def cmd_advice_contract():
 
         # Estimation monthlyle
         days_ecorles = now.day
-        consumption_month_estime = consumption_total / max(1, days_ecorles) * 30
+        estimated_monthly_consumption = consumption_total / max(1, days_ecorles) * 30
 
         current_price = rate_current_kwh_price()
-        current_cost = consumption_month_estime * current_price
+        current_cost = estimated_monthly_consumption * current_price
 
         # Compare with a few standard offers
         alternatives = [
@@ -7982,12 +7983,12 @@ def cmd_advice_contract():
 
         result = f"💡 CONSEIL CONTRAT\n━━━━━━━━━━━━━━━━━━\n\n"
         result += f"Contract current : {provider} ({current_type})\n"
-        result += f"Estimated consumption: {consumption_month_estime:.0f} kWh/month\n"
+        result += f"Estimated consumption: {estimated_monthly_consumption:.0f} kWh/month\n"
         result += f"Estimated cost: {current_cost:.0f}€/month\n\n"
         result += f"Alternatives :\n"
 
         for name, price in alternatives:
-            cost_alt = consumption_month_estime * price
+            cost_alt = estimated_monthly_consumption * price
             diff = current_cost - cost_alt
             emoji = "✅" if diff > 5 else "➖"
             result += f"  {emoji} {name} : ~{cost_alt:.0f}€/month ({'+' if diff < 0 else '-'}{abs(diff):.0f}€)\n"
@@ -8003,7 +8004,7 @@ def cmd_advice_contract():
 # =============================================================================
 # =============================================================================
 
-def _detecter_outage_internet(now):
+def _detect_internet_outage(now):
     """If HA unreachable > 5 min → log. > 30 min → alert SMS. CRASH-PROOF."""
     try:
         states = ha_get("states")
@@ -8072,16 +8073,16 @@ _HEARTBEAT_SENSORS_PILIERS = [
     "sensor.ecojoko_realtime_consumption",
     "sensor.ecojoko_consumption_grid",
     "sensor.ecojoko_surplus_de_production",
-    "sensor.ecojoko_humidite_interieure",
+    "sensor.ecojoko_indoor_humidity",
     "sensor.ecu_current_power",
     "sensor.ecu_today_energy",
     "sensor.solarbank_e1600_power_solar",
-    "sensor.solarbank_e1600_state_de_charge",
+    "sensor.solarbank_e1600_state_of_charge",
 ]
 _HEARTBEAT_SENSORS_TARIF = []
 
 
-def _heartbeat_apprendre(entity_id):
+def _heartbeat_learn(entity_id):
     """Learn a sensor baseline from the last 7 days of HA history.
     
     Returns: (median_sec, p95_sec, p99_sec, samples_count) or None if there is not enough data.
@@ -8127,12 +8128,12 @@ def _heartbeat_apprendre(entity_id):
         
         return (median, p95, p99, len(history))
     except Exception as e:
-        log.debug(f"heartbeat_apprendre {entity_id}: {e}")
+        log.debug(f"heartbeat_learn {entity_id}: {e}")
         return None
 
 
 def _heartbeat_observe(index, now):
-    """Skill heartbeat_pilier : monitors the update freshness of the sensors energys.
+    """Skill heartbeat_core : monitors the update freshness of the sensors energy.
     
     3 phases automatic :
       1. Learning (J0 a J7) : noiseless observation, no alerts
@@ -8141,7 +8142,7 @@ def _heartbeat_observe(index, now):
     
     Recompute hebdomadaire for s'adapter aux saisons.
     
-    Perimetre : 8 sensors energys piliers (Ecojoko + APSystems + Anker)
+    Scope : 8 sensors energy core (Ecojoko + APSystems + Anker)
     
     Frequence : check all the 5 minutes (keeps via memory_store 'heartbeat_check')
     Cooldown alerts : 6h (warning), 1h (critical)
@@ -8198,7 +8199,7 @@ def _heartbeat_observe(index, now):
                     # Still learning, continue silently
                     continue
                 
-                result = _heartbeat_apprendre(entity_id)
+                result = _heartbeat_learn(entity_id)
                 if not result:
                     continue
                 median_sec, p95_sec, p99_sec, samples = result
@@ -8216,7 +8217,7 @@ def _heartbeat_observe(index, now):
             try:
                 last_rc = datetime.fromisoformat(last_recompute)
                 if (now - last_rc).total_seconds() > 7 * 86400:
-                    result = _heartbeat_apprendre(entity_id)
+                    result = _heartbeat_learn(entity_id)
                     if result:
                         median_sec, p95_sec, p99_sec, samples = result
                         conn.execute(
@@ -8254,10 +8255,10 @@ def _heartbeat_observe(index, now):
             except Exception:
                 continue
             
-            seuil_warning = p99_sec * 2 if p99_sec else 600
-            seuil_critical = p99_sec * 5 if p99_sec else 1800
+            warning_threshold = p99_sec * 2 if p99_sec else 600
+            critical_threshold = p99_sec * 5 if p99_sec else 1800
             
-            if gap_sec > seuil_critical:
+            if gap_sec > critical_threshold:
                 _alert_if_new(
                     f"heartbeat_critical_{entity_id}",
                     f"🚨 HEARTBEAT CRITIQUE\n━━━━━━━━━━━━━━━━━━\n"
@@ -8267,7 +8268,7 @@ def _heartbeat_observe(index, now):
                     f"Probable failure: HA integration down, device unplugged, or manubillr clord offline.",
                     delay_h=1
                 )
-            elif gap_sec > seuil_warning:
+            elif gap_sec > warning_threshold:
                 _alert_if_new(
                     f"heartbeat_warning_{entity_id}",
                     f"⚠️ HEARTBEAT — Sensor fige\n━━━━━━━━━━━━━━━━━━\n"
@@ -8311,9 +8312,9 @@ def _heartbeat_observe(index, now):
 
 
 def cmd_heartbeat():
-    """Command /heartbeat : displays the status of the skill heartbeat_pilier.
+    """Command /heartbeat : displays the status of the skill heartbeat_core.
     
-    Show for chaque sensor pilier :
+    Show for each core sensor :
     - Learning phase (J/7) or calibrated thresholds (mediane, P99)
     - Gap current since last mise a day
     - Visual indicator by state (🟢 fresh / 🟡 warning / 🔴 alert)
@@ -8371,18 +8372,18 @@ def cmd_heartbeat():
             else:
                 med_str = f"{med//60}min" if med and med >= 60 else f"{med}s" if med else "?"
                 p99_str = f"{p99//60}min" if p99 and p99 >= 60 else f"{p99}s" if p99 else "?"
-                seuil_warn_min = (p99 * 2 / 60) if p99 else 999
-                seuil_atten_min = (p95 / 60) if p95 else 999
-                if gap_min is not None and gap_min > seuil_warn_min:
+                warning_threshold_min = (p99 * 2 / 60) if p99 else 999
+                attention_threshold_min = (p95 / 60) if p95 else 999
+                if gap_min is not None and gap_min > warning_threshold_min:
                     icon = "🔴"
-                elif gap_min is not None and gap_min > seuil_atten_min:
+                elif gap_min is not None and gap_min > attention_threshold_min:
                     icon = "🟡"
                 else:
                     icon = "🟢"
                 msg_lines.append(f"{icon} {short}")
                 msg_lines.append(f"   med {med_str} · P99 {p99_str} · gap {gap_str} · {samples} samples")
         
-        # Sensors rate HC/HP
+        # Rate HC/HP sensors
         msg_lines.append("")
         msg_lines.append("📅 Rate HC/HP (1 update/day, threshold 26h)")
         for eid in _HEARTBEAT_SENSORS_TARIF:
@@ -8502,7 +8503,7 @@ def _detect_water_leak(index, now):
                     fname = e.get("attributes", {}).get("friendly_name", eid)
                     _alert_if_new(
                         f"fuite_{eid}",
-                        f"💧 FUITE D'EAU DETECTEE\n━━━━━━━━━━━━━━━━━━\n"
+                        f"💧 WATER LEAK DETECTED\n━━━━━━━━━━━━━━━━━━\n"
                         f"Sensor: {fname}\n"
                         f"State: {e.get('state')}\n\n"
                         f"⚠️ Check immediately!",
@@ -8522,7 +8523,7 @@ def cmd_rooms():
         index_dict = {e["entity_id"]: e for e in index}
         rooms = {}
 
-        PIECES_CONNUES = [
+        KNOWN_ROOMS = [
             "kitchen", "living_room", "bedroom", "office", "laundry_room", "garage",
             "salle of bain", "sdb", "entree", "corloir", "jardin", "terrasse",
             "attic", "basement", "cellier", "wc", "toilette",
@@ -8560,7 +8561,7 @@ def cmd_rooms():
             if not room:
                 fname = e.get("attributes", {}).get("friendly_name", eid).lower()
                 eid_low = eid.lower()
-                for p in PIECES_CONNUES:
+                for p in KNOWN_ROOMS:
                     if p in eid_low or p in fname:
                         room = p.capitalize()
                         break
@@ -8574,7 +8575,7 @@ def cmd_rooms():
                             room = "Bedroom"
 
             if not room:
-                room = "Autre"
+                room = "Other"
 
             if room not in rooms:
                 rooms[room] = []
@@ -8587,7 +8588,7 @@ def cmd_rooms():
         total = sum(rooms_total.values())
         rooms_sorted = sorted(rooms_total.items(), key=lambda x: x[1], reverse=True)
 
-        result = "🏠 CONSOMMATION PAR PIECE\n━━━━━━━━━━━━━━━━━━\n\n"
+        result = "🏠 CONSUMPTION BY ROOM\n━━━━━━━━━━━━━━━━━━\n\n"
         for room, watts in rooms_sorted:
             pct = int(watts / total * 100) if total > 0 else 0
             barre = "█" * max(1, pct // 5) + "░" * max(0, 20 - pct // 5)
@@ -8620,7 +8621,7 @@ def _rollback_si_errors_repetees(now):
         with open(crash_log) as f:
             content = f.read()
 
-        crashes_recentes = 0
+        recent_crashes = 0
         for line in content.split("\n"):
             if "CRASH" in line:
                 try:
@@ -8628,20 +8629,20 @@ def _rollback_si_errors_repetees(now):
                     ts_str = line.split("CRASH")[1][:25].strip()
                     dt = datetime.fromisoformat(ts_str.replace(" ", "T")[:19])
                     if (now - dt).total_seconds() < 3600:
-                        crashes_recentes += 1
+                        recent_crashes += 1
                 except Exception:
                     pass
 
-        if crashes_recentes >= 3:
+        if recent_crashes >= 3:
             backup_dir = os.path.join(BASE_DIR, "versions")
             backups = sorted(glob.glob(os.path.join(backup_dir, "skills.py.bak_*")), reverse=True)
             if backups:
                 import shutil
-                log.warning(f"⚠️ {crashes_recentes} crashes in 1h — rollback vers {os.path.basename(backups[0])}")
+                log.warning(f"⚠️ {recent_crashes} crashes in 1h — rollback to {os.path.basename(backups[0])}")
                 shutil.copy2(backups[0], os.path.join(BASE_DIR, "skills.py"))
                 telegram_send(
                     f"⚠️ ROLLBACK AUTOMATIQUE\n━━━━━━━━━━━━━━━━━━\n"
-                    f"{crashes_recentes} crashes detected in 1h.\n"
+                    f"{recent_crashes} crashes detected in 1h.\n"
                     f"Rolling back to previors version.\n"
                     f"Restarting..."
                 )
@@ -8710,11 +8711,11 @@ def cmd_known_appliances():
 # =============================================================================
 # =============================================================================
 
-_vocal_scripts_last = {}
+_voice_scripts_last = {}
 
-def _check_vocal_scripts(index, now):
+def _check_voice_scripts(index, now):
     """Detects execution of HA assistant_* scripts → processes + TTS Nest Hub. CRASH-PROOF."""
-    global _vocal_scripts_last
+    global _voice_scripts_last
     try:
         scripts_map = {
             "script.assistant_energy": "energy",
@@ -8743,10 +8744,10 @@ def _check_vocal_scripts(index, now):
             last_triggered = e.get("attributes", {}).get("last_triggered", "")
             if last_triggered == "None":
                 last_triggered = ""
-            prev = _vocal_scripts_last.get(eid, "")
+            prev = _voice_scripts_last.get(eid, "")
 
             if last_triggered and last_triggered != prev:
-                _vocal_scripts_last[eid] = last_triggered
+                _voice_scripts_last[eid] = last_triggered
                 if not prev:
                     continue
 
@@ -8772,10 +8773,10 @@ def _check_vocal_scripts(index, now):
 
                     log.info(f"🎙️ TTS sent: {tts[:80]}...")
                 except Exception as e:
-                    log.error(f"Vocal script error: {e}")
+                    log.error(f"Voice script error: {e}")
 
     except Exception as e:
-        log.debug(f"Check vocal scripts: {e}")
+        log.debug(f"Check voice scripts: {e}")
 
 def handle_message(text):
     t = text.strip().lower()
@@ -8804,7 +8805,7 @@ def handle_message(text):
         "report": cmd_audit,
         "export": cmd_script_export,    # ✅ Export SCRIPT
         "script": cmd_script_export,    # ✅ Export SCRIPT
-        "claude": cmd_script_export,    # ✅ Export SCRIPT
+        "ai": cmd_script_export,    # ✅ Export SCRIPT
         "diag_energy": cmd_diag_energy,  # 🔧 Diagnostic energy
         "diag_offpeak": cmd_diag_hc,            # 🔧 Search off-peak hours
         "diag_plugs": cmd_diag_plugs,    # 🔧 Diagnostic plugs
@@ -8859,7 +8860,7 @@ def handle_message(text):
     pending = mem_get("pending_hour_machine")
     if pending == "yes":
         import re as _re_msg
-        # Annulation
+        # Cancellation
         if t in ("no", "❌", "cancel", "not today"):
             mem_set("pending_hour_machine", "")
             return "✅ No appliance today."
@@ -8867,23 +8868,23 @@ def handle_message(text):
         # Parse the hour : 12h30, 12h, 14:30, 13:00, 12, etc.
         match = _re_msg.match(r"^(\d{1,2})[h:]?(\d{0,2})$", t.replace(" ", ""))
         if match:
-            hour_cible = int(match.group(1))
-            minutes_cible = int(match.group(2)) if match.group(2) else 0
-            if 0 <= hour_cible <= 23 and 0 <= minutes_cible <= 59:
+            target_hour = int(match.group(1))
+            target_minutes = int(match.group(2)) if match.group(2) else 0
+            if 0 <= target_hour <= 23 and 0 <= target_minutes <= 59:
                 now_msg = datetime.now()
-                cible = now_msg.replace(hour=hour_cible, minute=minutes_cible, second=0)
-                if cible <= now_msg:
+                target_time = now_msg.replace(hour=target_hour, minute=target_minutes, second=0)
+                if target_time <= now_msg:
                     mem_set("pending_hour_machine", "")
-                    return f"⚠️ {hour_cible}h{minutes_cible:02d} has already passed."
+                    return f"⚠️ {target_hour}h{target_minutes:02d} has already passed."
 
                 mem_set("pending_hour_machine", "")
-                mem_set("reminder_machine", cible.isoformat())
-                mem_set("reminder_machine_hour", f"{hour_cible}h{minutes_cible:02d}")
+                mem_set("reminder_machine", target_time.isoformat())
+                mem_set("reminder_machine_hour", f"{target_hour}h{target_minutes:02d}")
                 telegram_send(
-                    f"⏰ Appliance reminder set for {hour_cible}h{minutes_cible:02d}\n"
+                    f"⏰ Appliance reminder set for {target_hour}h{target_minutes:02d}\n"
                     f"I'll monitor solar production and the washing machine plug."
                 )
-                log.info(f"⏰ Reminder machine : {hour_cible}h{minutes_cible:02d}")
+                log.info(f"⏰ Reminder machine : {target_hour}h{target_minutes:02d}")
                 return ""
         # If not recognized, continue to normal commands
         mem_set("pending_hour_machine", "")
@@ -8998,7 +8999,7 @@ def handle_message(text):
     # Log calendars in the context
     cal_lines = [l for l in context.split("\n") if "CALENDAR" in l or "EVENT" in l or "calendar" in l.lower() or "trash" in l.lower()]
     log.info(f"CONTEXTE→HAIKU: {len(context)} chars, {len(cal_lines)} lines calendar: {cal_lines[:5]}")
-    result = call_claude(text, context)
+    result = call_llm(text, context)
     if result is None:
         return "Je n'ai not compris your request"
     return result
@@ -9006,11 +9007,11 @@ def handle_message(text):
 
 def automatic_summary():
     """Generate and send a summary complete"""
-    # Tracker interaction for mode vacances
+    # Tracker interaction for vacation mode
     try:
         mem_set("last_message_telegram", datetime.now().isoformat())
-        if mem_get("mode_vacances") == "active":
-            mem_set("mode_vacances", "")
+        if mem_get("vacation_mode") == "active":
+            mem_set("vacation_mode", "")
             telegram_send("🏠 Vacation mode disabled — welcome back!")
     except Exception:
         pass
@@ -9027,7 +9028,7 @@ def automatic_summary():
                     f"Requested change: {text}\n\n"
                     f"Apply the change and return the corrected automation using ha_create_automation."
                 )
-                return call_claude(msg_modif, context)
+                return call_llm(msg_modif, context)
     except Exception:
         pass
     telegram_send("📊 Automatic report generation in progress...")
@@ -9038,7 +9039,7 @@ def automatic_summary():
 
     conn = sqlite3.connect(DB_PATH)
     nb_cycles = conn.execute("SELECT COUNT(*) FROM appliance_cycles WHERE ended_at IS NOT NULL").fetchone()[0]
-    consumption_totale = conn.execute("SELECT SUM(consumption_kwh) FROM appliance_cycles WHERE ended_at IS NOT NULL").fetchone()[0] or 0
+    total_consumption = conn.execute("SELECT SUM(consumption_kwh) FROM appliance_cycles WHERE ended_at IS NOT NULL").fetchone()[0] or 0
     cost_total = conn.execute("SELECT SUM(cost_eur) FROM appliance_cycles WHERE ended_at IS NOT NULL").fetchone()[0] or 0
     nb_absences = conn.execute("SELECT COUNT(*) FROM zigbee_outages").fetchone()[0]
     nb_abnormales = conn.execute("SELECT COUNT(*) FROM zigbee_outages WHERE status='abnormal'").fetchone()[0]
@@ -9047,7 +9048,7 @@ def automatic_summary():
     context = f"""Summary for {CFG.get('summary_days', 4)} days:
 
 CYCLES MACHINES : {nb_cycles}
-Consumption : {consumption_totale:.2f} kWh
+Consumption : {total_consumption:.2f} kWh
 Estimated cost: {cost_total:.2f}€
 
 ZIGBEE NETWORK:
@@ -9062,7 +9063,7 @@ Mapping: {mem_get('discovery_count', 0)} entities learned
         "Summarize: detected appliances, anomalies, alerts. "
         "End with 3 recommendations. Be concise."
     )
-    summary = call_claude(prompt, context)
+    summary = call_llm(prompt, context)
     nb_j = CFG.get('summary_days', 4)
     telegram_send(f"📊 SUMMARY {nb_j} DAYS\n━━━━━━━━━━━━━━━━━━\n{summary}")
     send_email(

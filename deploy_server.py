@@ -427,7 +427,7 @@ echo ""
 echo "════════ ELIMINATE_DUPLICATE $(date -Iseconds) ════════"
 
 # 1. Snapshot before
-echo "[T0] Services tunnel actives :"
+echo "[T0] Active tunnel services:"
 systemctl is-active cloudflared.service && echo "  cloudflared.service: ACTIVE" || echo "  cloudflared.service: inactive"
 systemctl is-active cloudflared_tunnel.service && echo "  cloudflared_tunnel.service: ACTIVE" || echo "  cloudflared_tunnel.service: inactive"
 echo "[T0] Running wrappers :"
@@ -1231,7 +1231,7 @@ class DeployHandler(BaseHTTPRequestHandler):
         elif self.path == "/status":
             self._respond(200, action_status())
         elif self.path.startswith("/ask"):
-            # API vocale for Google Home / Alexa
+            # Voice API for Google Home / Alexa
             import urllib.parse
             parsed = urllib.parse.urlparse(self.path)
             params = urllib.parse.parse_qs(parsed.query)
@@ -1241,8 +1241,8 @@ class DeployHandler(BaseHTTPRequestHandler):
             else:
                 try:
                     # Write the question to a file, the assistant handles it
-                    q_path = os.path.join(ASSISTANT_DIR, "vocal_question.json")
-                    a_path = os.path.join(ASSISTANT_DIR, "vocal_answer.json")
+                    q_path = os.path.join(ASSISTANT_DIR, "voice_question.json")
+                    a_path = os.path.join(ASSISTANT_DIR, "voice_answer.json")
                     import time as _t
                     with open(q_path, "w") as f:
                         json.dump({"q": question, "ts": _t.time()}, f)

@@ -15,7 +15,7 @@ BEHAVIOR_PROMPT = os.path.join(BASE_DIR, "behavior.txt")
 
 # ═══ VERSION ═══
 MODE    = "DEV"
-VERSION = "0.1.2"
+VERSION = "0.1.3"
 
 # ═══ LLM PROVIDER CONFIGURATION ═══
 # Supported providers:
@@ -42,7 +42,7 @@ DEFAULT_RATES = {
         "provider": "Default",
         "name": "Default base rate",
         "price_kwh": 0.2516,
-        "abo_month": 0,
+        "subscription_month": 0,
     }
 }
 
@@ -98,10 +98,10 @@ APPLIANCE_TYPES = {
 }
 
 # ═══ AUTO-DISCOVERED ROLES ═══
-ROLES_DEFINIS = {
-    "realtime_consumption": ["sensor.*real*power*", "sensor.*power*instantanee*", "sensor.*ecojoko*realtime*"],
+ROLE_DEFINITIONS = {
+    "realtime_consumption": ["sensor.*real*power*", "sensor.*instant*power*", "sensor.*ecojoko*realtime*"],
     "consumption_day_kwh": ["sensor.*consumption*total*kwh*", "sensor.*daily*energy*"],
-    "consumption_day_eur": ["sensor.*depense*day*", "sensor.*daily*cost*"],
+    "consumption_day_cost": ["sensor.*daily*cost*", "sensor.*day*cost*"],
     "solar_production_w": ["sensor.*ecu*current*power*", "sensor.*solar*power*", "sensor.*pv*power*"],
     "solar_production_kwh": ["sensor.*ecu*today*energy*", "sensor.*solar*energy*today*"],
     "solar_production_lifetime": ["sensor.*ecu*lifetime*energy*", "sensor.*solar*total*"],
@@ -114,20 +114,20 @@ ROLES_DEFINIS = {
     "battery_power": ["sensor.*solarbank*power*", "sensor.*battery*power*"],
     "battery_mode": ["sensor.*solarbank*mode*"],
     "heat_pump_climate": ["climate.*heat*pump*", "climate.*heat_pump*", "climate.*heat*pump*"],
-    "heat_pump_outdoor_temperature": ["sensor.*temperature*exterieure*", "sensor.*outdoor*temp*"],
+    "heat_pump_outdoor_temperature": ["sensor.*outdoor*temperature*", "sensor.*outdoor*temp*"],
     "heat_pump_setpoint": ["number.*temperature*setpoint*"],
     "weather_temperature": ["sensor.*temperature*", "sensor.*outdoor*temp*"],
-    "weather_alert": ["sensor.*weather*alert*", "sensor.*vigilance*"],
-    "weather_pluie": ["sensor.*next*rain*", "sensor.*rain*forecast*"],
-    "weather_risque_pluie": ["sensor.*rain*chance*", "sensor.*precipitation*probability*"],
-    "weather_risque_neige": ["sensor.*snow*chance*"],
-    "weather_vent": ["sensor.*wind*speed*", "sensor.*vitesse*vent*"],
-    "weather_rafales": ["sensor.*wind*gust*", "sensor.*rafale*"],
+    "weather_alert": ["sensor.*weather*alert*", "sensor.*storm*alert*"],
+    "weather_next_rain": ["sensor.*next*rain*", "sensor.*rain*forecast*"],
+    "weather_rain_chance": ["sensor.*rain*chance*", "sensor.*precipitation*probability*"],
+    "weather_snow_chance": ["sensor.*snow*chance*"],
+    "weather_wind_speed": ["sensor.*wind*speed*"],
+    "weather_wind_gust": ["sensor.*wind*gust*"],
 }
 
 # ═══ AUTO-HEALING ═══
 AUTO_HEAL_THRESHOLD = 3   # Occurrences/1h before correction
-AUTO_GUERISON_COOLDOWN = 3600  # Seconds between 2 attempts for same error
+AUTO_HEAL_COOLDOWN = 3600  # Seconds between 2 attempts for same error
 
 # ═══ TELEGRAM FILTERS ═══
 MAX_DAILY_MESSAGES = 50   # Daily anti-spam limit
