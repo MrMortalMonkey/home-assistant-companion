@@ -5,7 +5,7 @@
 **Checks:**
 
 1. Is the service running?
-   - HA Add-on: **Log** tab of the add-on
+   - HA App: **Log** tab of the app
    - Docker: `docker compose logs --tail=100`
    - Linux: `sudo systemctl status assistant.service`
 
@@ -109,7 +109,7 @@ sudo systemctl restart assistant.service   # (or docker compose restart)
 
 1. **`/problem <description>`** in Telegram — the configured AI model diagnoses your problem
 2. **Detailed logs**:
-   - HA Add-on: Log tab
+   - HA App: Log tab
    - Docker: `docker compose logs --tail=200 assistant`
    - Linux: `sudo journalctl -u assistant.service -n 200`
 3. **GitHub Issues**: https://github.com/MrMortalMonkey/home-assistant-companion/issues

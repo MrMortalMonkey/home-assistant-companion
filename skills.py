@@ -6733,7 +6733,7 @@ Available commands :
 /zigbee         → Reseau Zigbee + LQI
 /nas            → NAS Synology
 /automations → Automatisations HA
-/addons         → Add-ons HA
+/addons         → HA Apps
 /cycles         → Appliance cycle history
 /budget         → Consumption tokens API
 /scan           → Rescanner and apprendre entities

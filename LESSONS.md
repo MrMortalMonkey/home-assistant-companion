@@ -84,7 +84,7 @@ This file captures issues found during testing so future installations can avoid
 
 ### Independent Off-Peak Source Through ha-linky (2026-04-29)
 - **Context:** The bot needed a reliable source for off-peak calculations after the Ecojoko rate issue.
-- **Solution:** Use the `ha-linky` add-on with the official Enedis API through Consumption API.
+- **Solution:** Use the `ha-linky` app with the official Enedis API through Consumption API.
 - **Validated result:** One year of consumption history imported, costs calculated retroactively, daily sync scheduled, and Home Assistant Energy configured.
 - **Open work:** Either expose `Linky consumption (costs)` through a Home Assistant template sensor or query recorder statistics directly from AI Companion.
 

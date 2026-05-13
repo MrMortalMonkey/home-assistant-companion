@@ -283,7 +283,7 @@ cat <<INFO
   ${BOLD}Deploy as a service:${NC}
     ${BLUE}./scripts/install_systemd.sh${NC}       Linux/Pi/VM
     ${BLUE}docker compose up -d${NC}                Docker
-    See docs/INSTALL.md for HA Add-on
+    See docs/INSTALL.md for HA App
 
   ${BOLD}Help:${NC}  /help in Telegram     │     ${BOLD}Docs:${NC}  docs/
 

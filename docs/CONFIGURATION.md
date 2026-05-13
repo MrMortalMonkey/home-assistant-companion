@@ -108,7 +108,7 @@ At startup, AI Assistant sends a 6-digit code to verify it's you accessing the b
 
 1. Edit `config.json` directly
 2. Restart AI Assistant:
-   - HA Add-on: **Restart** button in the interface
+   - HA App: **Restart** button in the interface
    - Docker: `docker compose restart assistant`
    - Native Linux: `sudo systemctl restart assistant.service`
    - Manual: Ctrl+C then `python3 assistant.py`

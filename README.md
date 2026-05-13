@@ -49,11 +49,11 @@ This is not a replacement for your existing automations. It's a **conversational
 | 1 | **Telegram Bot** | [@BotFather](https://t.me/BotFather) → `/newbot` | Free |
 | 2 | **Home Assistant** with long-lived token | Profile → Long-lived access tokens | Free |
 | 3 | **AI provider credentials** (Anthropic, OpenAI, OpenRouter, Ollama, LM Studio) | See provider console or local endpoint | Variable (see below) |
-| 4 | **A Linux machine** (Pi, VM, NAS, HA Add-on...) | See hardware table | Variable |
+| 4 | **A Linux machine** (Pi, VM, NAS, HA App...) | See hardware table | Variable |
 
 ### 🔌 Reliable off-peak/peak data — recommendation (optional)
 
-If you have a smart meter and a time-of-use rate (off-peak / peak hours), I recommend the [**ha-linky**](https://github.com/bokub/ha-linky) add-on (Bokub) as an official source for your off-peak/peak consumption. It uses the Enedis API via [Consumption API](https://consumption.boris.sh) (free, 3-year Enedis consent).
+If you have a smart meter and a time-of-use rate (off-peak / peak hours), I recommend the [**ha-linky**](https://github.com/bokub/ha-linky) app (Bokub) as an official source for your off-peak/peak consumption. It uses the Enedis API via [Consumption API](https://consumption.boris.sh) (free, 3-year Enedis consent).
 
 **Why?** Third-party energy integrations don't all support every rate. ha-linky reads directly from Enedis, so it's compatible with **all rates**.
 
@@ -63,17 +63,17 @@ Data delivered in D+1 (the previous morning), so it's not real-time — but it's
 
 Four supported methods. **Choose the one that matches your hardware**:
 
-### 1️⃣ HA Add-on — Easiest (HA OS / Supervised)
+### 1️⃣ HA App — Easiest (HA OS / Supervised)
 
 If you have Home Assistant OS (HA Green, Yellow, Blue, etc.):
 
-1. In Home Assistant: **Settings → Add-ons → Store → ⋮ → Repositories**
+1. In Home Assistant: **Settings → Apps → Install app → ⋮ → Repositories**
 2. Add: `https://github.com/MrMortalMonkey/home-assistant-companion`
 3. Find **Home Assistant AI Companion** in the list, click **Install**
 4. Configure: `telegram_token`, `llm_provider`, and the matching provider key or local endpoint (HA URL and token are automatic)
 5. **Start**
 
-[📖 Detailed guide →](docs/INSTALL.md#ha-add-on)
+[📖 Detailed guide →](docs/INSTALL.md#ha-app)
 
 ### 2️⃣ Docker Compose — Most portable
 
@@ -129,7 +129,7 @@ python3 assistant.py        # start the bot
 
 | Machine | Min RAM | Cost | Ideal for |
 |---|---|---|---|
-| **HA Add-on** (on HA OS) | 512 MB | Free | Already have HA Green/Yellow → 1 click |
+| **HA App** (on HA OS) | 512 MB | Free | Already have HA Green/Yellow → 1 click |
 | **Raspberry Pi 4/5** | 2 GB | $40-80 | Dedicated, quiet, 5 W |
 | **Oracle Cloud VM** (free tier) | 1 GB | Free | Permanently free, ARM |
 | **Google Cloud VM** (e2-micro) | 1 GB | Free | Free for 12 months |
@@ -144,7 +144,7 @@ The script is **free and open source (MIT)**. The only recurring AI cost is what
 |---|---|
 | Script | **Free** (MIT) |
 | AI usage | Variable — depends on provider, selected model, and usage |
-| Hosting | Variable — between $0 (HA Add-on, free VM) and ~$10 (dedicated Pi) |
+| Hosting | Variable — between $0 (HA App, free VM) and ~$10 (dedicated Pi) |
 
 **On AI usage:** normal hosted-model usage (1 briefing/day, a few conversational commands, passive monitoring) generally runs around **$5–15/month**, depending on provider and model. Local providers such as Ollama or LM Studio can avoid per-token API billing. The bot tracks its own budget via `/budget` and stops if you exceed the configured monthly budget.
 
@@ -188,7 +188,7 @@ If you're testing, feedback via [GitHub Issues](https://github.com/MrMortalMonke
 - [x] Proactive monitoring engine (7am briefing, solar peak, standby, off-peak/peak, 9pm summary)
 - [x] Auto-fix via `/problem`
 - [x] Google Home / Alexa integration (TTS)
-- [x] HA Add-on + Docker + systemd
+- [x] HA App + Docker + systemd
 - [x] Documented installation, opt-in deploy_server
 
 **Coming:**

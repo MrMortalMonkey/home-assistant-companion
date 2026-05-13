@@ -4,21 +4,21 @@ Four installation methods supported. Choose according to your environment.
 
 | Method | Difficulty | Auto-recovery | Updates |
 |---|---|---|---|
-| HA Add-on | 🟢 Very easy | ✅ Supervisor | 1 click |
+| HA App | 🟢 Very easy | ✅ Supervisor | 1 click |
 | Docker Compose | 🟢 Easy | ✅ `restart: unless-stopped` | `docker compose pull && up -d` |
 | Native Linux | 🟡 Medium | ✅ systemd | `git pull && restart` |
 | Manual | 🟡 Medium | ❌ | `git pull` |
 
 ---
 
-## HA Add-on
+## HA App
 
 **Prerequisites:** Home Assistant OS or Home Assistant Supervised.
 
 ### Steps
 
-1. In Home Assistant, go to **Settings → Add-ons → Store**
-2. Click the three dots in the top right → **Repositories**
+1. In Home Assistant, go to **Settings → Apps**
+2. Select **Install app**, then open the three-dot menu → **Repositories**
 3. Add the URL: `https://github.com/MrMortalMonkey/home-assistant-companion`
 4. Close, reload — find **Home Assistant AI Companion** in the list
 5. Click **Install**
@@ -27,13 +27,13 @@ Four installation methods supported. Choose according to your environment.
    - `llm_provider`
    - the matching provider API key or local endpoint
    - Leave `sms_method` as `ha_notify` (uses HA notifications)
-7. Start the add-on
+7. Start the app
 8. Send a message to your Telegram bot to complete setup
 
 ### Persistent data
 
 - `config.json` and `memory.db` are stored in `/config/assistant/` on the HA side
-- Logs are in the add-on's **Log** tab
+- Logs are in the app's **Log** tab
 
 ### Update
 
