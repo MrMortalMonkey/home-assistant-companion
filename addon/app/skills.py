@@ -6120,7 +6120,7 @@ def cmd_addons():
 def cmd_budget():
     tokens_in, tokens_out = get_token_usage()
     cost = (tokens_in * 0.000001) + (tokens_out * 0.000005)
-    budget = CFG.get("llm_monthly_budget_usd", CFG.get("anthropic_monthly_budget_usd", 0))
+    budget = CFG.get("llm_monthly_budget_usd", 0)
     pct = (cost / budget * 100) if budget > 0 else 0
     remaining = max(0, budget - cost) if budget > 0 else None
 

@@ -96,6 +96,8 @@ def _openai_compatible_chat(cfg, messages, model, max_tokens, system_prompt=None
         base_url = cfg.get("lmstudio_host", provider.get("base_url", "http://localhost:1234"))
     elif provider_name == "openrouter":
         base_url = provider.get("base_url", "https://openrouter.ai/api/v1")
+    elif provider_name == "openai":
+        base_url = cfg.get("openai_base_url", "https://api.openai.com/v1") or "https://api.openai.com/v1"
     else:
         base_url = "https://api.openai.com/v1"
 
@@ -136,6 +138,13 @@ def _openai_compatible_chat(cfg, messages, model, max_tokens, system_prompt=None
         if provider_name == "openrouter":
             headers["HTTP-Referer"] = "https://github.com/MrMortalMonkey/home-assistant-companion"
             headers["X-Title"] = "Home Assistant AI Companion"
+        elif provider_name == "openai":
+            org_id = str(cfg.get("openai_organization_id", "")).strip()
+            project_id = str(cfg.get("openai_project_id", "")).strip()
+            if org_id:
+                headers["OpenAI-Organization"] = org_id
+            if project_id:
+                headers["OpenAI-Project"] = project_id
 
     try:
         r = _requests.post(url, json=payload, headers=headers, timeout=120)

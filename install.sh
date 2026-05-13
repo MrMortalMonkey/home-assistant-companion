@@ -144,6 +144,9 @@ esac
 
 ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
 OPENAI_API_KEY="${OPENAI_API_KEY:-}"
+OPENAI_BASE_URL="${OPENAI_BASE_URL:-https://api.openai.com/v1}"
+OPENAI_ORGANIZATION_ID="${OPENAI_ORGANIZATION_ID:-}"
+OPENAI_PROJECT_ID="${OPENAI_PROJECT_ID:-}"
 OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}"
 OLLAMA_HOST="${OLLAMA_HOST:-http://localhost:11434}"
 LMSTUDIO_HOST="${LMSTUDIO_HOST:-http://localhost:1234}"
@@ -158,6 +161,9 @@ case "$LLM_PROVIDER" in
     openai)
         ask OPENAI_API_KEY "OpenAI API Key" "$OPENAI_API_KEY" 1
         [ -n "$OPENAI_API_KEY" ] || fail "OPENAI_API_KEY is empty"
+        ask OPENAI_BASE_URL "OpenAI API base URL" "$OPENAI_BASE_URL"
+        ask OPENAI_ORGANIZATION_ID "OpenAI organization ID (optional)" "$OPENAI_ORGANIZATION_ID"
+        ask OPENAI_PROJECT_ID "OpenAI project ID (optional)" "$OPENAI_PROJECT_ID"
         ;;
     openrouter)
         ask OPENROUTER_API_KEY "OpenRouter API Key" "$OPENROUTER_API_KEY" 1
@@ -177,7 +183,7 @@ info "Options (Enter for default values)"
 
 ask LLM_MODEL                    "AI model override (blank = provider default)" "$LLM_MODEL"
 ask LLM_MODEL_STRONG             "Strong AI model override (blank = provider default)" "$LLM_MODEL_STRONG"
-ask LLM_MONTHLY_BUDGET_USD       "Internal monthly AI budget USD (0 = off)" "${LLM_MONTHLY_BUDGET_USD:-${ANTHROPIC_MONTHLY_BUDGET_USD:-0}}"
+ask LLM_MONTHLY_BUDGET_USD       "Internal monthly AI budget USD (0 = off)" "${LLM_MONTHLY_BUDGET_USD:-0}"
 ask SMS_METHOD                   "Security code method (free_mobile|ha_notify|email)" "${SMS_METHOD:-ha_notify}"
 
 FREE_MOBILE_USER="${FREE_MOBILE_USER:-}"
@@ -209,7 +215,7 @@ esac
 # ═══════════════════════════════════════════════════════════════════
 title "Generating config.json"
 
-export TELEGRAM_TOKEN HA_URL HA_TOKEN LLM_PROVIDER ANTHROPIC_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY OLLAMA_HOST LMSTUDIO_HOST LLM_MODEL LLM_MODEL_STRONG
+export TELEGRAM_TOKEN HA_URL HA_TOKEN LLM_PROVIDER ANTHROPIC_API_KEY OPENAI_API_KEY OPENAI_BASE_URL OPENAI_ORGANIZATION_ID OPENAI_PROJECT_ID OPENROUTER_API_KEY OLLAMA_HOST LMSTUDIO_HOST LLM_MODEL LLM_MODEL_STRONG
 export FREE_MOBILE_USER FREE_MOBILE_PASS SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS MAIL_DEST
 export SMS_METHOD LLM_MONTHLY_BUDGET_USD
 
@@ -223,6 +229,9 @@ cfg = {
     "llm_provider":                 os.environ.get("LLM_PROVIDER","anthropic"),
     "anthropic_api_key":            os.environ.get("ANTHROPIC_API_KEY",""),
     "openai_api_key":               os.environ.get("OPENAI_API_KEY",""),
+    "openai_base_url":              os.environ.get("OPENAI_BASE_URL","https://api.openai.com/v1"),
+    "openai_organization_id":       os.environ.get("OPENAI_ORGANIZATION_ID",""),
+    "openai_project_id":            os.environ.get("OPENAI_PROJECT_ID",""),
     "openrouter_api_key":           os.environ.get("OPENROUTER_API_KEY",""),
     "llm_model":                    os.environ.get("LLM_MODEL",""),
     "llm_model_strong":             os.environ.get("LLM_MODEL_STRONG",""),

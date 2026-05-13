@@ -15,6 +15,9 @@ All configuration is in `config.json`. This file is generated automatically by `
 | `llm_provider` | str | ✅ | AI provider: `anthropic`, `openai`, `openrouter`, `ollama`, or `lmstudio` |
 | `anthropic_api_key` | str | If Anthropic | Anthropic API key |
 | `openai_api_key` | str | If OpenAI | OpenAI API key |
+| `openai_base_url` | str | Optional | OpenAI-compatible API base URL. Defaults to `https://api.openai.com/v1`. |
+| `openai_organization_id` | str | Optional | OpenAI organization header value, if your account requires it. |
+| `openai_project_id` | str | Optional | OpenAI project header value, if you want requests scoped to a project. |
 | `openrouter_api_key` | str | If OpenRouter | OpenRouter API key |
 | `llm_model` | str | Optional | Model ID for normal requests. Leave blank to use the provider default. |
 | `llm_model_strong` | str | Optional | Model ID for heavier troubleshooting/auto-fix requests. Leave blank to use the provider default. |
@@ -65,12 +68,26 @@ Choose the provider you want in `llm_provider`, then fill in the matching key or
 - `ollama`: set `ollama_host`
 - `lmstudio`: set `lmstudio_host`
 
+OpenAI options:
+
+- `openai_base_url`: leave as `https://api.openai.com/v1` for the normal OpenAI API.
+- `openai_organization_id`: optional organization ID for accounts that require the `OpenAI-Organization` header.
+- `openai_project_id`: optional project ID for accounts that use the `OpenAI-Project` header.
+- OAuth is not used by this app. It runs server-side inside Home Assistant and authenticates to model APIs with provider API keys.
+
 Optional model overrides:
 
 - `llm_model`: normal chat/control model
 - `llm_model_strong`: heavier troubleshooting and auto-fix model
 
-For OpenRouter, enter model IDs exactly as OpenRouter lists them, such as `openai/gpt-4o-mini`, `anthropic/claude-3.5-haiku`, or another model available to your key.
+Home Assistant's setup form is static, so the app uses model text fields instead of dynamic provider dropdowns.
+
+Provider examples:
+
+- Anthropic: `claude-haiku-4-5-20251001` for normal use, `claude-sonnet-4-6` for stronger reasoning.
+- OpenAI: use a model ID available to your key, or list available IDs with the OpenAI Models API.
+- OpenRouter: enter IDs exactly as OpenRouter lists them, such as `openai/gpt-4o-mini` or `anthropic/claude-3.5-haiku`.
+- Ollama and LM Studio: enter the locally installed model name exposed by that server.
 
 **Budget:** hosted model usage often costs $5-10/month for light home automation usage. Prefer provider-side usage limits when available, such as an OpenRouter key limit. If you also want a local software cap, set `llm_monthly_budget_usd`; use `0` to disable the internal cap.
 
@@ -95,6 +112,9 @@ At startup, AI Assistant sends a 6-digit code to verify it's you accessing the b
   "llm_provider": "anthropic",
   "anthropic_api_key": "sk-ant-api03-xxxxx...",
   "openai_api_key": "",
+  "openai_base_url": "https://api.openai.com/v1",
+  "openai_organization_id": "",
+  "openai_project_id": "",
   "openrouter_api_key": "",
   "llm_model": "",
   "llm_model_strong": "",

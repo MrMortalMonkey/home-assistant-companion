@@ -10,13 +10,22 @@ configuration:
     description: Required only when LLM Provider is set to Anthropic.
   openai_api_key:
     name: OpenAI API Key
-    description: Required only when LLM Provider is set to OpenAI.
+    description: Required only when LLM Provider is set to OpenAI. Use an API key for this server-side app.
+  openai_base_url:
+    name: OpenAI API Base URL
+    description: Optional. Leave as https://api.openai.com/v1 unless you know you need a compatible endpoint.
+  openai_organization_id:
+    name: OpenAI Organization ID
+    description: Optional. Only needed for accounts that require an organization header.
+  openai_project_id:
+    name: OpenAI Project ID
+    description: Optional. Only needed when you want requests scoped to a specific OpenAI project.
   openrouter_api_key:
     name: OpenRouter API Key
     description: Required only when LLM Provider is set to OpenRouter.
   llm_model:
     name: AI Model
-    description: Optional. Enter a model ID for the selected provider. For OpenRouter, use IDs like openai/gpt-4o-mini or anthropic/claude-3.5-haiku.
+    description: Optional. Enter a model ID for the selected provider. For OpenRouter, use IDs like openai/gpt-4o-mini or anthropic/claude-3.5-haiku. For Ollama and LM Studio, use a locally installed model name.
   llm_model_strong:
     name: Strong AI Model
     description: Optional. Used for heavier tasks such as troubleshooting and auto-fix. Leave blank to use the provider default.

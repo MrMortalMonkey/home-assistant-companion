@@ -434,7 +434,12 @@ def load_config():
         "llm_provider": "anthropic",
         "anthropic_api_key": "",
         "openai_api_key": "",
+        "openai_base_url": "https://api.openai.com/v1",
+        "openai_organization_id": "",
+        "openai_project_id": "",
         "openrouter_api_key": "",
+        "llm_model": "",
+        "llm_model_strong": "",
         "ollama_host": "http://localhost:11434",
         "lmstudio_host": "http://localhost:1234",
         "poll_interval_sec": 2,
@@ -2211,7 +2216,7 @@ ABSOLUTE RULES:
 def check_budget():
     tokens_in, tokens_out = get_token_usage()
     cost = (tokens_in * 0.000001) + (tokens_out * 0.000005)
-    budget = CFG.get("llm_monthly_budget_usd", CFG.get("anthropic_monthly_budget_usd", 0))
+    budget = CFG.get("llm_monthly_budget_usd", 0)
     pct = (cost / budget * 100) if budget > 0 else 0
 
     if pct >= 100:

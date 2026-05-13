@@ -1,5 +1,5 @@
 #!/bin/bash
-LOG=/home/lolufe/assistant/scripts/e2e_test.log
+LOG=/tmp/home-assistant-companion-e2e.log
 exec > "$LOG" 2>&1
 set -u
 echo "════════ E2E INSTALL TEST $(date -Iseconds) ════════"
@@ -16,7 +16,7 @@ N=$(find . -maxdepth 2 -type f | grep -v '.git/' | wc -l)
 echo "✅ Clone OK — $N files"
 echo ""
 
-echo "═══ [2] Verification structure ═══"
+echo "═══ [2] Structure verification ═══"
 for f in README.md requirements.txt env.example install.sh Dockerfile \
          docker-compose.yml LICENSE .gitignore assistant.service.template \
          scripts/install_systemd.sh scripts/enable_beta_channel.sh \
@@ -26,12 +26,12 @@ for f in README.md requirements.txt env.example install.sh Dockerfile \
     if [ -f "$f" ]; then
         printf "  ✅ %-45s %6d b\n" "$f" "$(wc -c < "$f")"
     else
-        printf "  ❌ %-45s MANQUANT\n" "$f"
+        printf "  ❌ %-45s MISSING\n" "$f"
     fi
 done
 echo ""
 
-echo "═══ [3] Security : files sensibles absents ═══"
+echo "═══ [3] Security: sensitive files absent ═══"
 for f in config.json config.json.bak memory.db assistant.log deploy.log \
          addon/Dockerfile.txt assistant.service.txt; do
     if [ -f "$f" ]; then
@@ -66,11 +66,11 @@ ENVEOF
 bash install.sh --no-interactive --from-env 2>&1 | tail -35
 echo ""
 
-echo "═══ [6] Verification config.json ═══"
+echo "═══ [6] config.json verification ═══"
 if [ -f config.json ]; then
     BYTES=$(wc -c < config.json)
     PERMS=$(stat -c '%a' config.json)
-    echo "  ✅ config.json genere : $BYTES bytes, permissions $PERMS (attendu: 600)"
+    echo "  ✅ config.json generated: $BYTES bytes, permissions $PERMS (expected: 600)"
     echo ""
     echo "  Keys and types :"
     python3 -c "
@@ -84,21 +84,21 @@ for k in sorted(cfg.keys()):
         print(f'    {k:30s} {type(v).__name__:5s} = {v}')
 "
     echo ""
-    echo "  Verifications semantiques :"
+    echo "  Semantic checks:"
     python3 -c "
 import json, sys
 with open('config.json') as f: cfg = json.load(f)
 checks = [
-    ('telegram_token injecte',     cfg.get('telegram_token','').startswith('111111111:')),
+    ('telegram_token injected',    cfg.get('telegram_token','').startswith('111111111:')),
     ('ha_url injected',            cfg.get('ha_url','') == 'http://192.168.1.99:8123'),
-    ('ha_token injecte',           cfg.get('ha_token','').startswith('eyJhbGciOi')),
+    ('ha_token injected',          cfg.get('ha_token','').startswith('eyJhbGciOi')),
     ('anthropic_api_key injected', cfg.get('anthropic_api_key','').startswith('sk-ant-api03-test')),
     ('sms_method ha_notify',       cfg.get('sms_method','') == 'ha_notify'),
     ('poll_interval_sec default',  cfg.get('poll_interval_sec') == 2),
     ('audit_interval_sec default', cfg.get('audit_interval_sec') == 1800),
     ('budget int',                 isinstance(cfg.get('llm_monthly_budget_usd'), int)),
     ('budget disabled',            cfg.get('llm_monthly_budget_usd') == 0),
-    ('deploy_secret genere',       len(cfg.get('deploy_secret','')) == 64),
+    ('deploy_secret generated',    len(cfg.get('deploy_secret','')) == 64),
     ('telegram_chat_id empty',      cfg.get('telegram_chat_id','') == ''),
     ('SMS fields empty',           cfg.get('free_mobile_user','') == '' and cfg.get('smtp_user','') == ''),
 ]
@@ -106,15 +106,15 @@ failed = 0
 for name, ok in checks:
     print(f'    {\"✅\" if ok else \"❌\"} {name}')
     if not ok: failed += 1
-if failed: print(f'\\n  ❌ {failed}/{len(checks)} checks ont echoue')
+if failed: print(f'\\n  ❌ {failed}/{len(checks)} checks failed')
 else:      print(f'\\n  ✅ {len(checks)}/{len(checks)} checks OK')
 "
 else
-    echo "  ❌ config.json PAS GENERE"
+    echo "  ❌ config.json was not generated"
 fi
 echo ""
 
-echo "═══ [7] Syntaxe of the scripts ═══"
+echo "═══ [7] Script syntax ═══"
 for s in install.sh scripts/install_systemd.sh scripts/enable_beta_channel.sh \
          scripts/disable_beta_channel.sh addon/run.sh; do
     ERR=$(bash -n "$s" 2>&1)
@@ -128,6 +128,6 @@ done
 echo ""
 
 cd /tmp && rm -rf e2e-test-install
-echo "  ✅ Test termine"
+echo "  ✅ Test finished"
 echo ""
 echo "════════ FIN E2E TEST $(date -Iseconds) ════════"

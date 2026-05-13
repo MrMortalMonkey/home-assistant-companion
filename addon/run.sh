@@ -20,6 +20,9 @@ TELEGRAM_TOKEN=$(bashio::config 'telegram_token')
 LLM_PROVIDER=$(bashio::config 'llm_provider')
 ANTHROPIC_KEY=$(bashio::config 'anthropic_api_key')
 OPENAI_KEY=$(bashio::config 'openai_api_key')
+OPENAI_BASE_URL=$(bashio::config 'openai_base_url')
+OPENAI_ORG_ID=$(bashio::config 'openai_organization_id')
+OPENAI_PROJECT_ID=$(bashio::config 'openai_project_id')
 OPENROUTER_KEY=$(bashio::config 'openrouter_api_key')
 LLM_MODEL=$(bashio::config 'llm_model')
 LLM_MODEL_STRONG=$(bashio::config 'llm_model_strong')
@@ -52,62 +55,102 @@ case "${LLM_PROVIDER}" in
         ;;
 esac
 
-# Generate config.json if missing or credentials changed
-NEED_GEN=1
+# Rewrite config.json on every start so Home Assistant option changes are applied.
+# Preserve runtime-only values that are learned after install.
+CHAT_ID=""
+CURRENT_TOKEN=""
+DEPLOY_SECRET=""
+FREE_MOBILE_USER=""
+FREE_MOBILE_PASS=""
+SMTP_HOST=""
+SMTP_PORT="587"
+SMTP_USER=""
+SMTP_PASS=""
+EMAIL_DEST=""
+POLL_INTERVAL="2"
+AUDIT_INTERVAL="1800"
+
 if [ -f "${CONFIG_FILE}" ]; then
-    CURRENT_TOKEN=$(jq -r .telegram_token "${CONFIG_FILE}" 2>/dev/null || echo "")
-    if [ "${CURRENT_TOKEN}" = "${TELEGRAM_TOKEN}" ]; then
-        NEED_GEN=0
-    fi
+    CURRENT_TOKEN=$(jq -r '.telegram_token // ""' "${CONFIG_FILE}" 2>/dev/null || echo "")
+    CHAT_ID=$(jq -r '.telegram_chat_id // ""' "${CONFIG_FILE}" 2>/dev/null || echo "")
+    DEPLOY_SECRET=$(jq -r '.deploy_secret // ""' "${CONFIG_FILE}" 2>/dev/null || echo "")
+    FREE_MOBILE_USER=$(jq -r '.free_mobile_user // ""' "${CONFIG_FILE}" 2>/dev/null || echo "")
+    FREE_MOBILE_PASS=$(jq -r '.free_mobile_pass // ""' "${CONFIG_FILE}" 2>/dev/null || echo "")
+    SMTP_HOST=$(jq -r '.smtp_host // ""' "${CONFIG_FILE}" 2>/dev/null || echo "")
+    SMTP_PORT=$(jq -r '.smtp_port // 587' "${CONFIG_FILE}" 2>/dev/null || echo "587")
+    SMTP_USER=$(jq -r '.smtp_user // ""' "${CONFIG_FILE}" 2>/dev/null || echo "")
+    SMTP_PASS=$(jq -r '.smtp_pass // ""' "${CONFIG_FILE}" 2>/dev/null || echo "")
+    EMAIL_DEST=$(jq -r '.email_dest // ""' "${CONFIG_FILE}" 2>/dev/null || echo "")
+    POLL_INTERVAL=$(jq -r '.poll_interval_sec // 2' "${CONFIG_FILE}" 2>/dev/null || echo "2")
+    AUDIT_INTERVAL=$(jq -r '.audit_interval_sec // 1800' "${CONFIG_FILE}" 2>/dev/null || echo "1800")
 fi
 
-if [ "${NEED_GEN}" = "1" ]; then
-    bashio::log.info "Generating config.json..."
-    # Unique HMAC secret for this installation
+if [ -n "${CURRENT_TOKEN}" ] && [ "${CURRENT_TOKEN}" != "${TELEGRAM_TOKEN}" ]; then
+    CHAT_ID=""
+fi
+
+if [ -z "${DEPLOY_SECRET}" ]; then
     DEPLOY_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
-
-    jq -n \
-        --arg telegram "${TELEGRAM_TOKEN}" \
-        --arg haurl    "${HA_URL}" \
-        --arg hatoken  "${HA_TOKEN}" \
-        --arg provider "${LLM_PROVIDER}" \
-        --arg anth     "${ANTHROPIC_KEY}" \
-        --arg openai   "${OPENAI_KEY}" \
-        --arg router   "${OPENROUTER_KEY}" \
-        --arg model    "${LLM_MODEL}" \
-        --arg strong   "${LLM_MODEL_STRONG}" \
-        --arg ollama   "${OLLAMA_HOST}" \
-        --arg lmstudio "${LMSTUDIO_HOST}" \
-        --arg sms      "${SMS_METHOD}" \
-        --arg secret   "${DEPLOY_SECRET}" \
-        '{
-            telegram_token: $telegram,
-            telegram_chat_id: "",
-            ha_url: $haurl,
-            ha_token: $hatoken,
-            llm_provider: $provider,
-            anthropic_api_key: $anth,
-            openai_api_key: $openai,
-            openrouter_api_key: $router,
-            llm_model: $model,
-            llm_model_strong: $strong,
-            ollama_host: $ollama,
-            lmstudio_host: $lmstudio,
-            sms_method: $sms,
-            poll_interval_sec: 2,
-            audit_interval_sec: 1800,
-            deploy_secret: $secret,
-            free_mobile_user: "",
-            free_mobile_pass: "",
-            smtp_host: "",
-            smtp_port: 587,
-            smtp_user: "",
-            smtp_pass: "",
-            email_dest: ""
-        }' > "${CONFIG_FILE}"
-    chmod 600 "${CONFIG_FILE}"
-    bashio::log.info "config.json generated (HA URL: ${HA_URL})"
 fi
+
+bashio::log.info "Writing config.json..."
+jq -n \
+    --arg telegram "${TELEGRAM_TOKEN}" \
+    --arg chat_id  "${CHAT_ID}" \
+    --arg haurl    "${HA_URL}" \
+    --arg hatoken  "${HA_TOKEN}" \
+    --arg provider "${LLM_PROVIDER}" \
+    --arg anth     "${ANTHROPIC_KEY}" \
+    --arg openai   "${OPENAI_KEY}" \
+    --arg openai_base_url "${OPENAI_BASE_URL:-https://api.openai.com/v1}" \
+    --arg openai_org "${OPENAI_ORG_ID}" \
+    --arg openai_project "${OPENAI_PROJECT_ID}" \
+    --arg router   "${OPENROUTER_KEY}" \
+    --arg model    "${LLM_MODEL}" \
+    --arg strong   "${LLM_MODEL_STRONG}" \
+    --arg ollama   "${OLLAMA_HOST}" \
+    --arg lmstudio "${LMSTUDIO_HOST}" \
+    --arg sms      "${SMS_METHOD}" \
+    --arg secret   "${DEPLOY_SECRET}" \
+    --arg free_user "${FREE_MOBILE_USER}" \
+    --arg free_pass "${FREE_MOBILE_PASS}" \
+    --arg smtp_host "${SMTP_HOST}" \
+    --arg smtp_port "${SMTP_PORT}" \
+    --arg smtp_user "${SMTP_USER}" \
+    --arg smtp_pass "${SMTP_PASS}" \
+    --arg email_dest "${EMAIL_DEST}" \
+    --arg poll_interval "${POLL_INTERVAL}" \
+    --arg audit_interval "${AUDIT_INTERVAL}" \
+    '{
+        telegram_token: $telegram,
+        telegram_chat_id: $chat_id,
+        ha_url: $haurl,
+        ha_token: $hatoken,
+        llm_provider: $provider,
+        anthropic_api_key: $anth,
+        openai_api_key: $openai,
+        openai_base_url: $openai_base_url,
+        openai_organization_id: $openai_org,
+        openai_project_id: $openai_project,
+        openrouter_api_key: $router,
+        llm_model: $model,
+        llm_model_strong: $strong,
+        ollama_host: $ollama,
+        lmstudio_host: $lmstudio,
+        sms_method: $sms,
+        poll_interval_sec: ($poll_interval | tonumber? // 2),
+        audit_interval_sec: ($audit_interval | tonumber? // 1800),
+        deploy_secret: $secret,
+        free_mobile_user: $free_user,
+        free_mobile_pass: $free_pass,
+        smtp_host: $smtp_host,
+        smtp_port: ($smtp_port | tonumber? // 587),
+        smtp_user: $smtp_user,
+        smtp_pass: $smtp_pass,
+        email_dest: $email_dest
+    }' > "${CONFIG_FILE}"
+chmod 600 "${CONFIG_FILE}"
+bashio::log.info "config.json written (HA URL: ${HA_URL})"
 
 # Link config.json and memory.db from /config to /app (persistence)
 ln -sf "${CONFIG_FILE}" "${APP_DIR}/config.json"
