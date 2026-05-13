@@ -147,6 +147,8 @@ OPENAI_API_KEY="${OPENAI_API_KEY:-}"
 OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}"
 OLLAMA_HOST="${OLLAMA_HOST:-http://localhost:11434}"
 LMSTUDIO_HOST="${LMSTUDIO_HOST:-http://localhost:1234}"
+LLM_MODEL="${LLM_MODEL:-}"
+LLM_MODEL_STRONG="${LLM_MODEL_STRONG:-}"
 
 case "$LLM_PROVIDER" in
     anthropic)
@@ -173,6 +175,8 @@ esac
 echo
 info "Options (Enter for default values)"
 
+ask LLM_MODEL                    "AI model override (blank = provider default)" "$LLM_MODEL"
+ask LLM_MODEL_STRONG             "Strong AI model override (blank = provider default)" "$LLM_MODEL_STRONG"
 ask LLM_MONTHLY_BUDGET_USD       "Internal monthly AI budget USD (0 = off)" "${LLM_MONTHLY_BUDGET_USD:-${ANTHROPIC_MONTHLY_BUDGET_USD:-0}}"
 ask SMS_METHOD                   "Security code method (free_mobile|ha_notify|email)" "${SMS_METHOD:-ha_notify}"
 
@@ -205,7 +209,7 @@ esac
 # ═══════════════════════════════════════════════════════════════════
 title "Generating config.json"
 
-export TELEGRAM_TOKEN HA_URL HA_TOKEN LLM_PROVIDER ANTHROPIC_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY OLLAMA_HOST LMSTUDIO_HOST
+export TELEGRAM_TOKEN HA_URL HA_TOKEN LLM_PROVIDER ANTHROPIC_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY OLLAMA_HOST LMSTUDIO_HOST LLM_MODEL LLM_MODEL_STRONG
 export FREE_MOBILE_USER FREE_MOBILE_PASS SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS MAIL_DEST
 export SMS_METHOD LLM_MONTHLY_BUDGET_USD
 
@@ -220,6 +224,8 @@ cfg = {
     "anthropic_api_key":            os.environ.get("ANTHROPIC_API_KEY",""),
     "openai_api_key":               os.environ.get("OPENAI_API_KEY",""),
     "openrouter_api_key":           os.environ.get("OPENROUTER_API_KEY",""),
+    "llm_model":                    os.environ.get("LLM_MODEL",""),
+    "llm_model_strong":             os.environ.get("LLM_MODEL_STRONG",""),
     "ollama_host":                  os.environ.get("OLLAMA_HOST","http://localhost:11434"),
     "lmstudio_host":                os.environ.get("LMSTUDIO_HOST","http://localhost:1234"),
     "free_mobile_user":             os.environ.get("FREE_MOBILE_USER",""),

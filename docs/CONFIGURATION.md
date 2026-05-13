@@ -16,6 +16,8 @@ All configuration is in `config.json`. This file is generated automatically by `
 | `anthropic_api_key` | str | If Anthropic | Anthropic API key |
 | `openai_api_key` | str | If OpenAI | OpenAI API key |
 | `openrouter_api_key` | str | If OpenRouter | OpenRouter API key |
+| `llm_model` | str | Optional | Model ID for normal requests. Leave blank to use the provider default. |
+| `llm_model_strong` | str | Optional | Model ID for heavier troubleshooting/auto-fix requests. Leave blank to use the provider default. |
 | `ollama_host` | str | If Ollama | Ollama base URL, usually `http://localhost:11434` |
 | `lmstudio_host` | str | If LM Studio | LM Studio base URL, usually `http://localhost:1234` |
 | `llm_monthly_budget_usd` | int | Optional | Internal monthly AI budget cap in USD. `0` disables the internal cap. |
@@ -63,6 +65,13 @@ Choose the provider you want in `llm_provider`, then fill in the matching key or
 - `ollama`: set `ollama_host`
 - `lmstudio`: set `lmstudio_host`
 
+Optional model overrides:
+
+- `llm_model`: normal chat/control model
+- `llm_model_strong`: heavier troubleshooting and auto-fix model
+
+For OpenRouter, enter model IDs exactly as OpenRouter lists them, such as `openai/gpt-4o-mini`, `anthropic/claude-3.5-haiku`, or another model available to your key.
+
 **Budget:** hosted model usage often costs $5-10/month for light home automation usage. Prefer provider-side usage limits when available, such as an OpenRouter key limit. If you also want a local software cap, set `llm_monthly_budget_usd`; use `0` to disable the internal cap.
 
 ### 4. Security method (6-digit code at startup)
@@ -87,6 +96,8 @@ At startup, AI Assistant sends a 6-digit code to verify it's you accessing the b
   "anthropic_api_key": "sk-ant-api03-xxxxx...",
   "openai_api_key": "",
   "openrouter_api_key": "",
+  "llm_model": "",
+  "llm_model_strong": "",
   "ollama_host": "http://localhost:11434",
   "lmstudio_host": "http://localhost:1234",
   "sms_method": "ha_notify",

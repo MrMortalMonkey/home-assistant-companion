@@ -21,6 +21,8 @@ LLM_PROVIDER=$(bashio::config 'llm_provider')
 ANTHROPIC_KEY=$(bashio::config 'anthropic_api_key')
 OPENAI_KEY=$(bashio::config 'openai_api_key')
 OPENROUTER_KEY=$(bashio::config 'openrouter_api_key')
+LLM_MODEL=$(bashio::config 'llm_model')
+LLM_MODEL_STRONG=$(bashio::config 'llm_model_strong')
 OLLAMA_HOST=$(bashio::config 'ollama_host')
 LMSTUDIO_HOST=$(bashio::config 'lmstudio_host')
 SMS_METHOD=$(bashio::config 'sms_method')
@@ -72,6 +74,8 @@ if [ "${NEED_GEN}" = "1" ]; then
         --arg anth     "${ANTHROPIC_KEY}" \
         --arg openai   "${OPENAI_KEY}" \
         --arg router   "${OPENROUTER_KEY}" \
+        --arg model    "${LLM_MODEL}" \
+        --arg strong   "${LLM_MODEL_STRONG}" \
         --arg ollama   "${OLLAMA_HOST}" \
         --arg lmstudio "${LMSTUDIO_HOST}" \
         --arg sms      "${SMS_METHOD}" \
@@ -85,6 +89,8 @@ if [ "${NEED_GEN}" = "1" ]; then
             anthropic_api_key: $anth,
             openai_api_key: $openai,
             openrouter_api_key: $router,
+            llm_model: $model,
+            llm_model_strong: $strong,
             ollama_host: $ollama,
             lmstudio_host: $lmstudio,
             sms_method: $sms,

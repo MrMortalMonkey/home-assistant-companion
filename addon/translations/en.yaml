@@ -14,6 +14,12 @@ configuration:
   openrouter_api_key:
     name: OpenRouter API Key
     description: Required only when LLM Provider is set to OpenRouter.
+  llm_model:
+    name: AI Model
+    description: Optional. Enter a model ID for the selected provider. For OpenRouter, use IDs like openai/gpt-4o-mini or anthropic/claude-3.5-haiku.
+  llm_model_strong:
+    name: Strong AI Model
+    description: Optional. Used for heavier tasks such as troubleshooting and auto-fix. Leave blank to use the provider default.
   ollama_host:
     name: Ollama Host
     description: Local Ollama endpoint. Used only when LLM Provider is set to Ollama.

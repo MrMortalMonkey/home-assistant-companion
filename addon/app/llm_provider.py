@@ -76,7 +76,9 @@ def get_model(cfg, use_strong=False):
     provider_name = cfg.get("llm_provider", "anthropic")
     provider = PROVIDERS.get(provider_name, PROVIDERS["anthropic"])
     key = "default_model_strong" if use_strong else "default_model"
-    model_override = cfg.get(f"llm_model_{'strong_' if use_strong else ''}{provider_name}")
+    generic_key = "llm_model_strong" if use_strong else "llm_model"
+    legacy_key = f"llm_model_{'strong_' if use_strong else ''}{provider_name}"
+    model_override = str(cfg.get(generic_key, "")).strip() or str(cfg.get(legacy_key, "")).strip()
     return model_override or provider[key]
 
 

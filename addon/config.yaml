@@ -17,6 +17,8 @@ options:
   anthropic_api_key: ""
   openai_api_key: ""
   openrouter_api_key: ""
+  llm_model: ""
+  llm_model_strong: ""
   ollama_host: "http://localhost:11434"
   lmstudio_host: "http://localhost:1234"
   sms_method: "ha_notify"
@@ -27,6 +29,8 @@ schema:
   anthropic_api_key: password?
   openai_api_key: password?
   openrouter_api_key: password?
+  llm_model: str?
+  llm_model_strong: str?
   ollama_host: str?
   lmstudio_host: str?
   sms_method: list(free_mobile|ha_notify|email)
