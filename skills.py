@@ -110,6 +110,104 @@ PROFILE_QUESTIONS = [
     },
 ]
 
+
+def _conversational_onboarding_message():
+    """Friendly first-run message that avoids forcing a setup questionnaire."""
+    return (
+        "Home Assistant AI Companion is ready.\n\n"
+        "Tell me what you have and what you want monitored in plain English. For example:\n"
+        "• I have solar panels, a heat pump, and a dishwasher I want tracked.\n"
+        "• My electricity rate is 0.14 per kWh.\n"
+        "• Watch the garage freezer and alert me if it loses power.\n\n"
+        "You can still use /help for commands, /rate config for structured rate setup, "
+        "or /appliances reset for the structured appliance picker."
+    )
+
+
+def _looks_like_conversational_setup(text):
+    """Return True when a normal chat message looks like home setup context."""
+    t = (text or "").strip().lower()
+    if len(t) < 12 or t.startswith("/"):
+        return False
+    setup_phrases = (
+        "i have", "we have", "my home", "our home", "my house", "our house",
+        "my electricity", "electricity rate", "power rate", "utility rate",
+        "per kwh", "price per kwh", "cost per kwh", "solar", "heat pump",
+        "battery", "washer", "washing machine", "dryer", "dishwasher",
+        "freezer", "fridge", "ev charger", "water heater",
+    )
+    monitor_phrases = (
+        "monitor", "watch", "track", "alert me", "notify me",
+        "keep an eye on", "let me know",
+    )
+    return any(p in t for p in setup_phrases) or any(p in t for p in monitor_phrases)
+
+
+def _capture_conversational_setup(text):
+    """Store useful plain-English setup notes so future AI replies have context."""
+    if not _looks_like_conversational_setup(text):
+        return False
+    note_text = " ".join((text or "").strip().split())
+    if not note_text:
+        return False
+
+    data, _ = skill_get("conversational_setup")
+    if not isinstance(data, dict):
+        data = {}
+    notes = data.get("notes", [])
+    if not isinstance(notes, list):
+        notes = []
+
+    normalized = note_text.lower()
+    if any(str(n.get("text", "")).lower() == normalized for n in notes if isinstance(n, dict)):
+        return False
+
+    notes.append({
+        "text": note_text[:500],
+        "created_at": datetime.now().isoformat(),
+    })
+    data["notes"] = notes[-20:]
+    data["updated_at"] = datetime.now().isoformat()
+    skill_set("conversational_setup", data)
+    _maybe_configure_rate_from_conversation(note_text)
+    return True
+
+
+def _maybe_configure_rate_from_conversation(text):
+    """Best-effort extraction of a simple electricity rate from normal chat."""
+    t = (text or "").lower()
+    rate_hint = any(word in t for word in ("rate", "price", "cost", "electricity", "utility", "per kwh", "/kwh"))
+    if not rate_hint:
+        return False
+    match = re.search(r"(\d+(?:[\.,]\d+)?)\s*(?:usd|\$)?\s*(?:per\s*)?(?:/)?\s*kwh", t)
+    if not match:
+        match = re.search(r"(?:rate|price|cost)\D{0,20}(\d+(?:[\.,]\d+)?)", t)
+    if not match:
+        return False
+    try:
+        price = float(match.group(1).replace(",", "."))
+    except ValueError:
+        return False
+    if price <= 0:
+        return False
+    if price > 1:
+        price = price / 100.0
+    if price > 1:
+        return False
+
+    data = {
+        "type": "base",
+        "provider": "Conversation",
+        "price_kwh": round(price, 6),
+        "currency": "USD",
+        "source": "conversation",
+        "configured_at": datetime.now().isoformat(),
+    }
+    skill_set("pricing", data)
+    log.info(f"⚡ Electricity rate saved from conversation: {price}/kWh")
+    return True
+
+
 VALID_CATEGORIES = [
     "energy_solar",    # APSystems, Anker, micro-inverters
     "energy_heating",  # heat pump, thermostats
@@ -2394,6 +2492,17 @@ def ha_get_context_intelligent(question, states=None):
             val = mem_get(key_name)
             if val:
                 memory_store_extra.append(f"MEM {key_name} = {val}")
+    except Exception:
+        pass
+
+    try:
+        setup_data, _ = skill_get("conversational_setup")
+        notes = setup_data.get("notes", []) if isinstance(setup_data, dict) else []
+        if notes:
+            memory_store_extra.append("USER-PROVIDED HOME SETUP NOTES:")
+            for note in notes[-10:]:
+                if isinstance(note, dict) and note.get("text"):
+                    memory_store_extra.append(f"  - {note['text']}")
     except Exception:
         pass
 
@@ -6758,8 +6867,20 @@ def cmd_profile():
     """Show the household profile used by skills."""
     data, _ = skill_get("household")
     if not data:
-        _start_questionnaire_household()
-        return "👥 Profile not configured — questionnaire launched!"
+        setup_data, _ = skill_get("conversational_setup")
+        notes = setup_data.get("notes", []) if isinstance(setup_data, dict) else []
+        if notes:
+            report = "👥 HOME CONTEXT FROM CHAT\n━━━━━━━━━━━━━━━━━━\n"
+            for note in notes[-10:]:
+                if isinstance(note, dict) and note.get("text"):
+                    report += f"  • {note['text']}\n"
+            report += "\nTell me more any time, or type /profile reset for the structured profile picker."
+            return report
+        return (
+            "👥 No home context saved yet.\n"
+            "Tell me in plain English what you have and what you want monitored, "
+            "or type /profile reset for the structured profile picker."
+        )
 
     labels = {
         "household_people": "👥 People",
@@ -6966,12 +7087,21 @@ def cmd_commands():
 
 
 def cmd_appliances():
-    """Show thes appliances configured on the plugs connectees, by category."""
+    """Show appliances and power consumers configured for monitoring."""
     conn = sqlite3.connect(DB_PATH)
     rows = conn.execute("SELECT entity_id, appliance_type, custom_name, monitored FROM appliances ORDER BY appliance_type").fetchall()
     conn.close()
     if not rows:
-        return "🔌 No appliance configured.\nThe questionnaire starts at next boot."
+        candidates = _collect_appliance_candidates()
+        msg = (
+            "🔌 No appliance monitors configured yet.\n"
+            "Tell me what you want monitored in plain English, for example: "
+            "'watch the garage freezer' or 'monitor my dishwasher power sensor'."
+        )
+        if candidates:
+            msg += f"\n\nI can see {len(candidates)} power/energy sensor candidate(s) in Home Assistant."
+        msg += "\n\nUse /appliances reset only if you want the structured picker."
+        return msg
 
     CATEGORIES = {
         "cycles": {"label": "🔄 LARGE CONSUMERS (cycles)", "types": {"washing_machine", "dryer", "dishwasher", "freezer", "forr"}},
@@ -7068,6 +7198,7 @@ Available commands:
 /budget         → AI token and cost usage
 /rate           → Electricity rate setup/status
 /appliances     → Appliance and power-consumer setup
+/profile        → Home context remembered from chat
 /scan           → Rescan and learn entities
 /debug          → Internal diagnostic state
 /logs           → Last 20 log lines
@@ -7077,7 +7208,7 @@ Available commands:
 /script         → Export assistant.py
 /ai             → Execute autonomous AI helper
 
-Free-form question → Answer using relevant Home Assistant context"""
+Free-form chat → Tell me what you have, what to monitor, or what you want Home Assistant to do."""
     send_email("[AI Companion] Documentation", doc)
     return doc
 
@@ -9245,7 +9376,7 @@ def handle_message(text):
         mem_set("profile_household_complete", "")
         mem_set("profile_household_question", "")
         _start_questionnaire_household()
-        return "🔄 Profile reset — questionnaire restarted..."
+        return "🔄 Structured profile picker started..."
 
     if t in ("appliances reset", "appliances reconfigure"):
         conn = sqlite3.connect(DB_PATH)
@@ -9257,7 +9388,7 @@ def handle_message(text):
         # Reset learned programs because a different appliance needs fresh learning.
         skill_set("machine_programs", {})
         _start_questionnaire_appliances()
-        return "🔄 Full reconfiguration started...\nAppliances + learned programs reset.\nAutomatic re-learning begins."
+        return "🔄 Structured appliance picker started.\nAppliances + learned programs reset; automatic re-learning begins."
 
     # Reset a single appliance (change of machine)
     if t.startswith("programs reset "):
@@ -9302,7 +9433,8 @@ def handle_message(text):
         description = t.split(" ", 1)[1].strip()
         return cmd_problem(description)
 
-    # Free-form question → context intelligent
+    # Free-form question: remember setup details, then answer with HA context.
+    _capture_conversational_setup(text)
     states = ha_get("states")
     context = ha_get_context_intelligent(text, states)
 

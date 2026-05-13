@@ -11,6 +11,7 @@ from skills import (
     _backup_auto_db,
     _check_voice_scripts,
     _collect_appliance_candidates,
+    _conversational_onboarding_message,
     _cycle_intelligence,
     _detect_water_leak,
     _detect_vacation_mode,
@@ -73,17 +74,10 @@ def _bind_first_chat(chat_id):
         log.info(f"Telegram chat_id bound: {chat_id}")
         telegram_send(
             "✅ Telegram connected.\n\n"
-            "Home Assistant AI Companion is ready. Type /help to see commands.",
+            + _conversational_onboarding_message(),
             force=True
         )
-        try:
-            current_rate, _ = skill_get("pricing")
-            if not current_rate or "type" not in current_rate:
-                rate_configure_questionnaire()
-            elif not mem_get("profile_household_complete"):
-                _start_questionnaire_household()
-        except Exception as ex:
-            log.debug(f"Post-bind setup prompt skipped: {ex}")
+        mem_set("conversational_onboarding_sent", "yes")
         return True
     return False
 
@@ -1048,20 +1042,16 @@ def main():
     log.info(f"✅ 8 threads started")
     mem_set("send_md_now", "yes")
 
-    # First startup: rate questionnaire if not yet configured
+    # First startup: keep setup conversational. Structured flows are opt-in.
     current_rate, nb_rate = skill_get("pricing")
     if not current_rate or "type" not in current_rate:
-        log.info("⚡ Rate not configured — launching questionnaire")
-        rate_configure_questionnaire()
+        log.info("⚡ Rate not configured — waiting for conversational setup or /rate config")
 
     # Device identification from smart outlets, HA Energy, and power sensors
     try:
         candidates = _collect_appliance_candidates()
         if candidates:
-            mem_set("appliances_configured", "")
-            mem_set("appliances_queue", "")
-            log.info(f"🔌 Relaunching questionnaire for {len(candidates)} power consumer(s)")
-            _start_questionnaire_appliances()
+            log.info(f"🔌 {len(candidates)} power consumer candidate(s) found — waiting for user instruction")
         else:
             log.info("🔌 All detected power consumers are identified")
     except Exception as ex_app:
@@ -1070,8 +1060,7 @@ def main():
         log.error(traceback.format_exc())
 
     if not mem_get("profile_household_complete"):
-        log.info("👥 Household profile not configured — launching questionnaire")
-        _start_questionnaire_household()
+        log.info("👥 Household profile not configured — waiting for conversational setup")
     else:
         log.info("👥 Household profile: configured")
 

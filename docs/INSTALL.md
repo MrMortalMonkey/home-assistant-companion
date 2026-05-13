@@ -187,11 +187,10 @@ To restart automatically at boot, use the **Native Linux** method with systemd i
 
 1. **Telegram chat detection** — The bot waits for your first message to register your `chat_id`. Send anything (e.g. "hello").
 2. **Security code** — A 6-digit code is sent via `sms_method` (Free Mobile / HA notification / email). Type it in Telegram to unlock the channel.
-3. **Appliance questionnaire** — For each detected smart plug, Home Assistant Energy entry, or power/energy sensor, the bot asks what it represents.
-4. **Household profile** — 8 quick questions: occupancy, heating, hot water, solar, goal.
-5. **Electricity rate** — Automatic off-peak/peak detection or questionnaire.
+3. **Conversational setup** — Tell the assistant what you have and what you want monitored, such as solar, heat pump, freezer, dishwasher, or electricity rate.
+4. **Optional structured setup** — Use `/rate config`, `/profile reset`, or `/appliances reset` only when you prefer guided pickers.
 
-Total time: **10 minutes**. After that, you don't touch anything.
+Total time: usually **a few minutes**. After that, keep chatting naturally.
 
 ---
 

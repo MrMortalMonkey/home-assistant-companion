@@ -2300,23 +2300,24 @@ def _appel_api_avec_retry(cfg, messages, model, max_tokens, system_prompt=None, 
 def call_llm(user_message, context_ha=None):
     call_llm._search_count = 0
     if not check_budget():
-        return "⚠️ Budget API monthly atteint."
+        return "⚠️ Monthly API budget reached."
 
     behavior_prompt = load_behavior_prompt()
-    # Instructions autonomous
+    # Autonomous assistant instructions.
     system_prompt = behavior_prompt + """
-REGLES CRITIQUES :
-- You have access to ALL HA entities in the state below. FIND the entity_ids yourself.
-- NEVER ask the user to find entities — you have the data.
-- For a simple action (turn on/off), use ha_call_service DIRECTLY.
-- For monitoring, use ha_create_watch directly.
-- You are AUTONAMEOUS: the user gives the goal, you find the means.
+CRITICAL RULES:
+- You have access to all Home Assistant entities in the state below. Find likely entity IDs yourself.
+- Never ask the user to look up entity IDs.
+- When the user describes their home, appliances, rates, or monitoring preferences, treat it as setup context and use it in future answers.
+- For monitoring or alert requests, use ha_create_watch when you can identify a reasonable entity or pattern.
+- For simple actions such as turn on/off, use ha_call_service directly.
+- Be conversational. If the user is simply telling you what they have, acknowledge it and summarize what you will watch or remember.
 
-AUTOMATIONS — MANDATORY METHOD:
+AUTOMATIONS:
 1. First, use ha_search_entities to find entities related to the request
 2. With the results, use ha_create_automation to create the automation
 3. The system shows a summary with Validate/Modify/Cancel buttons
-- NEVER ASK QUESTIONS. NEVER ASK FOR CLARIFICATION. ACT.
+- Ask a short clarification only when acting would be risky or the target cannot be inferred.
 - Works with ALL HA integrations: Anker, Shelly, Zigbee, Tuya, etc.
 """
     if context_ha:

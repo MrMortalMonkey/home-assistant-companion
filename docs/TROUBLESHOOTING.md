@@ -77,7 +77,7 @@ Adjust from Telegram:
 ## Appliance cycles aren't detected
 
 1. Check that a plug is associated with a machine: `/appliances`
-2. If not, reconfigure: `/appliances reset` → the questionnaire restarts
+2. If not, tell the assistant what the sensor represents, or use `/appliances reset` for the structured picker
 3. Check that the plug has a power sensor in Watts: `/monitoring`
 
 ## Savings aren't showing
