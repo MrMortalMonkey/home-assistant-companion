@@ -36,3 +36,4 @@ map:
   - ssl:ro
 startup: application
 boot: auto
+init: false
