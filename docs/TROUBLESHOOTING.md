@@ -44,7 +44,7 @@ Your selected AI provider key has reached its limit. Options:
 
 - Wait a few minutes
 - Increase the quota in your provider console
-- Adjust `llm_monthly_budget_usd` in `config.json`
+- Adjust your provider-side usage limit, or set `llm_monthly_budget_usd` in `config.json` if you use the optional internal cap
 
 ## The bot crashes at startup
 

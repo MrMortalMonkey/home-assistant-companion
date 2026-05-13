@@ -24,7 +24,6 @@ OPENROUTER_KEY=$(bashio::config 'openrouter_api_key')
 OLLAMA_HOST=$(bashio::config 'ollama_host')
 LMSTUDIO_HOST=$(bashio::config 'lmstudio_host')
 SMS_METHOD=$(bashio::config 'sms_method')
-BUDGET=$(bashio::config 'llm_monthly_budget_usd')
 ENABLE_DEPLOY=$(bashio::config 'enable_deploy_server')
 
 # Minimal validation
@@ -77,7 +76,6 @@ if [ "${NEED_GEN}" = "1" ]; then
         --arg lmstudio "${LMSTUDIO_HOST}" \
         --arg sms      "${SMS_METHOD}" \
         --arg secret   "${DEPLOY_SECRET}" \
-        --argjson budget "${BUDGET}" \
         '{
             telegram_token: $telegram,
             telegram_chat_id: "",
@@ -92,8 +90,6 @@ if [ "${NEED_GEN}" = "1" ]; then
             sms_method: $sms,
             poll_interval_sec: 2,
             audit_interval_sec: 1800,
-            llm_monthly_budget_usd: $budget,
-            anthropic_monthly_budget_usd: $budget,
             deploy_secret: $secret,
             free_mobile_user: "",
             free_mobile_pass: "",

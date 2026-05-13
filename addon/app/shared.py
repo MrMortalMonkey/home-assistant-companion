@@ -437,8 +437,7 @@ def load_config():
         "lmstudio_host": "http://localhost:1234",
         "poll_interval_sec": 2,
         "audit_interval_sec": 1800,
-        "llm_monthly_budget_usd": 10,
-        "anthropic_monthly_budget_usd": 10,
+        "llm_monthly_budget_usd": 0,
     }
     with open(CONFIG_PATH, "w") as f:
         json.dump(cfg, f, indent=2)
@@ -2206,7 +2205,7 @@ ABSOLUTE RULES:
 def check_budget():
     tokens_in, tokens_out = get_token_usage()
     cost = (tokens_in * 0.000001) + (tokens_out * 0.000005)
-    budget = CFG.get("llm_monthly_budget_usd", CFG.get("anthropic_monthly_budget_usd", 10))
+    budget = CFG.get("llm_monthly_budget_usd", CFG.get("anthropic_monthly_budget_usd", 0))
     pct = (cost / budget * 100) if budget > 0 else 0
 
     if pct >= 100:

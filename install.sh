@@ -173,7 +173,7 @@ esac
 echo
 info "Options (Enter for default values)"
 
-ask LLM_MONTHLY_BUDGET_USD       "Monthly AI budget USD" "${LLM_MONTHLY_BUDGET_USD:-${ANTHROPIC_MONTHLY_BUDGET_USD:-10}}"
+ask LLM_MONTHLY_BUDGET_USD       "Internal monthly AI budget USD (0 = off)" "${LLM_MONTHLY_BUDGET_USD:-${ANTHROPIC_MONTHLY_BUDGET_USD:-0}}"
 ask SMS_METHOD                   "Security code method (free_mobile|ha_notify|email)" "${SMS_METHOD:-ha_notify}"
 
 FREE_MOBILE_USER="${FREE_MOBILE_USER:-}"
@@ -232,8 +232,7 @@ cfg = {
     "sms_method":                   os.environ.get("SMS_METHOD","ha_notify"),
     "poll_interval_sec":            2,
     "audit_interval_sec":           1800,
-    "llm_monthly_budget_usd":       int(os.environ.get("LLM_MONTHLY_BUDGET_USD","10") or 10),
-    "anthropic_monthly_budget_usd": int(os.environ.get("LLM_MONTHLY_BUDGET_USD","10") or 10),
+    "llm_monthly_budget_usd":       int(os.environ.get("LLM_MONTHLY_BUDGET_USD","0") or 0),
     "deploy_secret":                secrets.token_hex(32),
 }
 with open("${CONFIG_FILE}", "w") as f:

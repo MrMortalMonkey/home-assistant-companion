@@ -19,21 +19,17 @@ options:
   openrouter_api_key: ""
   ollama_host: "http://localhost:11434"
   lmstudio_host: "http://localhost:1234"
-  llm_monthly_budget_usd: 10
   sms_method: "ha_notify"
-  anthropic_monthly_budget_usd: 10
   enable_deploy_server: false
 schema:
-  telegram_token: str
+  telegram_token: password
   llm_provider: list(anthropic|openai|openrouter|ollama|lmstudio)
-  anthropic_api_key: str?
-  openai_api_key: str?
-  openrouter_api_key: str?
+  anthropic_api_key: password?
+  openai_api_key: password?
+  openrouter_api_key: password?
   ollama_host: str?
   lmstudio_host: str?
-  llm_monthly_budget_usd: int
   sms_method: list(free_mobile|ha_notify|email)
-  anthropic_monthly_budget_usd: int
   enable_deploy_server: bool
 map:
   - config:rw

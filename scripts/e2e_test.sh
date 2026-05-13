@@ -59,7 +59,7 @@ TELEGRAM_TOKEN=111111111:AAABBBCCCDDDEEEFFFGGGHHHIIIJJJKKK_test
 HA_URL=http://192.168.1.99:8123
 HA_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.fake_test_payload.signature_mock
 ANTHROPIC_API_KEY=sk-ant-api03-test-fake-key-for-install-test-only-do-not-use
-ANTHROPIC_MONTHLY_BUDGET_USD=10
+LLM_MONTHLY_BUDGET_USD=0
 SMS_METHOD=ha_notify
 ENVEOF
 
@@ -96,8 +96,8 @@ checks = [
     ('sms_method ha_notify',       cfg.get('sms_method','') == 'ha_notify'),
     ('poll_interval_sec default',  cfg.get('poll_interval_sec') == 2),
     ('audit_interval_sec default', cfg.get('audit_interval_sec') == 1800),
-    ('budget int',                 isinstance(cfg.get('anthropic_monthly_budget_usd'), int)),
-    ('budget = 10',                cfg.get('anthropic_monthly_budget_usd') == 10),
+    ('budget int',                 isinstance(cfg.get('llm_monthly_budget_usd'), int)),
+    ('budget disabled',            cfg.get('llm_monthly_budget_usd') == 0),
     ('deploy_secret genere',       len(cfg.get('deploy_secret','')) == 64),
     ('telegram_chat_id empty',      cfg.get('telegram_chat_id','') == ''),
     ('SMS fields empty',           cfg.get('free_mobile_user','') == '' and cfg.get('smtp_user','') == ''),

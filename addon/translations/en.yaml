@@ -1,0 +1,28 @@
+configuration:
+  telegram_token:
+    name: Telegram Bot Token
+    description: Create this with @BotFather in Telegram.
+  llm_provider:
+    name: LLM Provider
+    description: Choose the AI provider this app should use.
+  anthropic_api_key:
+    name: Anthropic API Key
+    description: Required only when LLM Provider is set to Anthropic.
+  openai_api_key:
+    name: OpenAI API Key
+    description: Required only when LLM Provider is set to OpenAI.
+  openrouter_api_key:
+    name: OpenRouter API Key
+    description: Required only when LLM Provider is set to OpenRouter.
+  ollama_host:
+    name: Ollama Host
+    description: Local Ollama endpoint. Used only when LLM Provider is set to Ollama.
+  lmstudio_host:
+    name: LM Studio Host
+    description: Local LM Studio endpoint. Used only when LLM Provider is set to LM Studio.
+  sms_method:
+    name: SMS Method
+    description: Where the startup unlock code should be sent.
+  enable_deploy_server:
+    name: Enable Remote Support Server
+    description: Advanced beta support only. Leave off unless MrMortalMonkey asks you to enable remote signed patches.

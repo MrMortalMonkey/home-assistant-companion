@@ -18,7 +18,7 @@ All configuration is in `config.json`. This file is generated automatically by `
 | `openrouter_api_key` | str | If OpenRouter | OpenRouter API key |
 | `ollama_host` | str | If Ollama | Ollama base URL, usually `http://localhost:11434` |
 | `lmstudio_host` | str | If LM Studio | LM Studio base URL, usually `http://localhost:1234` |
-| `llm_monthly_budget_usd` | int | ✅ | Monthly AI budget in USD (alerts at 50/80/100%) |
+| `llm_monthly_budget_usd` | int | Optional | Internal monthly AI budget cap in USD. `0` disables the internal cap. |
 | `sms_method` | str | ✅ | `free_mobile` \| `ha_notify` \| `email` |
 | `free_mobile_user` | str | If `free_mobile` | Free Mobile username |
 | `free_mobile_pass` | str | If `free_mobile` | Free Mobile API key |
@@ -63,7 +63,7 @@ Choose the provider you want in `llm_provider`, then fill in the matching key or
 - `ollama`: set `ollama_host`
 - `lmstudio`: set `lmstudio_host`
 
-**Budget:** hosted model usage often costs $5-10/month for light home automation usage. Set `llm_monthly_budget_usd: 10` to start, adjust as needed. Local providers such as Ollama or LM Studio do not have per-token API billing, but the budget field can still be kept as a guardrail.
+**Budget:** hosted model usage often costs $5-10/month for light home automation usage. Prefer provider-side usage limits when available, such as an OpenRouter key limit. If you also want a local software cap, set `llm_monthly_budget_usd`; use `0` to disable the internal cap.
 
 ### 4. Security method (6-digit code at startup)
 
@@ -99,7 +99,7 @@ At startup, AI Assistant sends a 6-digit code to verify it's you accessing the b
   "email_dest": "",
   "poll_interval_sec": 2,
   "audit_interval_sec": 1800,
-  "llm_monthly_budget_usd": 10,
+  "llm_monthly_budget_usd": 0,
   "deploy_secret": "3f8a9b2c7e1d4f5a6b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a"
 }
 ```

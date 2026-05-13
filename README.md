@@ -146,7 +146,7 @@ The script is **free and open source (MIT)**. The only recurring AI cost is what
 | AI usage | Variable — depends on provider, selected model, and usage |
 | Hosting | Variable — between $0 (HA App, free VM) and ~$10 (dedicated Pi) |
 
-**On AI usage:** normal hosted-model usage (1 briefing/day, a few conversational commands, passive monitoring) generally runs around **$5–15/month**, depending on provider and model. Local providers such as Ollama or LM Studio can avoid per-token API billing. The bot tracks its own budget via `/budget` and stops if you exceed the configured monthly budget.
+**On AI usage:** normal hosted-model usage (1 briefing/day, a few conversational commands, passive monitoring) generally runs around **$5–15/month**, depending on provider and model. Local providers such as Ollama or LM Studio can avoid per-token API billing. Use your provider's key-level usage limits when available; the bot's `/budget` command reports estimated token cost locally.
 
 **On savings:** the script measures what it saves you (optimized solar, machines shifted to off-peak, eliminated standbys) and shows it in dollars via `/roi`. **You judge whether the cost/benefit ratio works for you.** Savings depend heavily on your setup: if you have solar + a heat pump + an off-peak rate, there are many levers. If you have a minimal setup, savings probably just cover the token cost — and that's fine, the value shifts to conversational convenience.
 

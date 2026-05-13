@@ -6109,10 +6109,10 @@ def cmd_addons():
     if not states:
         return "❌ ADD-ONS — HA unreachable"
     updates = [e for e in states if e["entity_id"].startswith("update.")]
-    report = "🧩 ADD-ONS\n━━━━━━━━━━\n"
+    report = "🧩 APPS\n━━━━━━━━━━\n"
     for e in updates[:20]:
         name  = e.get("attributes", {}).get("friendly_name", e["entity_id"])
-        state = "🔄 MAJ dispo" if e["state"] == "on" else "✅"
+        state = "🔄 Update available" if e["state"] == "on" else "✅"
         report += f"  {state} {name}\n"
     return report
 
@@ -6120,22 +6120,25 @@ def cmd_addons():
 def cmd_budget():
     tokens_in, tokens_out = get_token_usage()
     cost = (tokens_in * 0.000001) + (tokens_out * 0.000005)
-    budget = CFG.get("llm_monthly_budget_usd", CFG.get("anthropic_monthly_budget_usd", 10))
+    budget = CFG.get("llm_monthly_budget_usd", CFG.get("anthropic_monthly_budget_usd", 0))
     pct = (cost / budget * 100) if budget > 0 else 0
-    remaining = max(0, budget - cost)
+    remaining = max(0, budget - cost) if budget > 0 else None
 
-    if pct >= 100:
+    if budget <= 0:
+        icone = "ℹ️"
+        status = "NO INTERNAL CAP"
+    elif pct >= 100:
         icone = "🛑"
-        status = "DEPASSE — commands AI desactivees"
+        status = "EXCEEDED — AI commands disabled"
     elif pct >= 90:
         icone = "🚨"
-        status = "CRITIQUE"
+        status = "CRITICAL"
     elif pct >= 80:
         icone = "⚠️"
-        status = "ATTENTION"
+        status = "WARNING"
     elif pct >= 50:
         icone = "📊"
-        status = "MI-PARCOURS"
+        status = "HALFWAY"
     else:
         icone = "✅"
         status = "OK"
@@ -6145,9 +6148,9 @@ def cmd_budget():
         f"Tokens in  : {tokens_in:,}\n"
         f"Tokens out : {tokens_out:,}\n"
         f"Cost       : ${cost:.3f}\n"
-        f"Budget     : ${budget}\n"
-        f"Remaining    : ${remaining:.3f}\n"
-        f"Usage      : {pct:.1f}%"
+        f"Budget     : {'provider-managed' if budget <= 0 else f'${budget}'}\n"
+        f"Remaining  : {'n/a' if remaining is None else f'${remaining:.3f}'}\n"
+        f"Usage      : {'n/a' if budget <= 0 else f'{pct:.1f}%'}"
     )
 
 
