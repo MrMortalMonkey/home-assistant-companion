@@ -112,16 +112,8 @@ PROFILE_QUESTIONS = [
 
 
 def _conversational_onboarding_message():
-    """Friendly first-run message that avoids forcing a setup questionnaire."""
-    return (
-        "Home Assistant AI Companion is ready.\n\n"
-        "Tell me what you have and what you want monitored in plain English. For example:\n"
-        "• I have solar panels, a heat pump, and a dishwasher I want tracked.\n"
-        "• My electricity rate is 0.14 per kWh.\n"
-        "• Watch the garage freezer and alert me if it loses power.\n\n"
-        "You can still use /help for commands, /rate config for structured rate setup, "
-        "or /appliances reset for the structured appliance picker."
-    )
+    """Short first-run readiness message."""
+    return "Home Assistant AI Companion is online and ready to work."
 
 
 def _looks_like_conversational_setup(text):
@@ -336,12 +328,12 @@ def cmd_roles():
     return report
 
 
-def _start_questionnaire_household():
-    """Launch the household profile questionnaire — one question at a time on Telegram."""
+def _start_profile_button_flow():
+    """Legacy household profile button flow."""
     if mem_get("profile_household_complete"):
         return
     if not str(CFG.get("telegram_chat_id", "")).strip():
-        log.info("Household questionnaire deferred until Telegram chat_id is known.")
+        log.info("Household profile button flow deferred until Telegram chat_id is known.")
         return
 
     # Load the current profile
@@ -531,8 +523,8 @@ def _collect_appliance_candidates():
     return sorted(candidates.values(), key=lambda c: (source_order.get(c["source"], 9), c["fname"].lower()))
 
 
-def _start_questionnaire_appliances():
-    """Ask the user to identify power consumers and appliance monitors."""
+def _start_appliance_button_flow():
+    """Legacy appliance button flow."""
     if mem_get("appliances_configured"):
         return
 
@@ -1467,7 +1459,7 @@ def cmd_programs():
         for name, data in progs.items():
             report += f"  📊 {name} : ~{data.get('duration_avg', '?')} min | ~{data.get('consumption_avg', '?')} kWh | {data.get('nb_cycles', 0)} cycles\n"
     
-    report += "\n💡 /appliances reset → reset if appliance changes"
+    report += "\n💡 Mention appliance changes in chat so the assistant can adapt."
     return report
 
 
@@ -1737,7 +1729,7 @@ def handle_callback(callback_query):
             v_label = next((b["text"] for q in PROFILE_QUESTIONS if q["id"] == qid for b in q["buttons"] if b["value"] == value), value)
             telegram_send(f"✅ {v_label}")
             # Next question
-            _start_questionnaire_household()
+            _start_profile_button_flow()
         return
 
     if data.startswith("prog_name:"):
@@ -1839,7 +1831,7 @@ def handle_callback(callback_query):
                 telegram_send(
                     f"⬜ {fname_clean} — parked\n"
                     f"No tracking, no notification.\n"
-                    f"(type /appliances reset to reconfigure)\n"
+                    f"(mention appliance changes in chat to update monitoring)\n"
                     f"📊 {nb_monitored} appliances monitored"
                 )
             else:
@@ -5502,17 +5494,17 @@ def _rate_configure_from_ha_energy():
     return True
 
 
-def rate_configure_questionnaire():
-    """Start the electricity rate questionnaire on Telegram."""
+def _start_rate_button_flow():
+    """Legacy electricity rate button flow."""
     if not str(CFG.get("telegram_chat_id", "")).strip():
-        log.info("Rate questionnaire deferred until Telegram chat_id is known.")
+        log.info("Rate button flow deferred until Telegram chat_id is known.")
         return
     mem_set("pending_rate_step", "source")
     telegram_send(_rate_source_menu())
 
 
-def rate_handle_response(text):
-    """Handle rate questionnaire responses. Returns True if consumed."""
+def _rate_button_flow_handle_response(text):
+    """Handle legacy rate button-flow responses. Returns True if consumed."""
     step = mem_get("pending_rate_step")
     if not step:
         return False
@@ -5937,7 +5929,7 @@ def cmd_rate():
     if rate.get("configured_at"):
         report += f"\nConfigured on: {rate['configured_at'][:10]}"
 
-    report += "\n\nTo modify: /rate config"
+    report += "\n\nTo modify, say your new electricity rate in chat."
     return report
 
 
@@ -6874,12 +6866,11 @@ def cmd_profile():
             for note in notes[-10:]:
                 if isinstance(note, dict) and note.get("text"):
                     report += f"  • {note['text']}\n"
-            report += "\nTell me more any time, or type /profile reset for the structured profile picker."
+            report += "\nNormal chat messages update this context over time."
             return report
         return (
             "👥 No home context saved yet.\n"
-            "Tell me in plain English what you have and what you want monitored, "
-            "or type /profile reset for the structured profile picker."
+            "Normal chat messages about your home will be remembered here."
         )
 
     labels = {
@@ -6907,7 +6898,7 @@ def cmd_profile():
         report += f"\n  💰 standby alerts enhanced, rate optimization"
     if data.get("household_voice_assistant") in ("google", "alexa"):
         report += f"\n  🗣️ recommendations to cut standby via {data['household_voice_assistant'].title()}"
-    report += f"\n\n💡 /profile reset to reconfigure"
+    report += f"\n\n💡 Normal chat messages can add more home context."
     return report
 
 
@@ -7021,7 +7012,7 @@ def cmd_monitoring():
             icon = APPLIANCE_TYPES.get(type_app, "🔌")
             report += f"\n  {icon}{state}"
     else:
-        report += "\n  (none — type /appliances reset)"
+        report += "\n  (none yet)"
 
     if nb_ignores > 0:
         report += f"\n\n⬜ Bypassed/ignored: {nb_ignores} appliance(s) ignored"
@@ -7093,14 +7084,10 @@ def cmd_appliances():
     conn.close()
     if not rows:
         candidates = _collect_appliance_candidates()
-        msg = (
-            "🔌 No appliance monitors configured yet.\n"
-            "Tell me what you want monitored in plain English, for example: "
-            "'watch the garage freezer' or 'monitor my dishwasher power sensor'."
-        )
+        msg = "🔌 No appliance monitors configured yet."
         if candidates:
             msg += f"\n\nI can see {len(candidates)} power/energy sensor candidate(s) in Home Assistant."
-        msg += "\n\nUse /appliances reset only if you want the structured picker."
+        msg += "\n\nMention the appliance or power sensor in chat to start monitoring it."
         return msg
 
     CATEGORIES = {
@@ -7119,7 +7106,7 @@ def cmd_appliances():
             for eid, type_app, name, monitored in cat_rows:
                 report += f"  {'✅' if monitored else '⬜'} {name or APPLIANCE_TYPES.get(type_app, type_app)}\n"
 
-    report += f"\n💡 /appliances reset to reconfigure"
+    report += f"\n💡 Mention appliance changes in chat to update monitoring."
     return report
 
 
@@ -7196,8 +7183,8 @@ Available commands:
 /addons         → HA Apps
 /cycles         → Appliance cycle history
 /budget         → AI token and cost usage
-/rate           → Electricity rate setup/status
-/appliances     → Appliance and power-consumer setup
+/rate           → Electricity rate status
+/appliances     → Appliance and power-consumer status
 /profile        → Home context remembered from chat
 /scan           → Rescan and learn entities
 /debug          → Internal diagnostic state
@@ -7208,7 +7195,7 @@ Available commands:
 /script         → Export assistant.py
 /ai             → Execute autonomous AI helper
 
-Free-form chat → Tell me what you have, what to monitor, or what you want Home Assistant to do."""
+Free-form chat → Ask for Home Assistant actions, monitoring, or analysis."""
     send_email("[AI Companion] Documentation", doc)
     return doc
 
@@ -8387,7 +8374,7 @@ def cmd_advice_contract():
     try:
         current_rate, _ = skill_get("pricing")
         if not current_rate or "type" not in current_rate:
-            return "⚠️ No rate configured. Type /rate to configure."
+            return "⚠️ No rate configured yet. Say your electricity rate in chat, for example: my rate is 0.14 per kWh."
 
         current_type = current_rate.get("type", "")
         provider = current_rate.get("provider", "")
@@ -9296,8 +9283,8 @@ def handle_message(text):
         return commands[t]()
 
 
-    if rate_handle_response(text):
-        return ""
+    if mem_get("pending_rate_step"):
+        mem_set("pending_rate_step", "")
 
     pending = mem_get("pending_hour_machine")
     if pending == "yes":
@@ -9331,64 +9318,9 @@ def handle_message(text):
         # If not recognized, continue to normal commands
         mem_set("pending_hour_machine", "")
 
-    # Commands with arguments
-    if t == "rate config":
-        rate_configure_questionnaire()
-        return ""
-
-    eid_pending = mem_get("pending_name_appliance")
-    if eid_pending:
+    if mem_get("pending_name_appliance"):
         mem_set("pending_name_appliance", "")
-        name_custom = text.strip()
-        if not name_custom or len(name_custom) < 2:
-            # No name → parked/ignored
-            appliance_set(eid_pending, "ignore", "⬜ Ignored")
-            telegram_send(
-                f"⬜ No name → parked.\n"
-                f"No tracking for this plug."
-            )
-        else:
-            appliance_set(eid_pending, "other", name_custom)
-            nb_monitored = 0
-            try:
-                conn_nb = sqlite3.connect(DB_PATH)
-                nb_monitored = conn_nb.execute("SELECT COUNT(*) FROM appliances WHERE monitored=1").fetchone()[0]
-                conn_nb.close()
-            except Exception:
-                pass
-            telegram_send(
-                f"✅ Saved: {name_custom}\n"
-                f"Monitoring active — cycles, costs, savings.\n"
-                f"📊 {nb_monitored} appliances monitored"
-            )
-        # Continue the queue
-        try:
-            queue = json.loads(mem_get("appliances_queue") or "[]")
-            queue = [q for q in queue if q["entity_id"] != eid_pending]
-            mem_set("appliances_queue", json.dumps(queue))
-            _ask_question_appliance_next()
-        except Exception:
-            pass
-        return ""
-
-    if t in ("profile reset", "profile reconfigure"):
-        skill_set("household", {})
-        mem_set("profile_household_complete", "")
-        mem_set("profile_household_question", "")
-        _start_questionnaire_household()
-        return "🔄 Structured profile picker started..."
-
-    if t in ("appliances reset", "appliances reconfigure"):
-        conn = sqlite3.connect(DB_PATH)
-        conn.execute("DELETE FROM appliances")
-        conn.commit()
-        conn.close()
-        mem_set("appliances_configured", "")
         mem_set("appliances_queue", "")
-        # Reset learned programs because a different appliance needs fresh learning.
-        skill_set("machine_programs", {})
-        _start_questionnaire_appliances()
-        return "🔄 Structured appliance picker started.\nAppliances + learned programs reset; automatic re-learning begins."
 
     # Reset a single appliance (change of machine)
     if t.startswith("programs reset "):

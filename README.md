@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-v0.1.5-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-v0.1.6-blue">
   <img alt="Status" src="https://img.shields.io/badge/status-beta-orange">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white">
   <img alt="Home Assistant" src="https://img.shields.io/badge/Home_Assistant-2024.1+-41BDF5?logo=home-assistant&logoColor=white">
@@ -118,11 +118,10 @@ python3 assistant.py        # start the bot
 
 1. **Send a message** to your Telegram bot (anything)
    → your `chat_id` is detected automatically
-2. Tell the assistant what you have and what you want monitored in plain English
-   → structured setup commands remain available when you want them
+2. The bot replies that it is online and ready to work
 3. Type `/help` to see all available commands
 
-⏱ **Total time**: 10 minutes. Then the bot runs on its own.
+⏱ **Total time**: a few minutes. Then the bot runs on its own.
 
 ## 🏗 What hardware?
 
@@ -168,7 +167,7 @@ The script is **free and open source (MIT)**. The only recurring AI cost is what
 
 ## 📊 Project status
 
-**Current version: v0.1.5 beta**
+**Current version: v0.1.6 beta**
 
 The code has been running in production since February 2026. It's functionally stable but has **not yet been validated on enough different installations** to be considered generally stable.
 

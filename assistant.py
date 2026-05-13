@@ -20,8 +20,6 @@ from skills import (
     _monitoring_deploy_server,
     _notif_tempo_ejp,
     _rollback_si_errors_repetees,
-    _start_questionnaire_appliances,
-    _start_questionnaire_household,
 )
 from shared import (_wizard_step, _wizard_save_config, _is_authorized_chat, transcribe_voice,
     _state_plugs, _grace_ended_at, _powers_history, _last_high_phase,
@@ -1042,10 +1040,10 @@ def main():
     log.info(f"✅ 8 threads started")
     mem_set("send_md_now", "yes")
 
-    # First startup: keep setup conversational. Structured flows are opt-in.
+    # First startup: announce readiness and let normal chat drive setup.
     current_rate, nb_rate = skill_get("pricing")
     if not current_rate or "type" not in current_rate:
-        log.info("⚡ Rate not configured — waiting for conversational setup or /rate config")
+        log.info("⚡ Rate not configured — waiting for normal chat")
 
     # Device identification from smart outlets, HA Energy, and power sensors
     try:
@@ -1060,7 +1058,7 @@ def main():
         log.error(traceback.format_exc())
 
     if not mem_get("profile_household_complete"):
-        log.info("👥 Household profile not configured — waiting for conversational setup")
+        log.info("👥 Household profile not configured — waiting for normal chat")
     else:
         log.info("👥 Household profile: configured")
 

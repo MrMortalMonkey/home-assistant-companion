@@ -187,10 +187,9 @@ To restart automatically at boot, use the **Native Linux** method with systemd i
 
 1. **Telegram chat detection** — The bot waits for your first message to register your `chat_id`. Send anything (e.g. "hello").
 2. **Security code** — A 6-digit code is sent via `sms_method` (Free Mobile / HA notification / email). Type it in Telegram to unlock the channel.
-3. **Conversational setup** — Tell the assistant what you have and what you want monitored, such as solar, heat pump, freezer, dishwasher, or electricity rate.
-4. **Optional structured setup** — Use `/rate config`, `/profile reset`, or `/appliances reset` only when you prefer guided pickers.
+3. **Ready message** — The bot sends a short Telegram message confirming it is online and ready to work.
 
-Total time: usually **a few minutes**. After that, keep chatting naturally.
+Total time: usually **a few minutes**. After that, use Telegram normally.
 
 ---
 
