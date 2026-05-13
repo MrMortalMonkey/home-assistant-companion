@@ -15,15 +15,7 @@ COPY run.sh /
 RUN chmod a+x /run.sh
 
 # Application code
-COPY assistant.py        /app/
-COPY deploy_server.py    /app/
-COPY config.py           /app/
-COPY shared.py           /app/
-COPY skills.py           /app/
-COPY llm_provider.py     /app/
-COPY i18n.py             /app/
-COPY behavior.txt    /app/
-COPY KNOWN_APPLIANCES.json /app/
+COPY app/ /app/
 
 WORKDIR /app
 CMD ["/run.sh"]

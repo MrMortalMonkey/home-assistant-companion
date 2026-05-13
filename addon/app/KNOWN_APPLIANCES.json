@@ -1,0 +1,167 @@
+{
+  "washing_machine": {
+    "name": "Washing machine",
+    "emoji": "🧺",
+    "power_min_w": 50,
+    "power_max_w": 2500,
+    "duration_min_min": 30,
+    "duration_max_min": 180,
+    "consumption_kwh_typique": [
+      0.5,
+      2.5
+    ],
+    "pauses_connues": [
+      "rinse cycle 5-15min between phases",
+      "intermittent spin"
+    ],
+    "pieges": [
+      "rinse pause mistaken for end of cycle",
+      "door locked 3-5min after cycle ends"
+    ]
+  },
+  "dryer": {
+    "name": "Dryer",
+    "emoji": "👕",
+    "power_min_w": 30,
+    "power_max_w": 3000,
+    "duration_min_min": 30,
+    "duration_max_min": 120,
+    "consumption_kwh_typique": [
+      1.0,
+      4.0
+    ],
+    "pauses_connues": [
+      "anti-crease: slow rotation every 10min for 2-4h"
+    ],
+    "pieges": [
+      "anti-crease resets grace period → cycle 300min",
+      "gentle cycle <200W not detected by standard threshold"
+    ]
+  },
+  "dishwasher": {
+    "name": "Dishwasher",
+    "emoji": "🍽️",
+    "power_min_w": 10,
+    "power_max_w": 2200,
+    "duration_min_min": 45,
+    "duration_max_min": 240,
+    "consumption_kwh_typique": [
+      0.8,
+      1.8
+    ],
+    "pauses_connues": [
+      "passive drying 10-30min at end",
+      "pause between wash and rinse"
+    ],
+    "pieges": [
+      "dishes are hot → wait 10min before opening"
+    ]
+  },
+  "heat_pump_water_heaterdynamique": {
+    "name": "Heat pump water heater",
+    "emoji": "🔥",
+    "power_min_w": 300,
+    "power_max_w": 2000,
+    "duration_min_min": 60,
+    "duration_max_min": 480,
+    "consumption_kwh_typique": [
+      1.5,
+      5.0
+    ],
+    "pauses_connues": [
+      "low-consumption maintenance mode between heating cycles"
+    ],
+    "pieges": [
+      "correlated with outdoor temperature",
+      "optimize with off-peak hours"
+    ]
+  },
+  "ev_charger": {
+    "name": "EV charging station",
+    "emoji": "🔌",
+    "power_min_w": 1000,
+    "power_max_w": 7400,
+    "duration_min_min": 60,
+    "duration_max_min": 720,
+    "consumption_kwh_typique": [
+      5.0,
+      50.0
+    ],
+    "pauses_connues": [
+      "full charge → sharp cutoff"
+    ],
+    "pieges": [
+      "high consumption → bill imheat_pumpt if not off-peak/solar"
+    ]
+  },
+  "towel_warmer": {
+    "name": "Towel rail",
+    "emoji": "🛁",
+    "power_min_w": 300,
+    "power_max_w": 1000,
+    "duration_min_min": 30,
+    "duration_max_min": 180,
+    "consumption_kwh_typique": [
+      0.3,
+      1.5
+    ],
+    "pauses_connues": [
+      "thermostat cycles on/off"
+    ],
+    "pieges": [
+      "left on = phantom consumption"
+    ]
+  },
+  "pool_pump": {
+    "name": "Pool pump",
+    "emoji": "🏊",
+    "power_min_w": 300,
+    "power_max_w": 1500,
+    "duration_min_min": 120,
+    "duration_max_min": 720,
+    "consumption_kwh_typique": [
+      2.0,
+      8.0
+    ],
+    "pauses_connues": [],
+    "pieges": [
+      "runs a lot in summer → high consumption if not off-peak"
+    ]
+  },
+  "four": {
+    "name": "Oven",
+    "emoji": "🍳",
+    "power_min_w": 1000,
+    "power_max_w": 3500,
+    "duration_min_min": 15,
+    "duration_max_min": 240,
+    "consumption_kwh_typique": [
+      0.5,
+      3.0
+    ],
+    "pauses_connues": [
+      "thermostat cycles on/off"
+    ],
+    "pieges": [
+      "intermittent consumption = not a continuous cycle"
+    ]
+  },
+  "freezer": {
+    "name": "Freezer",
+    "emoji": "❄️",
+    "power_min_w": 50,
+    "power_max_w": 200,
+    "duration_min_min": 0,
+    "duration_max_min": 0,
+    "consumption_kwh_typique": [
+      0.5,
+      1.5
+    ],
+    "pauses_connues": [
+      "normal cyclic compressor"
+    ],
+    "pieges": [
+      "if power outage >2h → cold chain compromised"
+    ]
+  }
+}
