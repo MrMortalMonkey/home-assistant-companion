@@ -219,7 +219,8 @@ def cmd_roles():
     report = f"🎯 AUTO-DISCOVERED ROLES — {len(roles)}/{len(ROLES_DEFINIS)}\n━━━━━━━━━━━━━━━━━━\n"
 
     for role, definition in ROLES_DEFINIS.items():
-        desc = definition["description"]
+        details = role_definition_details(definition)
+        desc = details.get("description", "Auto-discovered role")
         if role in roles:
             eid = roles[role]["entity_id"]
             conf = roles[role]["confidence"]
@@ -240,6 +241,9 @@ def cmd_roles():
 def _start_questionnaire_household():
     """Launch the household profile questionnaire — one question at a time on Telegram."""
     if mem_get("profile_household_complete"):
+        return
+    if not str(CFG.get("telegram_chat_id", "")).strip():
+        log.info("Household questionnaire deferred until Telegram chat_id is known.")
         return
 
     # Load the current profile
@@ -2701,6 +2705,17 @@ def _forcer_reclassification_anker(index):
         log.info(f"🔴→⚡ {reclassifiees} Anker entity/entities reclassified")
 
 
+def _maj_baseline_entities():
+    """Refresh baseline entities from auto-discovered roles."""
+    try:
+        dynamic = role_decouvrir_baselines()
+        if dynamic:
+            BASELINE_ENTITIES.update(dynamic)
+            log.debug(f"Baseline entities refreshed: {len(dynamic)} role-based entries")
+    except Exception as ex:
+        log.debug(f"Baseline entity refresh skipped: {ex}")
+
+
 def discover_automatically(states=None):
     ha_refresh_areas()
     _maj_baseline_entities()
@@ -5097,6 +5112,9 @@ def _construire_ranges(hours_hc):
 
 def rate_configure_questionnaire():
     """Start the questionnaire of configuration rate on Telegram"""
+    if not str(CFG.get("telegram_chat_id", "")).strip():
+        log.info("Rate questionnaire deferred until Telegram chat_id is known.")
+        return
     mem_set("pending_rate_step", "provider")
     list = []
     idx = 1

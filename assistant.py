@@ -4,7 +4,23 @@ _cache = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "__pycache_
 if _os.path.exists(_cache): _shutil.rmtree(_cache, ignore_errors=True)
 
 from skills import *
-from skills import _start_questionnaire_appliances, _start_questionnaire_household
+from skills import (
+    _alert_consumption_fantome_nocturne,
+    _alert_freezer_outage,
+    _alert_zigbee_device_mort,
+    _backup_auto_db,
+    _check_vocal_scripts,
+    _cycle_intelligence,
+    _detect_water_leak,
+    _detecter_mode_vacances,
+    _detecter_outage_internet,
+    _heartbeat_observe,
+    _monitoring_deploy_server,
+    _notif_tempo_ejp,
+    _rollback_si_errors_repetees,
+    _start_questionnaire_appliances,
+    _start_questionnaire_household,
+)
 from shared import (_wizard_step, _wizard_save_config, _is_authorized_chat, transcrire_vocal,
     _state_plugs, _grace_ended_at, _powers_history, _last_high_phase,
     _laundry_reminder_sent, _anti_crease_detected, _watchdog, _entities_already_detected,
@@ -59,6 +75,14 @@ def _bind_first_chat(chat_id):
             "Home Assistant AI Companion is ready. Type /help to see commands.",
             force=True
         )
+        try:
+            current_rate, _ = skill_get("pricing")
+            if not current_rate or "type" not in current_rate:
+                rate_configure_questionnaire()
+            elif not mem_get("profile_household_complete"):
+                _start_questionnaire_household()
+        except Exception as ex:
+            log.debug(f"Post-bind setup prompt skipped: {ex}")
         return True
     return False
 
@@ -457,7 +481,7 @@ def validation_started():
     except Exception as e:
         results.append(f"❌ SQLite: {e}")
 
-    summary  = f"🚀 ASSISTANT IA {VERSION}\n━━━━━━━━━━━━━━━━━━━━\n"
+    summary  = f"🚀 Home Assistant AI Companion {VERSION}\n━━━━━━━━━━━━━━━━━━━━\n"
     summary += "\n".join(results)
     summary += f"\n━━━━━━━━━━━━━━━━━━━━\nMode: {MODE}"
     log.info(summary)

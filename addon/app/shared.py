@@ -139,6 +139,7 @@ __all__ = [
     "role_get_all",
     "role_set",
     "role_val",
+    "role_definition_details",
     "skill_get",
     "skill_set",
     "rate_est_hour_creuse",
@@ -1273,6 +1274,33 @@ def role_val(role, states_index, default="?"):
     return default
 
 
+def role_definition_details(definition):
+    """Normalize role definitions from legacy pattern lists or structured dicts."""
+    if isinstance(definition, dict):
+        return {
+            "description": definition.get("description", ""),
+            "device_class": definition.get("device_class", []),
+            "unit": definition.get("unit", []),
+            "patterns": definition.get("patterns", []),
+            "domain": definition.get("domain", ""),
+        }
+    if isinstance(definition, (list, tuple)):
+        return {
+            "description": "Auto-discovered role",
+            "device_class": [],
+            "unit": [],
+            "patterns": list(definition),
+            "domain": "",
+        }
+    return {
+        "description": str(definition) if definition else "Auto-discovered role",
+        "device_class": [],
+        "unit": [],
+        "patterns": [],
+        "domain": "",
+    }
+
+
 def role_decouvrir(states):
     """Auto-discovery of roles — analyzes all HA entity_ids.
     Works on ANY HA installation."""
@@ -1282,17 +1310,17 @@ def role_decouvrir(states):
     discovery_count = 0
 
     for role, definition in ROLES_DEFINIS.items():
+        details = role_definition_details(definition)
         # If already assigned with high confidence, do not overwrite
         if role in roles_currents and roles_currents[role]["confidence"] >= 0.8:
             # Verify the entity still exists
             if roles_currents[role]["entity_id"] in index:
                 continue
 
-        desc = definition["description"]
-        dc_cibles = definition.get("device_class", [])
-        unit_cibles = definition.get("unit", [])
-        patterns = definition.get("patterns", [])
-        domain_cible = definition.get("domain", "sensor")
+        dc_cibles = details.get("device_class", [])
+        unit_cibles = details.get("unit", [])
+        patterns = details.get("patterns", [])
+        domain_cible = details.get("domain", "")
 
         best_candidate = None
         best_score = 0
@@ -1718,6 +1746,10 @@ def filter_analyze_messages():
 
 
 def telegram_send_buttons(text, buttons, action_data=None):
+    if not str(CFG.get("telegram_chat_id", "")).strip():
+        log.info("Telegram chat_id is not set yet; outgoing button message deferred until the first user message.")
+        return None
+
     url = f"https://api.telegram.org/bot{CFG['telegram_token']}/sendMessage"
     keyboard = []
     line = []

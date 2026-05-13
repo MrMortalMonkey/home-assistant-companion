@@ -61,14 +61,14 @@ def get_api_key(cfg):
     key_field = provider.get("env_key", "ANTHROPIC_API_KEY")
 
     if provider_name == "ollama":
-        return cfg.get("ollama_host", provider.get("base_url", "http://localhost:11434"))
+        return str(cfg.get("ollama_host", provider.get("base_url", "http://localhost:11434"))).strip()
     if provider_name == "lmstudio":
-        return cfg.get("lmstudio_host", provider.get("base_url", "http://localhost:1234"))
+        return str(cfg.get("lmstudio_host", provider.get("base_url", "http://localhost:1234"))).strip()
     if provider_name == "openai":
-        return cfg.get("openai_api_key", "")
+        return str(cfg.get("openai_api_key", "")).strip()
     if provider_name == "openrouter":
-        return cfg.get("openrouter_api_key", "")
-    return cfg.get("anthropic_api_key", "")
+        return str(cfg.get("openrouter_api_key", "")).strip()
+    return str(cfg.get("anthropic_api_key", "")).strip()
 
 
 def get_model(cfg, use_strong=False):
