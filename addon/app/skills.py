@@ -2920,11 +2920,11 @@ def scan_ha_complete():
     threading.Thread(target=discover_automatically, args=(states,), daemon=True).start()
 
     try:
-        nb_roles = role_decovrir(states)
+        nb_roles = role_decouvrir(states)
         if nb_roles > 0:
             log.info(f"🎯 {nb_roles} role(s) auto-discovered at scan")
     except Exception as ex_r:
-        log.error(f"❌ role_decovrir: {ex_r}")
+        log.error(f"❌ role_decouvrir: {ex_r}")
 
     return True
 

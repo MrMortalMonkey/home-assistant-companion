@@ -33,18 +33,34 @@ def backup_sqlite():
 
 
 def keepalive():
+    path = os.path.join(BASE_DIR, "keepalive.log")
     while True:
-        with open("/home/lolufe/assistant/keepalive.log", "a") as f:
-            f.write(f"{datetime.now().isoformat()} keepalive\n")
         try:
-            with open("/home/lolufe/assistant/keepalive.log", "r") as f:
+            with open(path, "a") as f:
+                f.write(f"{datetime.now().isoformat()} keepalive\n")
+            with open(path, "r") as f:
                 lines = f.readlines()
             if len(lines) > 500:
-                with open("/home/lolufe/assistant/keepalive.log", "w") as f:
+                with open(path, "w") as f:
                     f.writelines(lines[-200:])
         except Exception:
             pass
         time.sleep(3600)
+
+
+def _bind_first_chat(chat_id):
+    """Bind the first Telegram chat that talks to a fresh HA App install."""
+    if chat_id and not str(CFG.get("telegram_chat_id", "")).strip():
+        CFG["telegram_chat_id"] = str(chat_id)
+        _wizard_save_config()
+        log.info(f"Telegram chat_id bound: {chat_id}")
+        telegram_send(
+            "✅ Telegram connected.\n\n"
+            "Home Assistant AI Companion is ready. Type /help to see commands.",
+            force=True
+        )
+        return True
+    return False
 
 
 def _wizard_handle_message(text):
@@ -675,6 +691,7 @@ def main():
                     msg = update["message"]
                     chat_id = str(msg.get("chat", {}).get("id", ""))
                     text = msg.get("text", "").strip()
+                    _bind_first_chat(chat_id)
                     if not text or not _is_authorized_chat(chat_id):
                         continue
                     _wizard_handle_message(text)
@@ -891,6 +908,7 @@ def main():
                 msg     = update["message"]
                 chat_id = str(msg.get("chat", {}).get("id", ""))
                 text   = msg.get("text", "").strip()
+                _bind_first_chat(chat_id)
 
                 if not text and "voice" in msg:
                     if _is_authorized_chat(chat_id):

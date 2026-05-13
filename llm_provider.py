@@ -29,6 +29,7 @@ PROVIDERS = {
         "env_key": "OPENROUTER_API_KEY",
         "default_model": "anthropic/claude-3.5-haiku",
         "default_model_strong": "anthropic/claude-3.5-sonnet",
+        "base_url": "https://openrouter.ai/api/v1",
     },
     "ollama": {
         "name": "Ollama (local)",
@@ -91,6 +92,8 @@ def _openai_compatible_chat(cfg, messages, model, max_tokens, system_prompt=None
         base_url = cfg.get("ollama_host", provider.get("base_url", "http://localhost:11434"))
     elif provider_name == "lmstudio":
         base_url = cfg.get("lmstudio_host", provider.get("base_url", "http://localhost:1234"))
+    elif provider_name == "openrouter":
+        base_url = provider.get("base_url", "https://openrouter.ai/api/v1")
     else:
         base_url = "https://api.openai.com/v1"
 
@@ -128,6 +131,9 @@ def _openai_compatible_chat(cfg, messages, model, max_tokens, system_prompt=None
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}"
         }
+        if provider_name == "openrouter":
+            headers["HTTP-Referer"] = "https://github.com/MrMortalMonkey/home-assistant-companion"
+            headers["X-Title"] = "Home Assistant AI Companion"
 
     try:
         r = _requests.post(url, json=payload, headers=headers, timeout=120)

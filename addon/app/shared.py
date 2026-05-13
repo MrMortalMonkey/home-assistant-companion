@@ -169,6 +169,8 @@ _console_handler = logging.StreamHandler()
 _console_handler.setFormatter(_log_format)
 _console_handler.setLevel(_log_level)
 logging.basicConfig(level=_log_level, handlers=[_file_handler, _console_handler])
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("requests").setLevel(logging.WARNING)
 log = logging.getLogger(__name__)
 
 
@@ -1527,6 +1529,10 @@ def telegram_send(text, parse_mode=None, force=False):
     force=True for system messages (startup, SMS code) that bypass filters."""
 
     if not text or len(text.strip()) < 5:
+        return None
+
+    if not str(CFG.get("telegram_chat_id", "")).strip():
+        log.info("Telegram chat_id is not set yet; outgoing message deferred until the first user message.")
         return None
 
     now_ts = datetime.now()
