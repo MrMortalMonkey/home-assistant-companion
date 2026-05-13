@@ -650,6 +650,205 @@ def monitoring_batteries():
         time.sleep(60)
 
 
+def _state_index(states):
+    return {e.get("entity_id"): e for e in states or [] if e.get("entity_id")}
+
+
+def _watts_from_state(entity):
+    if not entity or entity.get("state") in ("unavailable", "unknown", ""):
+        return None
+    try:
+        return float(str(entity.get("state")).replace(",", "."))
+    except (TypeError, ValueError):
+        return None
+
+
+def _monitored_appliances():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        rows = conn.execute(
+            "SELECT entity_id, appliance_type, custom_name FROM appliances WHERE monitored=1"
+        ).fetchall()
+        conn.close()
+        return rows
+    except Exception as e:
+        log.debug(f"monitored_appliances: {e}")
+        return []
+
+
+def _cycle_grace_minutes(appliance_type, entity_id):
+    if appliance_type == "dishwasher":
+        return GRACE_AFTER_DISHWASHER
+    if appliance_type == "dryer":
+        return GRACE_AFTER_DRYING
+    phase = _last_high_phase.get(entity_id)
+    if phase == "spin":
+        return GRACE_AFTER_SPIN
+    return GRACE_AFTER_WASH
+
+
+def _record_cycle_sample(entity_id, watts):
+    ts = datetime.now().isoformat()
+    _powers_history.setdefault(entity_id, []).append((ts, watts))
+    _powers_history[entity_id] = _powers_history[entity_id][-1500:]
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute(
+            "INSERT INTO cycle_measurements (entity_id, watts, ts) VALUES (?, ?, ?)",
+            (entity_id, watts, ts)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        log.debug(f"record_cycle_sample: {e}")
+
+
+def _estimate_cycle_kwh(samples):
+    total_wh = 0.0
+    parsed = []
+    for ts, watts in samples:
+        try:
+            parsed.append((datetime.fromisoformat(ts), float(watts)))
+        except Exception:
+            continue
+    parsed.sort(key=lambda item: item[0])
+    for (t1, w1), (t2, w2) in zip(parsed, parsed[1:]):
+        hours = max(0, min((t2 - t1).total_seconds(), 300)) / 3600
+        total_wh += ((w1 + w2) / 2) * hours
+    return round(total_wh / 1000, 3)
+
+
+def monitoring_core():
+    """Main autonomous monitoring loop."""
+    while True:
+        now = datetime.now()
+        try:
+            states = ha_get("states")
+            _watchdog["monitoring_last_run"] = now
+            if states:
+                index = _state_index(states)
+                try:
+                    _cycle_intelligence(states, index, now)
+                except Exception as e:
+                    log.error(f"monitoring_core intelligence: {e}")
+
+                for fn in (
+                    _alert_consumption_fantome_nocturne,
+                    _alert_freezer_outage,
+                    _detect_water_leak,
+                    _alert_zigbee_device_mort,
+                    _heartbeat_observe,
+                    _check_vocal_scripts,
+                ):
+                    try:
+                        fn(index, now)
+                    except Exception as e:
+                        log.debug(f"{fn.__name__}: {e}")
+
+                for fn in (
+                    _detecter_mode_vacances,
+                    _backup_auto_db,
+                    _detecter_outage_internet,
+                    _notif_tempo_ejp,
+                    _rollback_si_errors_repetees,
+                    _monitoring_deploy_server,
+                ):
+                    try:
+                        fn(now)
+                    except Exception as e:
+                        log.debug(f"{fn.__name__}: {e}")
+            else:
+                try:
+                    _detecter_outage_internet(now)
+                except Exception:
+                    pass
+        except Exception as e:
+            log.error(f"monitoring_core: {e}")
+            _watchdog["errors"].append((datetime.now(), f"monitoring_core: {e}"))
+        time.sleep(300)
+
+
+def monitoring_plugs():
+    """Watch configured smart outlets and close appliance cycles automatically."""
+    while True:
+        sleep_for = PLUG_POLL_IDLE
+        try:
+            states = ha_get("states")
+            _watchdog["plugs_last_run"] = datetime.now()
+            if states:
+                index = _state_index(states)
+                rows = _monitored_appliances()
+                has_active_cycle = any(state == "active" for state in _state_plugs.values())
+                sleep_for = PLUG_POLL_ACTIVE if has_active_cycle else PLUG_POLL_IDLE
+
+                for entity_id, appliance_type, custom_name in rows:
+                    entity = index.get(entity_id)
+                    watts = _watts_from_state(entity)
+                    if watts is None:
+                        continue
+
+                    friendly_name = custom_name or entity.get("attributes", {}).get("friendly_name", entity_id)
+                    state = _state_plugs.get(entity_id)
+
+                    if watts > 500:
+                        _last_high_phase[entity_id] = "spin"
+                    elif watts > CYCLE_END_W:
+                        _last_high_phase.setdefault(entity_id, "wash")
+
+                    if state != "active" and watts >= CYCLE_START_W:
+                        solar_w = 0
+                        try:
+                            solar_w = ha_get_current_solar_production(states)
+                        except Exception:
+                            pass
+                        cycle_started_at(entity_id, friendly_name, solar_w)
+                        _state_plugs[entity_id] = "active"
+                        _grace_ended_at.pop(entity_id, None)
+                        _powers_history[entity_id] = []
+                        _laundry_reminder_sent.pop(entity_id, None)
+                        log.info(f"🔄 Cycle started: {friendly_name} ({int(watts)}W)")
+                        telegram_send(f"🔄 Cycle started: {friendly_name}")
+
+                    if _state_plugs.get(entity_id) != "active":
+                        continue
+
+                    _record_cycle_sample(entity_id, watts)
+
+                    if watts > CYCLE_END_W:
+                        _grace_ended_at.pop(entity_id, None)
+                        continue
+
+                    now = datetime.now()
+                    if entity_id not in _grace_ended_at:
+                        grace_min = _cycle_grace_minutes(appliance_type, entity_id)
+                        _grace_ended_at[entity_id] = now + timedelta(minutes=grace_min)
+                        log.info(f"⏳ Cycle grace started: {friendly_name} ({grace_min} min)")
+                        continue
+
+                    if now < _grace_ended_at[entity_id]:
+                        continue
+
+                    samples = _powers_history.get(entity_id, [])
+                    consumption_kwh = _estimate_cycle_kwh(samples)
+                    result = cycle_ended_at(entity_id, consumption_kwh)
+                    _state_plugs.pop(entity_id, None)
+                    _grace_ended_at.pop(entity_id, None)
+                    _last_high_phase.pop(entity_id, None)
+                    _laundry_reminder_sent.pop(entity_id, None)
+                    if result:
+                        telegram_send(
+                            f"✅ Cycle finished: {friendly_name}\n"
+                            f"Duration: {result['duration_min']} min\n"
+                            f"Energy: {result['consumption_kwh']:.2f} kWh\n"
+                            f"Cost: {result['cost_grid']:.2f}"
+                        )
+                    log.info(f"✅ Cycle ended: {friendly_name} ({consumption_kwh:.2f} kWh)")
+        except Exception as e:
+            log.error(f"monitoring_plugs: {e}")
+            _watchdog["errors"].append((datetime.now(), f"monitoring_plugs: {e}"))
+        time.sleep(sleep_for)
+
+
 def main():
     global channel_locked
     log.info(f"=== Home Assistant AI Companion {VERSION} starting ===")
@@ -762,7 +961,7 @@ def main():
     threading.Thread(target=keepalive,              daemon=True).start()
     threading.Thread(target=audit_auto,             daemon=True).start()
     threading.Thread(target=monitoring_batteries, daemon=True).start()
-    threading.Thread(target=monitoring_monitoring,daemon=True).start()
+    threading.Thread(target=monitoring_core, daemon=True).start()
     threading.Thread(target=monitoring_plugs,    daemon=True).start()
     threading.Thread(target=watchdog_interne,       daemon=True).start()
     threading.Thread(target=_scan_infiltration_auto, daemon=True).start()

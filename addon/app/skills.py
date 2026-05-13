@@ -2110,7 +2110,7 @@ def _monitored_heat_pump_correlee(index, states):
         pass
 
     # This is a real emergency : heat pump off + frost + home froide + falling temperature
-    _alert_si_norveau(
+    _alert_if_new(
         "heat_pump_off_froid",
         f"🚨 heat pump OFF - home cooling\n"
         f"Ext: {temp_ext:.1f}°C | Int: {temp_int:.1f}°C (falling)\n"
@@ -4524,13 +4524,13 @@ def _decider(anomalies, states, index, now):
         atype = anomaly["type"]
 
         if severity == "high":
-            _alert_si_norveau(
+            _alert_if_new(
                 f"ia_{atype}",
                 f"🧠 ALERTE INTELLIGENCE\n🚨 {msg}",
                 delay_h=2
             )
         elif severity == "medium":
-            _alert_si_norveau(
+            _alert_if_new(
                 f"ia_{atype}",
                 f"🧠 INTELLIGENCE\n⚠️ {msg}",
                 delay_h=6
@@ -5550,7 +5550,7 @@ def skill_dynamic_collect(states):
                 for eid, val in value_texts.items():
                     if isinstance(val, (int, float)) and val > float(threshold):
                         fname = index[eid].get("attributes", {}).get("friendly_name", eid)
-                        _alert_si_norveau(
+                        _alert_if_new(
                             f"dyn_{name}_{eid}",
                             f"🧠 SKILL {description}\n{fname} = {val} (threshold: {threshold})",
                             delay_h=6
@@ -7064,7 +7064,7 @@ def cmd_test_weather():
 
     # 7. Force a test alert send
     report += "\n━━━━━━━━━━━━━━━━━━\n🧪 Send test alert...\n"
-    _alert_si_norveau(
+    _alert_if_new(
         "weather_test_alert",
         "🧪 WEATHER ALERT TEST\n"
         "Ceci is a test of the monitoring weather.\n"
@@ -7568,7 +7568,7 @@ def _alert_consumption_fantome_nocturne(index, now):
         baseline = rows[0] if rows and rows[0] else 200
         threshold = baseline + 150
         if consumption_w > threshold:
-            _alert_si_norveau(
+            _alert_if_new(
                 "consumption_fantome_nuit",
                 f"👻 ABNORMAL NIGHT CONSUMPTION\n━━━━━━━━━━━━━━━━━━\n"
                 f"Il is {now.strftime('%H:%M')} — grid consumption: {consumption_w:.0f}W\n"
@@ -7602,7 +7602,7 @@ def _alert_freezer_outage(index, now):
                     dt_started_at = datetime.fromisoformat(started_at)
                     duration_h = (now - dt_started_at).total_seconds() / 3600
                     if duration_h >= 2:
-                        _alert_si_norveau(
+                        _alert_if_new(
                             "freezer_outage",
                             f"⚡ COUPURE EDF DE {duration_h:.1f}H\n━━━━━━━━━━━━━━━━━━\n"
                             f"Debut : {dt_started_at.strftime('%H:%M')} | Retorr : {now.strftime('%H:%M')}\n\n"
@@ -8008,7 +8008,7 @@ def _detecter_outage_internet(now):
             return
 
         if minutes > 30:
-            _alert_si_norveau(
+            _alert_if_new(
                 "outage_internet",
                 f"🌐 HOME ASSISTANT INACCESSIBLE\n━━━━━━━━━━━━━━━━━━\n"
                 f"Depuis {int(minutes)} min ({dt_started_at.strftime('%H:%M')})\n"
@@ -8017,7 +8017,7 @@ def _detecter_outage_internet(now):
             )
             if minutes > 60 and CFG.get("sms_method"):
                 try:
-                    _alert_si_norveau(
+                    _alert_if_new(
                         "outage_internet_sms",
                         f"ALERTE: HA unreachable since {int(minutes)}min",
                         delay_h=6
@@ -8214,7 +8214,7 @@ def _heartbeat_observe(index, now):
             # Calculer the gap current
             if not e:
                 # Sensor missing from HA → critical alert
-                _alert_si_norveau(
+                _alert_if_new(
                     f"heartbeat_absent_{entity_id}",
                     f"🚨 HEARTBEAT — Sensor missing from HA\n━━━━━━━━━━━━━━━━━━\n"
                     f"  • {entity_id}\n"
@@ -8240,7 +8240,7 @@ def _heartbeat_observe(index, now):
             seuil_critical = p99_sec * 5 if p99_sec else 1800
             
             if gap_sec > seuil_critical:
-                _alert_si_norveau(
+                _alert_if_new(
                     f"heartbeat_critical_{entity_id}",
                     f"🚨 HEARTBEAT CRITIQUE\n━━━━━━━━━━━━━━━━━━\n"
                     f"  • {entity_id}\n"
@@ -8250,7 +8250,7 @@ def _heartbeat_observe(index, now):
                     delay_h=1
                 )
             elif gap_sec > seuil_warning:
-                _alert_si_norveau(
+                _alert_if_new(
                     f"heartbeat_warning_{entity_id}",
                     f"⚠️ HEARTBEAT — Sensor fige\n━━━━━━━━━━━━━━━━━━\n"
                     f"  • {entity_id}\n"
@@ -8274,7 +8274,7 @@ def _heartbeat_observe(index, now):
                 now_utc = now.replace(tzinfo=timezone.utc) if now.tzinfo is None else now
                 gap_h = (now_utc - dt_upd).total_seconds() / 3600
                 if gap_h > 26:
-                    _alert_si_norveau(
+                    _alert_if_new(
                         f"heartbeat_rate_{entity_id}",
                         f"⚠️ HEARTBEAT RATE — Rollover quotidien rate\n━━━━━━━━━━━━━━━━━━\n"
                         f"  • {entity_id}\n"
@@ -8418,7 +8418,7 @@ def _alert_zigbee_device_mort(index, now):
 
         if morts:
             list = "\n".join(f"  • {name} ({h}h)" for name, h in morts[:10])
-            _alert_si_norveau(
+            _alert_if_new(
                 "zigbee_mort",
                 f"📡 DEVICES UNAVAILABLE > 24H\n━━━━━━━━━━━━━━━━━━\n{list}\n\n"
                 f"Check: dead battery, out of Zigbee range, or faulty device.",
@@ -8482,7 +8482,7 @@ def _detect_water_leak(index, now):
             if "monthture" in eid or "water_leak" in eid or "fuite" in eid:
                 if e.get("state") in ("on", "True", "wet", "detected"):
                     fname = e.get("attributes", {}).get("friendly_name", eid)
-                    _alert_si_norveau(
+                    _alert_if_new(
                         f"fuite_{eid}",
                         f"💧 FUITE D'EAU DETECTEE\n━━━━━━━━━━━━━━━━━━\n"
                         f"Sensor: {fname}\n"
@@ -8651,7 +8651,7 @@ def _monitoring_deploy_server(now):
         except Exception:
             pass
 
-        _alert_si_norveau(
+        _alert_if_new(
             "deploy_server_down",
             "⚠️ Deploy server not responding on port 8501.\n"
             "Remote deployment is unavailable.",
