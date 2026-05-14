@@ -69,7 +69,7 @@ class TestCycleDetection:
         assert GRACE_AFTER_SPIN < GRACE_AFTER_DISHWASHER < GRACE_AFTER_DRYING < GRACE_AFTER_WASH
 
 
-# ═══ TESTS POWER PROFILEE ═══
+# ═══ TESTS POWER PROFILE ═══
 
 class TestProfilePower:
     """Tests for power profile analysis."""
@@ -124,7 +124,7 @@ class TestAppliances:
         conn = sqlite3.connect(db)
         conn.execute(
             "INSERT INTO appliances (entity_id, appliance_type, custom_name, monitored, created_at) VALUES (?, ?, ?, ?, ?)",
-            ("sensor.plug_tv_power", "ignore", "Ignorer", 0, datetime.now().isoformat())
+            ("sensor.plug_tv_power", "ignore", "Ignore", 0, datetime.now().isoformat())
         )
         conn.commit()
         row = conn.execute("SELECT monitored FROM appliances WHERE entity_id=?",

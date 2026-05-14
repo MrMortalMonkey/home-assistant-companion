@@ -292,7 +292,7 @@ cat <<INFO
   2. Send any message to your Telegram bot
      → chat_id is detected automatically on first message
 
-  3. The bot guides you through the rest (appliance questionnaire, rate, etc.)
+  3. Talk to the bot naturally about what you want monitored.
 
   ${BOLD}Deploy as a service:${NC}
     ${BLUE}./scripts/install_systemd.sh${NC}       Linux/Pi/VM

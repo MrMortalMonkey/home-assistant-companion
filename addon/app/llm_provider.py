@@ -214,7 +214,7 @@ def _anthropic_chat(cfg, messages, model, max_tokens, system_prompt=None, tools=
         if tools:
             anthropic_kwargs["tools"] = tools
 
-        for tentative in range(4):
+        for attempt in range(4):
             try:
                 r = client.messages.create(**anthropic_kwargs)
                 t_in = r.usage.input_tokens
@@ -225,12 +225,12 @@ def _anthropic_chat(cfg, messages, model, max_tokens, system_prompt=None, tools=
                 log.debug(f"Tokens: in={t_in} out={t_out} cache_r={t_cache_read} cache_w={t_cache_write}")
                 return r.content, total_in, t_out
             except _anth.RateLimitError:
-                wait = (tentative + 1) * 15
-                log.warning(f"Rate limit, retry in {wait}s (attempt {tentative + 1}/4)")
+                wait = (attempt + 1) * 15
+                log.warning(f"Rate limit, retry in {wait}s (attempt {attempt + 1}/4)")
                 time.sleep(wait)
             except _anth.APIStatusError as e:
                 if "overloaded" in str(e).lower():
-                    wait = (tentative + 1) * 10
+                    wait = (attempt + 1) * 10
                     log.warning(f"API overloaded, retry in {wait}s")
                     time.sleep(wait)
                 else:

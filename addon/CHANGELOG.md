@@ -2,7 +2,7 @@
 
 ## 0.1.0 beta (2026-05-12)
 - First HA App release
-- Appliance questionnaire for smart plugs
+- Natural-language appliance and power-consumer setup through chat
 - Sniper mode: adaptive polling 20s/60s
 - Appliance program recognition
 - Business model: savings table, real-time ROI

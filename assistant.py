@@ -947,11 +947,11 @@ def main():
             pass
 
     if skip_sms:
-        telegram_send(summary + "\n\n✅ Channel open", force=True)
+        telegram_send(_conversational_onboarding_message(), force=True)
     else:
         shared.channel_locked = True
         send_code_sms()
-        telegram_send(summary + "\n\n🔐 Enter the SMS code", force=True)
+        telegram_send("Home Assistant AI Companion is online.\nEnter the SMS code to unlock.", force=True)
 
     current_states = ha_get("states")
     if current_states:

@@ -195,7 +195,8 @@ HA_TOOLS = [
         "name": "ha_call_service",
         "description": "Calls a Home Assistant service to control a device. "
                        "Use DIRECTLY the entity_id visible in the HA state. "
-                       "NEVER ask for textual confirmation — the system handles confirmation via buttons.",
+                       "NEVER ask for textual confirmation. The system handles confirmation via buttons. "
+                       "Do not write extra prose before or after this tool call.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -274,7 +275,8 @@ HA_TOOLS = [
                        "The assistant will check every minute and send a Telegram notification "
                        "when the condition is met. "
                        "Examples: alert if an inverter goes offline, if a temperature exceeds a threshold, "
-                       "if a door stays open, if a light is on at night, etc.",
+                       "if a door stays open, if a light is on at night, etc. "
+                       "Do not write extra prose before or after this tool call.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -2240,7 +2242,7 @@ Be CONCISE: no markdown, no code blocks, just the action.
 ABSOLUTE RULES:
 - climate auto/heat/cool/fan_only = HEAT PUMP ACTIVE
 - climate off = HEAT PUMP OFF
-- Ingreenrs 0W at night = NORMAL
+- Inverters at 0 W at night = normal
 - Anker battery < 20% = report
 - Automations unavailable = normal"""
 
@@ -2281,20 +2283,86 @@ def check_budget():
     return True
 
 
-def _appel_api_avec_retry(cfg, messages, model, max_tokens, system_prompt=None, tools=None, temperature=0):
+def _call_api_with_retry(cfg, messages, model, max_tokens, system_prompt=None, tools=None, temperature=0):
     """Unified LLM call with retry backoff on 429. CRASH-PROOF."""
-    for tentative in range(4):
+    for attempt in range(4):
         try:
             if tools:
                 return llm_provider.llm_completion_with_tools(cfg, messages, tools, model=model, max_tokens=max_tokens, system_prompt=system_prompt, temperature=temperature)
             else:
                 return llm_provider.llm_completion(cfg, messages, model=model, max_tokens=max_tokens, system_prompt=system_prompt, temperature=temperature)
         except Exception:
-            wait = (tentative + 1) * 15
-            log.warning(f"LLM API: retry in {wait}s (attempt {tentative + 1}/4)")
+            wait = (attempt + 1) * 15
+            log.warning(f"LLM API: retry in {wait}s (attempt {attempt + 1}/4)")
             time.sleep(wait)
     log.error("LLM API: 4 attempts failed")
     return None, 0, 0
+
+
+def _user_asked_for_capabilities(user_message):
+    text = (user_message or "").lower()
+    capability_phrases = [
+        "what can you do",
+        "what are your capabilities",
+        "capabilities",
+        "available commands",
+        "help",
+        "how can you help",
+    ]
+    return any(phrase in text for phrase in capability_phrases)
+
+
+def _clean_chat_response(response_text, user_message):
+    """Keep Telegram chat replies compact even when a model drifts into narration."""
+    response_text = (response_text or "").strip()
+    if not response_text:
+        return response_text
+
+    capability_requested = _user_asked_for_capabilities(user_message)
+    cleaned_lines = []
+    skipping_capabilities = False
+
+    for raw_line in response_text.splitlines():
+        line = raw_line.rstrip()
+        line_key = line.strip().lower()
+
+        if not capability_requested and (
+            line_key.startswith("my capabilities")
+            or line_key.startswith("capabilities in home assistant")
+            or "my capabilities in home assistant include" in line_key
+        ):
+            skipping_capabilities = True
+            continue
+
+        if skipping_capabilities:
+            if not line_key or line_key.startswith(("to ", "please ", "got it", "i'll", "i will")):
+                skipping_capabilities = False
+            else:
+                continue
+
+        if not capability_requested and line_key.startswith(("i will now ", "i'll now ")):
+            continue
+
+        cleaned_lines.append(line)
+
+    compact_lines = []
+    previous_blank = False
+    for line in cleaned_lines:
+        is_blank = not line.strip()
+        if is_blank and previous_blank:
+            continue
+        compact_lines.append(line)
+        previous_blank = is_blank
+
+    response_text = "\n".join(compact_lines).strip()
+    max_chars = 1600 if capability_requested else 700
+    if len(response_text) > max_chars:
+        response_text = response_text[:max_chars].rsplit("\n", 1)[0].rstrip()
+        if not response_text:
+            response_text = response_text[:max_chars].rstrip()
+        response_text += "\n\nReply \"more\" if you want the full detail."
+
+    return response_text
 
 
 def call_llm(user_message, context_ha=None):
@@ -2311,7 +2379,15 @@ CRITICAL RULES:
 - When the user describes their home, appliances, rates, or monitoring preferences, treat it as setup context and use it in future answers.
 - For monitoring or alert requests, use ha_create_watch when you can identify a reasonable entity or pattern.
 - For simple actions such as turn on/off, use ha_call_service directly.
-- Be conversational. If the user is simply telling you what they have, acknowledge it and summarize what you will watch or remember.
+- Do not ask for textual confirmation before an action. The app sends confirmation buttons.
+- When a tool call is needed, make the tool call without extra narration.
+
+TELEGRAM RESPONSE STYLE:
+- Keep normal replies to 1-3 short lines.
+- Do not list your capabilities unless the user explicitly asks what you can do.
+- Do not announce extra checks or future work unless the user asked for that check.
+- If the user is simply telling you what they have, acknowledge briefly and remember it. Do not recap every capability.
+- If details are useful, give the result first and offer to expand.
 
 AUTOMATIONS:
 1. First, use ha_search_entities to find entities related to the request
@@ -2338,7 +2414,7 @@ AUTOMATIONS:
 
         blocks, t_in, t_out = llm_provider.llm_completion_with_tools(
             CFG, messages, HA_TOOLS, model=_model,
-            max_tokens=2000 if _use_strong else 1000,
+            max_tokens=1200 if _use_strong else 450,
             system_prompt=system_prompt
         )
         if blocks is None:
@@ -2351,8 +2427,8 @@ AUTOMATIONS:
 
         text_response = ""
         requested_action = None
-        watch_demandee = None
-        automation_demandee = None
+        requested_watch = None
+        requested_automation = None
         for block in blocks:
             if block["type"] == "text":
                 text_response += block.get("text", "")
@@ -2389,13 +2465,13 @@ AUTOMATIONS:
                                     info += f" [{k}={attrs[k]}]"
                             results.append(info)
                     search_result = f"Results for '{keyword}':\n" + "\n".join(results[:30]) if results else f"No entity found for '{keyword}'"
-                    messages_suite = messages + [
+                    followup_messages = messages + [
                         {"role": "assistant", "content": [{"type": "tool_use", "id": block["id"], "name": "ha_search_entities", "input": search_input}]},
                         {"role": "user", "content": [{"type": "tool_result", "tool_use_id": block["id"], "content": search_result}]}
                     ]
                     blocks2, t_in2, t_out2 = llm_provider.llm_completion_with_tools(
-                        CFG, messages_suite, HA_TOOLS, model=_model,
-                        max_tokens=2000 if _use_strong else 1000,
+                        CFG, followup_messages, HA_TOOLS, model=_model,
+                        max_tokens=1200 if _use_strong else 450,
                         system_prompt=system_prompt
                     )
                     log_token_usage(t_in2, t_out2)
@@ -2407,16 +2483,16 @@ AUTOMATIONS:
                             elif block2["type"] == "tool_use" and block2["name"] == "ha_call_service":
                                 requested_action = block2["input"]
                             elif block2["type"] == "tool_use" and block2["name"] == "ha_create_automation":
-                                automation_demandee = block2["input"]
+                                requested_automation = block2["input"]
                             elif block2["type"] == "tool_use" and block2["name"] == "ha_create_watch":
-                                watch_demandee = block2["input"]
+                                requested_watch = block2["input"]
                 except Exception as e:
                     log.error(f"Search entities: {e}")
                     text_response = f"Search error: {e}"
             elif block["type"] == "tool_use" and block["name"] == "ha_create_automation":
-                automation_demandee = block["input"]
+                requested_automation = block["input"]
             elif block["type"] == "tool_use" and block["name"] == "ha_create_watch":
-                watch_demandee = block["input"]
+                requested_watch = block["input"]
 
         add_history("user", user_message)
 
@@ -2450,11 +2526,22 @@ AUTOMATIONS:
             action_label = LABELS.get(service, service)
             entity_short = entity_id.split(".", 1)[1].replace("_", " ").title() if "." in entity_id else entity_id
 
-            confirm_msg = f"🔧 ACTION REQUESTED\n━━━━━━━━━━━━━━━━━━\n"
-            confirm_msg += f"{action_label} → {entity_short}\n"
-            confirm_msg += f"({domain}.{service} on {entity_id})"
+            confirm_msg = f"Confirm action?\n{action_label}: {entity_short}"
             if data:
-                confirm_msg += f"\nParameters: {json.dumps(data)}"
+                friendly_params = []
+                if "brightness_pct" in data:
+                    friendly_params.append(f"brightness {data['brightness_pct']}%")
+                if "brightness" in data:
+                    try:
+                        friendly_params.append(f"brightness {round(float(data['brightness']) / 255 * 100)}%")
+                    except Exception:
+                        friendly_params.append(f"brightness {data['brightness']}")
+                if "temperature" in data:
+                    friendly_params.append(f"temperature {data['temperature']}")
+                if "hvac_mode" in data:
+                    friendly_params.append(f"mode {data['hvac_mode']}")
+                confirm_msg += "\n" + (", ".join(friendly_params) if friendly_params else json.dumps(data))
+            confirm_msg += f"\n{entity_id}"
 
             buttons = [
                 {"text": "✅ Confirm", "callback_data": "ha_action:confirm"},
@@ -2464,13 +2551,13 @@ AUTOMATIONS:
             add_history("assistant", f"[ACTION] {action_label} {entity_short}")
             return ""
 
-        if watch_demandee:
+        if requested_watch:
             try:
-                pattern = watch_demandee.get("entity_pattern", "")
-                condition = watch_demandee.get("condition", "")
-                state_value = watch_demandee.get("state_value", "")
-                message = watch_demandee.get("message", "")
-                cooldown = watch_demandee.get("cooldown_min", 60)
+                pattern = requested_watch.get("entity_pattern", "")
+                condition = requested_watch.get("condition", "")
+                state_value = requested_watch.get("state_value", "")
+                message = requested_watch.get("message", "")
+                cooldown = requested_watch.get("cooldown_min", 60)
 
                 conn = sqlite3.connect(DB_PATH)
                 conn.execute(
@@ -2481,13 +2568,12 @@ AUTOMATIONS:
                 conn.commit()
                 conn.close()
 
-                confirm = f"✅ Alert created\n━━━━━━━━━━━━━━━━━━\n"
-                confirm += f"📡 Watching: {pattern}\n"
-                confirm += f"🔍 Condition: {condition}"
+                confirm = f"✅ Monitoring enabled\n{pattern}\nCondition: {condition}"
                 if state_value:
                     confirm += f" {state_value}"
-                confirm += f"\n💬 Message: {message}\n"
-                confirm += f"⏱️ Cooldown: {cooldown} min"
+                if message:
+                    confirm += f"\nAlert: {message}"
+                confirm += f"\nCooldown: {cooldown} min"
                 telegram_send(confirm)
                 add_history("assistant", f"[WATCH] {pattern} → {condition}")
                 log.info(f"✅ Watch created: {pattern} {condition} {state_value}")
@@ -2496,23 +2582,23 @@ AUTOMATIONS:
                 log.error(f"❌ Watch creation: {e}")
                 return f"❌ Alert creation error: {str(e)[:100]}"
 
-        if automation_demandee:
+        if requested_automation:
             try:
-                alias = automation_demandee.get("alias", "AI Companion Auto")
+                alias = requested_automation.get("alias", "AI Companion Auto")
                 auto_data = {
                     "alias": alias,
-                    "description": automation_demandee.get("description", "Created by AI Companion"),
-                    "trigger": automation_demandee.get("trigger", []),
-                    "condition": automation_demandee.get("condition", []),
-                    "action": automation_demandee.get("action", []),
-                    "mode": automation_demandee.get("mode", "single"),
+                    "description": requested_automation.get("description", "Created by AI Companion"),
+                    "trigger": requested_automation.get("trigger", []),
+                    "condition": requested_automation.get("condition", []),
+                    "action": requested_automation.get("action", []),
+                    "mode": requested_automation.get("mode", "single"),
                 }
                 # Cancel any previous pending automation
                 mem_set("ha_automation_pending", "")
                 mem_set("ha_automation_pending", json.dumps(auto_data))
 
-                TRAD_PLATFORM = {"numeric_state": "When the value of", "state": "When the state of"}
-                TRAD_SERVICE = {
+                PLATFORM_LABELS = {"numeric_state": "When the value of", "state": "When the state of"}
+                SERVICE_LABELS = {
                     "switch.turn_on": "Activate", "switch.turn_off": "Deactivate",
                     "light.turn_on": "Turn on", "light.turn_off": "Turn off",
                     "cover.open_cover": "Open", "cover.close_cover": "Close",
@@ -2531,7 +2617,7 @@ AUTOMATIONS:
                     above = t.get("above", "")
                     below = t.get("below", "")
                     to_state = t.get("to", "")
-                    translated_label = TRAD_PLATFORM.get(platform, platform)
+                    translated_label = PLATFORM_LABELS.get(platform, platform)
                     if above:
                         msg += f"  • {translated_label} {eid_short} exceeds {above}\n"
                     elif below:
@@ -2548,25 +2634,25 @@ AUTOMATIONS:
                         target = a.get("target", {})
                         eid_a = target.get("entity_id", a.get("entity_id", "")) if isinstance(target, dict) else str(target)
                         eid_short = eid_a.split(".")[-1].replace("_", " ").title() if eid_a else ""
-                        svc_trad = TRAD_SERVICE.get(svc, svc.split(".")[-1].replace("_", " ").title() if svc else "Action")
-                        lines.append(f"  • {svc_trad} {eid_short}")
+                        service_label = SERVICE_LABELS.get(svc, svc.split(".")[-1].replace("_", " ").title() if svc else "Action")
+                        lines.append(f"  • {service_label} {eid_short}")
                     elif "choose" in a:
-                        for choix in a["choose"]:
-                            conds = choix.get("conditions", [])
+                        for choice in a["choose"]:
+                            conds = choice.get("conditions", [])
                             cond_txt = ""
                             for c in conds:
                                 if c.get("id"):
                                     cond_txt = c["id"].replace("_", " ")
-                            for seq in choix.get("sequence", []):
+                            for seq in choice.get("sequence", []):
                                 svc = seq.get("service", "")
                                 target = seq.get("target", {})
                                 eid_a = target.get("entity_id", "") if isinstance(target, dict) else ""
                                 eid_short = eid_a.split(".")[-1].replace("_", " ").title() if eid_a else ""
-                                svc_trad = TRAD_SERVICE.get(svc, svc.split(".")[-1].replace("_", " ").title() if svc else "Action")
+                                service_label = SERVICE_LABELS.get(svc, svc.split(".")[-1].replace("_", " ").title() if svc else "Action")
                                 if cond_txt:
-                                    lines.append(f"  • If {cond_txt} → {svc_trad} {eid_short}")
+                                    lines.append(f"  • If {cond_txt} → {service_label} {eid_short}")
                                 else:
-                                    lines.append(f"  • {svc_trad} {eid_short}")
+                                    lines.append(f"  • {service_label} {eid_short}")
                     elif "delay" in a:
                         lines.append(f"  • Wait {a['delay']}")
                     else:
@@ -2590,7 +2676,9 @@ AUTOMATIONS:
                 return ""
             except Exception as e:
                 log.error(f"Automation pending: {e}")
-                add_history("assistant", text_response)
+        text_response = _clean_chat_response(text_response, user_message)
+        if text_response:
+            add_history("assistant", text_response)
         return text_response
     except Exception as e:
         log.error(f"❌ LLM API error: {e}")
@@ -2654,7 +2742,7 @@ def transcribe_voice(file_id):
                             return text
             except json.JSONDecodeError:
                 continue
-        log.warning("Voice: Google n'a not reconnu of text")
+        log.warning("Voice: Google did not recognize any text")
         return None
     except Exception as e:
         log.error(f"Voice: {e}")

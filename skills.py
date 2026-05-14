@@ -6146,11 +6146,11 @@ def cmd_energy(detail=False):
             if str(ecu_inv) != str(ecu_inv_on):
                 is_day = ha_is_day(states)
                 if not is_day or (ecu_w in ("0", "?") and str(ecu_inv_on) in ("0", "1")):
-                    report += f"  🌙 Ingreenrs : {ecu_inv_on}/{ecu_inv} (standby night)\n"
+                    report += f"  🌙 Inverters: {ecu_inv_on}/{ecu_inv} (night standby)\n"
                 else:
-                    report += f"  🚨 Ingreenrs : {ecu_inv_on}/{ecu_inv} online\n"
+                    report += f"  🚨 Inverters: {ecu_inv_on}/{ecu_inv} online\n"
             else:
-                report += f"  ✅ Ingreenrs : {ecu_inv_on}/{ecu_inv} online\n"
+                report += f"  ✅ Inverters: {ecu_inv_on}/{ecu_inv} online\n"
 
     if _has_battery:
         report += "\n🔋 BATTERY\n"
@@ -7352,7 +7352,7 @@ def cmd_clean_carto():
                 modifications += 1
             continue
 
-        # Ingreenrs individuels (frequency, voltage, signal) → ignore
+        # Individual inverters with frequency, voltage, or signal sensors are ignored.
         if "inverter_" in eid_low and any(k in eid_low for k in ["frequency", "voltage", "signal"]):
             conn.execute("UPDATE entity_map SET category='ignore' WHERE entity_id=?", (eid,))
             modifications += 1
