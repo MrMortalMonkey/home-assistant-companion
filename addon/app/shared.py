@@ -1936,6 +1936,10 @@ def ha_get(endpoint, _retries=2, _delay=5):
 
 
 def ha_post(endpoint, data):
+    # Guard Home Assistant configuration writes behind explicit user consent.
+    if endpoint.startswith("config/") and mem_get("ha_config_write_consent", "") != "yes":
+        log.warning(f"⛔ Blocked HA config write without consent: {endpoint}")
+        return None
     url = f"{CFG['ha_url']}/api/{endpoint}"
     headers = {"Authorization": f"Bearer {CFG['ha_token']}", "Content-Type": "application/json"}
     try:
@@ -2395,6 +2399,33 @@ def _tool_result_messages(messages, tool_block, tool_input, tool_result):
     ]
 
 
+def _queue_watch_confirmation(pattern, condition, state_value, message, cooldown):
+    """Queue a watch request and ask the user to confirm before creating it."""
+    payload = {
+        "entity_pattern": pattern,
+        "condition": condition,
+        "state_value": state_value or "",
+        "message": message or "",
+        "cooldown_min": int(cooldown or 60),
+    }
+    mem_set("ha_watch_pending", json.dumps(payload))
+    preview = [
+        "Confirm monitor?",
+        f"Target: {pattern}",
+        f"Condition: {condition}{' ' + str(state_value) if state_value else ''}",
+        f"Cooldown: {int(cooldown or 60)} min",
+    ]
+    if message:
+        preview.append(f"Alert: {message}")
+    telegram_send_buttons(
+        "\n".join(preview),
+        [
+            {"text": "✅ Confirm", "callback_data": "ha_watch:confirm"},
+            {"text": "❌ Cancel", "callback_data": "ha_watch:cancel"},
+        ],
+    )
+
+
 def call_llm(user_message, context_ha=None):
     call_llm._search_count = 0
     if not check_budget():
@@ -2586,24 +2617,9 @@ AUTOMATIONS:
                 message = requested_watch.get("message", "")
                 cooldown = requested_watch.get("cooldown_min", 60)
 
-                conn = sqlite3.connect(DB_PATH)
-                conn.execute(
-                    "INSERT INTO watches (entity_pattern, condition, state_value, message, cooldown_min, created_at) "
-                    "VALUES (?, ?, ?, ?, ?, ?)",
-                    (pattern, condition, state_value, message, cooldown, datetime.now().isoformat())
-                )
-                conn.commit()
-                conn.close()
-
-                confirm = f"✅ Monitoring enabled\n{pattern}\nCondition: {condition}"
-                if state_value:
-                    confirm += f" {state_value}"
-                if message:
-                    confirm += f"\nAlert: {message}"
-                confirm += f"\nCooldown: {cooldown} min"
-                telegram_send(confirm)
-                add_history("assistant", f"[WATCH] {pattern} → {condition}")
-                log.info(f"✅ Watch created: {pattern} {condition} {state_value}")
+                _queue_watch_confirmation(pattern, condition, state_value, message, cooldown)
+                add_history("assistant", f"[WATCH_PENDING] {pattern} → {condition}")
+                log.info(f"✅ Watch confirmation requested: {pattern} {condition} {state_value}")
                 return ""
             except Exception as e:
                 log.error(f"❌ Watch creation: {e}")

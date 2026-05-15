@@ -1752,6 +1752,33 @@ def _ha_confirm_action(domain, service, entity_ids, data=None):
     return ""
 
 
+def _ha_queue_watch_request(entity_pattern, condition, state_value, message, cooldown_min):
+    payload = {
+        "entity_pattern": entity_pattern,
+        "condition": condition,
+        "state_value": str(state_value or ""),
+        "message": message or "",
+        "cooldown_min": int(cooldown_min or 60),
+    }
+    mem_set("ha_watch_pending", json.dumps(payload))
+    preview = [
+        "Confirm monitor?",
+        f"Target: {entity_pattern}",
+        f"Condition: {condition}{' ' + str(state_value) if state_value else ''}",
+        f"Cooldown: {int(cooldown_min or 60)} min",
+    ]
+    if message:
+        preview.append(f"Alert: {message}")
+    telegram_send_buttons(
+        "\n".join(preview),
+        [
+            {"text": "✅ Confirm", "callback_data": "ha_watch:confirm"},
+            {"text": "❌ Cancel", "callback_data": "ha_watch:cancel"},
+        ],
+    )
+    return ""
+
+
 def _ha_direct_action(text):
     t = text.strip()
     low = t.lower().strip().rstrip(".")
@@ -1916,15 +1943,8 @@ def _ha_open_too_long_watch(text):
     entity = matches[0][1]
     eid = entity["entity_id"]
     message = f"{_ha_entity_label(entity)} has been open for {duration} minutes."
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute(
-        "INSERT INTO watches (entity_pattern, condition, state_value, message, cooldown_min, created_at) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (eid, "open_for", str(duration), message, max(duration, 30), datetime.now().isoformat())
-    )
-    conn.commit()
-    conn.close()
-    return f"Monitoring enabled: {_ha_entity_label(entity)} open for more than {duration} minutes."
+    _ha_queue_watch_request(eid, "open_for", str(duration), message, max(duration, 30))
+    return ""
 
 
 def _ha_native_response(text):
@@ -1975,7 +1995,11 @@ def handle_callback(callback_query):
                 mem_set("ha_automation_pending", "")
                 return
 
-            result = ha_post(f"config/automation/config/{auto_id}", auto_data)
+            mem_set("ha_config_write_consent", "yes")
+            try:
+                result = ha_post(f"config/automation/config/{auto_id}", auto_data)
+            finally:
+                mem_set("ha_config_write_consent", "")
             mem_set("ha_automation_pending", "")
             if result is not None:
                 telegram_send(f"✅ Automation created: {alias}")
@@ -2007,6 +2031,40 @@ def handle_callback(callback_query):
     if data == "ha_action:cancel":
         mem_set("ha_action_pending", "")
         telegram_send("❌ Action cancelled.")
+        return
+
+    if data == "ha_watch:confirm":
+        pending_watch = mem_get("ha_watch_pending", "")
+        if not pending_watch:
+            telegram_send("⚠️ No monitor request is pending.")
+            return
+        try:
+            watch = json.loads(pending_watch)
+            conn = sqlite3.connect(DB_PATH)
+            conn.execute(
+                "INSERT INTO watches (entity_pattern, condition, state_value, message, cooldown_min, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    watch.get("entity_pattern", ""),
+                    watch.get("condition", ""),
+                    str(watch.get("state_value", "")),
+                    watch.get("message", ""),
+                    int(watch.get("cooldown_min", 60)),
+                    datetime.now().isoformat(),
+                ),
+            )
+            conn.commit()
+            conn.close()
+            mem_set("ha_watch_pending", "")
+            telegram_send("✅ Monitoring rule created.")
+        except Exception as ex:
+            log.error(f"Watch confirm: {ex}")
+            telegram_send(f"❌ Monitor creation failed: {str(ex)[:120]}")
+        return
+
+    if data == "ha_watch:cancel":
+        mem_set("ha_watch_pending", "")
+        telegram_send("❌ Monitor creation cancelled.")
         return
 
     # ═══ WIZARD CALLBACKS ═══
@@ -7714,7 +7772,6 @@ Available commands:
 /ai             → Execute autonomous AI helper
 
 Free-form chat → Ask for Home Assistant actions, monitoring, or analysis."""
-    send_email("[AI Companion] Documentation", doc)
     return doc
 
 
