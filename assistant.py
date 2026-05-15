@@ -16,6 +16,7 @@ from skills import (
     _detect_water_leak,
     _detect_vacation_mode,
     _detect_internet_outage,
+    _check_dynamic_watches,
     _heartbeat_observe,
     _monitoring_deploy_server,
     _notif_tempo_ejp,
@@ -756,6 +757,7 @@ def monitoring_core():
                     _alert_zigbee_device_mort,
                     _heartbeat_observe,
                     _check_voice_scripts,
+                    _check_dynamic_watches,
                 ):
                     try:
                         fn(index, now)

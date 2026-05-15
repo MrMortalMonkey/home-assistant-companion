@@ -1587,7 +1587,10 @@ def _execute_pending_ha_action():
 
         mem_set("ha_action_pending", "")
 
-        entity_short = entity_id.split(".", 1)[1].replace("_", " ").title() if "." in entity_id else entity_id
+        if isinstance(entity_id, list):
+            entity_short = f"{len(entity_id)} entities"
+        else:
+            entity_short = entity_id.split(".", 1)[1].replace("_", " ").title() if "." in entity_id else entity_id
         if result is not None:
             log.info(f"✅ HA action: {domain}/{service} on {entity_id}")
             return f"✅ Done: {entity_short}"
@@ -1596,6 +1599,349 @@ def _execute_pending_ha_action():
         log.error(f"❌ HA action error: {e}")
         mem_set("ha_action_pending", "")
         return f"❌ HA action error: {str(e)[:100]}"
+
+
+def _ha_text_key(value):
+    return re.sub(r"[^a-z0-9]+", " ", str(value or "").lower()).strip()
+
+
+def _ha_area_lookup():
+    try:
+        entity_areas = ha_get_entity_areas()
+        area_names = ha_get_areas_mapping()
+        return {eid: area_names.get(area_id, area_id) for eid, area_id in entity_areas.items()}
+    except Exception as ex:
+        log.debug(f"HA area lookup: {ex}")
+        return {}
+
+
+def _ha_entity_label(entity):
+    return entity.get("attributes", {}).get("friendly_name") or entity.get("entity_id", "")
+
+
+def _ha_find_entities(query, domains=None, states=None, limit=20):
+    """Find entities by natural name, area, friendly name, or entity_id."""
+    states = states or ha_get("states") or []
+    area_by_entity = _ha_area_lookup()
+    domains = set(domains or [])
+    q_raw = str(query or "").strip()
+    q = _ha_text_key(q_raw)
+    stop = {
+        "the", "a", "an", "please", "can", "you", "would", "will", "turn", "switch",
+        "toggle", "set", "to", "at", "on", "off", "entity", "entities", "device",
+        "devices", "status", "state", "room", "area", "lights", "light",
+    }
+    tokens = [t for t in q.split() if t and t not in stop]
+    scored = []
+
+    for entity in states:
+        eid = entity.get("entity_id", "")
+        domain = eid.split(".", 1)[0] if "." in eid else ""
+        if domains and domain not in domains:
+            continue
+
+        friendly = _ha_entity_label(entity)
+        area = area_by_entity.get(eid, "")
+        hay = _ha_text_key(f"{eid} {friendly} {area}")
+        score = 0
+
+        if q and q in hay:
+            score += 60
+        if q and _ha_text_key(eid) == q:
+            score += 120
+        if tokens and all(tok in hay for tok in tokens):
+            score += 80
+        score += sum(8 for tok in tokens if tok in hay)
+        if area and _ha_text_key(area) in q:
+            score += 25
+        if "light" in q and domain == "light":
+            score += 12
+        if "gate" in q and domain in ("binary_sensor", "cover", "lock"):
+            score += 12
+        if "energy" in q and domain == "sensor":
+            score += 8
+
+        if score > 0:
+            scored.append((score, entity, area))
+
+    scored.sort(key=lambda item: item[0], reverse=True)
+    return scored[:limit]
+
+
+def _ha_open_states_for_entity(entity_id):
+    domain = entity_id.split(".", 1)[0] if "." in entity_id else ""
+    if domain == "binary_sensor":
+        return {"on", "open", "opened"}
+    if domain == "cover":
+        return {"open", "opening"}
+    if domain == "lock":
+        return {"unlocked"}
+    return {"on", "open", "opened", "unlocked"}
+
+
+def _ha_history(entity_id, start_dt=None, end_dt=None):
+    start_dt = start_dt or datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    end_dt = end_dt or datetime.now()
+    url = f"{CFG['ha_url']}/api/history/period/{start_dt.isoformat()}"
+    headers = {"Authorization": f"Bearer {CFG['ha_token']}"}
+    params = {
+        "filter_entity_id": entity_id,
+        "end_time": end_dt.isoformat(),
+        "minimal_response": "",
+        "no_attributes": "",
+    }
+    try:
+        r = requests.get(url, headers=headers, params=params, verify=False, timeout=20)
+        if r.status_code != 200:
+            log.warning(f"HA history {entity_id}: HTTP {r.status_code}")
+            return []
+        payload = r.json()
+        if payload and isinstance(payload, list) and isinstance(payload[0], list):
+            return payload[0]
+    except Exception as ex:
+        log.debug(f"HA history {entity_id}: {ex}")
+    return []
+
+
+def _history_delta_numeric(entity_id):
+    rows = _ha_history(entity_id)
+    values = []
+    for row in rows:
+        try:
+            values.append(float(str(row.get("state")).replace(",", ".")))
+        except Exception:
+            continue
+    if len(values) < 2:
+        return None
+    return max(0.0, values[-1] - values[0])
+
+
+def _ha_confirm_action(domain, service, entity_ids, data=None):
+    if isinstance(entity_ids, str):
+        entity_ids = [entity_ids]
+    entity_payload = entity_ids[0] if len(entity_ids) == 1 else entity_ids
+    data = data or {}
+    mem_set("ha_action_pending", json.dumps({
+        "domain": domain,
+        "service": service,
+        "entity_id": entity_payload,
+        "data": data,
+    }))
+
+    names = []
+    states = ha_get("states") or []
+    by_id = {e.get("entity_id"): e for e in states}
+    for eid in entity_ids[:5]:
+        names.append(_ha_entity_label(by_id.get(eid, {"entity_id": eid})))
+    label = ", ".join(names)
+    if len(entity_ids) > 5:
+        label += f", +{len(entity_ids) - 5} more"
+
+    action = service.replace("_", " ")
+    msg = f"Confirm action?\n{action.title()}: {label}"
+    if data:
+        if "brightness_pct" in data:
+            msg += f"\nBrightness: {data['brightness_pct']}%"
+        else:
+            msg += f"\nData: {json.dumps(data)}"
+    msg += "\n" + (entity_ids[0] if len(entity_ids) == 1 else f"{len(entity_ids)} entities")
+    telegram_send_buttons(msg, [
+        {"text": "✅ Confirm", "callback_data": "ha_action:confirm"},
+        {"text": "❌ Cancel", "callback_data": "ha_action:cancel"},
+    ])
+    return ""
+
+
+def _ha_direct_action(text):
+    t = text.strip()
+    low = t.lower().strip().rstrip(".")
+    match = re.match(r"^(turn|switch)\s+(on|off)\s+(.+)$", low)
+    if not match:
+        match = re.match(r"^(toggle)\s+(.+)$", low)
+        if not match:
+            return None
+        action = "toggle"
+        target = match.group(2)
+    else:
+        action = match.group(2)
+        target = match.group(3)
+
+    brightness = None
+    bright_match = re.search(r"\b(?:to|at)\s+(\d{1,3})\s*%?\b", target)
+    if bright_match:
+        brightness = max(1, min(100, int(bright_match.group(1))))
+        target = target[:bright_match.start()].strip()
+
+    domains = ["light"] if "light" in target else ["light", "switch", "fan", "cover", "lock"]
+    matches = _ha_find_entities(target, domains=domains, limit=12)
+    if not matches:
+        return None
+
+    best_score = matches[0][0]
+    selected = [entity for score, entity, _ in matches if score >= max(50, best_score - 10)]
+    if "light" in target:
+        selected = [e for e in selected if e["entity_id"].startswith("light.")]
+    if not selected:
+        selected = [matches[0][1]]
+
+    domain = selected[0]["entity_id"].split(".", 1)[0]
+    service = {"on": "turn_on", "off": "turn_off", "toggle": "toggle"}[action]
+    data = {}
+    if brightness and domain == "light" and service == "turn_on":
+        data["brightness_pct"] = brightness
+    return _ha_confirm_action(domain, service, [e["entity_id"] for e in selected], data)
+
+
+def _ha_entities_in_area_response(text):
+    low = text.lower()
+    if "entities" not in low and "devices" not in low:
+        return None
+    area_match = re.search(r"\b(?:in|inside)\s+(?:the\s+)?(.+?)(?:\?|$)", low)
+    if area_match:
+        area_query = area_match.group(1).strip()
+    else:
+        before_entities = re.search(r"\bwhat\s+(.+?)\s+(?:entities|devices)\b", low)
+        if before_entities:
+            area_query = before_entities.group(1).strip()
+        else:
+            area_query = low
+            for phrase in ("what", "entities", "devices", "can you see", "do you see", "are there"):
+                area_query = area_query.replace(phrase, "")
+            area_query = area_query.strip()
+    area_query = area_query.strip(" ?.")
+    if not area_query:
+        return None
+
+    states = ha_get("states") or []
+    area_by_entity = _ha_area_lookup()
+    area_key = _ha_text_key(area_query)
+    rows = []
+    for entity in states:
+        eid = entity.get("entity_id", "")
+        area = area_by_entity.get(eid, "")
+        if area and area_key in _ha_text_key(area):
+            friendly = _ha_entity_label(entity)
+            unit = entity.get("attributes", {}).get("unit_of_measurement", "")
+            value = f"{entity.get('state', '?')} {unit}".strip()
+            rows.append((eid, friendly, value))
+
+    if not rows:
+        return f"I could not find entities in an area matching '{area_query}'."
+    rows.sort(key=lambda item: item[0])
+    lines = [f"I can see {len(rows)} entities in {area_query.title()}:"]
+    for eid, friendly, value in rows[:30]:
+        lines.append(f"- {eid}: {value} ({friendly})")
+    if len(rows) > 30:
+        lines.append(f"...and {len(rows) - 30} more.")
+    return "\n".join(lines)
+
+
+def _ha_open_count_today_response(text):
+    low = text.lower()
+    if "how many times" not in low or "open" not in low or "today" not in low:
+        return None
+    target = low
+    target = re.sub(r"how many times (?:was|did|has|have)?", "", target)
+    target = target.replace("opened today", "").replace("open today", "").replace("was", "")
+    target = target.strip(" ?.")
+    matches = _ha_find_entities(target, domains=["binary_sensor", "cover", "lock"], limit=5)
+    if not matches:
+        return f"I could not find a gate/door entity matching '{target}'."
+    entity = matches[0][1]
+    eid = entity["entity_id"]
+    open_states = _ha_open_states_for_entity(eid)
+    rows = _ha_history(eid)
+    count = 0
+    previous_open = False
+    for row in rows:
+        state_open = str(row.get("state", "")).lower() in open_states
+        if state_open and not previous_open:
+            count += 1
+        previous_open = state_open
+    current = entity.get("state", "?")
+    return f"{_ha_entity_label(entity)} opened {count} time(s) today. Current state: {current}."
+
+
+def _ha_energy_today_response(text):
+    low = text.lower()
+    if "energy" not in low or "today" not in low:
+        return None
+    target = low
+    target = re.sub(r"how much energy (?:did|has|have)?", "", target)
+    target = target.replace("use today", "").replace("used today", "").replace("usage today", "")
+    target = target.replace("current daily energy usage", "energy").strip(" ?.")
+    states = ha_get("states") or []
+    candidates = []
+    for score, entity, area in _ha_find_entities(target, domains=["sensor"], states=states, limit=25):
+        attrs = entity.get("attributes", {})
+        unit = str(attrs.get("unit_of_measurement", "")).lower()
+        device_class = str(attrs.get("device_class", "")).lower()
+        name_key = _ha_text_key(f"{entity.get('entity_id')} {_ha_entity_label(entity)}")
+        if device_class == "energy" or unit in ("kwh", "wh", "mwh"):
+            if not any(word in name_key for word in ("cost", "price", "voltage", "current")):
+                candidates.append((score, entity, unit))
+    if not candidates:
+        return f"I could not find a matching energy sensor for '{target}'."
+
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    entity = candidates[0][1]
+    unit = candidates[0][2] or str(entity.get("attributes", {}).get("unit_of_measurement", ""))
+    delta = _history_delta_numeric(entity["entity_id"])
+    if delta is None:
+        return f"I found {_ha_entity_label(entity)} ({entity['entity_id']}), but Home Assistant history did not return enough data for today."
+    display_delta = delta / 1000 if unit == "wh" else delta
+    display_unit = "kWh" if unit == "wh" else (unit or "kWh")
+    return f"{_ha_entity_label(entity)} used {display_delta:.2f} {display_unit} today, based on {entity['entity_id']} history."
+
+
+def _ha_open_too_long_watch(text):
+    low = text.lower()
+    if not any(word in low for word in ("notify", "alert", "tell me")):
+        return None
+    if "open" not in low or not any(phrase in low for phrase in ("too long", "longer than", "more than", "over ")):
+        return None
+    duration = 10
+    match = re.search(r"(\d+)\s*(minute|minutes|min|hour|hours|hr|hrs)", low)
+    if match:
+        duration = int(match.group(1))
+        if match.group(2).startswith(("hour", "hr")):
+            duration *= 60
+    target = low
+    target = re.sub(r"^(notify|alert|tell)\s+me\s+(if|when)?", "", target).strip()
+    target = re.sub(r"\b(is|was|stays|stayed|has been|for|more than|longer than|over|too long|open|opened)\b", " ", target)
+    target = re.sub(r"\d+\s*(minute|minutes|min|hour|hours|hr|hrs)", " ", target).strip()
+    matches = _ha_find_entities(target, domains=["binary_sensor", "cover", "lock"], limit=5)
+    if not matches:
+        return f"I could not find a gate/door entity matching '{target}'."
+    entity = matches[0][1]
+    eid = entity["entity_id"]
+    message = f"{_ha_entity_label(entity)} has been open for {duration} minutes."
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute(
+        "INSERT INTO watches (entity_pattern, condition, state_value, message, cooldown_min, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (eid, "open_for", str(duration), message, max(duration, 30), datetime.now().isoformat())
+    )
+    conn.commit()
+    conn.close()
+    return f"Monitoring enabled: {_ha_entity_label(entity)} open for more than {duration} minutes."
+
+
+def _ha_native_response(text):
+    for handler in (
+        _ha_direct_action,
+        _ha_entities_in_area_response,
+        _ha_open_count_today_response,
+        _ha_energy_today_response,
+        _ha_open_too_long_watch,
+    ):
+        try:
+            response = handler(text)
+            if response is not None:
+                return response
+        except Exception as ex:
+            log.debug(f"{handler.__name__}: {ex}")
+    return None
 
 
 def handle_callback(callback_query):
@@ -4647,6 +4993,92 @@ def baseline_detect_anomalies(states):
     except Exception as ex:
         log.debug(f"baseline_detect_anomalies: {ex}")
         return []
+
+
+def _watch_condition_met(entity, condition, state_value):
+    state = str(entity.get("state", "")).lower()
+    condition = str(condition or "").lower()
+    target = str(state_value or "").lower()
+    if condition in ("unavailable", "offline"):
+        return state in ("unavailable", "unknown", "offline")
+    if condition == "equals":
+        return state == target
+    if condition == "not_equals":
+        return state != target
+    if condition in ("above", "below"):
+        try:
+            value = float(str(entity.get("state")).replace(",", "."))
+            threshold = float(str(state_value).replace(",", "."))
+            return value > threshold if condition == "above" else value < threshold
+        except Exception:
+            return False
+    return False
+
+
+def _check_dynamic_watches(index, now):
+    """Evaluate user-created watches against live Home Assistant state."""
+    try:
+        import fnmatch
+        conn = sqlite3.connect(DB_PATH)
+        watches = conn.execute(
+            "SELECT id, entity_pattern, condition, state_value, message, cooldown_min, last_triggered "
+            "FROM watches WHERE active=1"
+        ).fetchall()
+        for watch_id, pattern, condition, state_value, message, cooldown, last_triggered in watches:
+            matched = [
+                (eid, entity) for eid, entity in index.items()
+                if eid == pattern or fnmatch.fnmatch(eid, pattern)
+            ]
+            for eid, entity in matched:
+                triggered = False
+                condition_key = str(condition or "").lower()
+                if condition_key == "open_for":
+                    open_states = _ha_open_states_for_entity(eid)
+                    open_now = str(entity.get("state", "")).lower() in open_states
+                    mem_key = f"watch_open_since_{watch_id}_{eid}"
+                    if open_now:
+                        opened_at = mem_get(mem_key)
+                        if not opened_at:
+                            mem_set(mem_key, now.isoformat())
+                        else:
+                            try:
+                                minutes = int(float(state_value or 10))
+                                opened_dt = datetime.fromisoformat(opened_at[:19])
+                                triggered = (now - opened_dt).total_seconds() >= minutes * 60
+                            except Exception:
+                                triggered = False
+                    else:
+                        mem_set(mem_key, "")
+                else:
+                    triggered = _watch_condition_met(entity, condition, state_value)
+
+                if not triggered:
+                    continue
+
+                if last_triggered:
+                    try:
+                        last_dt = datetime.fromisoformat(last_triggered[:19])
+                        if (now - last_dt).total_seconds() < int(cooldown or 60) * 60:
+                            continue
+                    except Exception:
+                        pass
+
+                friendly = _ha_entity_label(entity)
+                alert = (message or "{friendly_name} matched watch condition").format(
+                    entity_id=eid,
+                    state=entity.get("state", "?"),
+                    friendly_name=friendly,
+                )
+                telegram_send(f"🔔 {alert}")
+                conn.execute(
+                    "UPDATE watches SET last_triggered=? WHERE id=?",
+                    (now.isoformat(), watch_id),
+                )
+                last_triggered = now.isoformat()
+        conn.commit()
+        conn.close()
+    except Exception as ex:
+        log.debug(f"Dynamic watches: {ex}")
 
 
 def _cycle_intelligence(states, index, now):
@@ -9448,6 +9880,10 @@ def handle_message(text):
         "kwh today",
     )):
         return cmd_energy()
+
+    native_response = _ha_native_response(text)
+    if native_response is not None:
+        return native_response
 
     # Command /problem → auto-correction (with or without description)
     if t in ("problem", "problem"):
