@@ -2470,11 +2470,14 @@ def _format_ha_search_result(search_input):
     area_key = _text_key(area_filter)
     results = []
     scanned = 0
+    domain_counts = {}
 
     for entity in all_states:
         eid = entity.get("entity_id", "")
         if not eid:
             continue
+        domain = eid.split(".", 1)[0] if "." in eid else "unknown"
+        domain_counts[domain] = domain_counts.get(domain, 0) + 1
         scanned += 1
         if domain_filter and not eid.startswith(domain_filter + "."):
             continue
@@ -2517,10 +2520,13 @@ def _format_ha_search_result(search_input):
         if len(results) >= limit:
             break
 
+    counts_sorted = sorted(domain_counts.items(), key=lambda x: x[1], reverse=True)
+    counts_summary = ", ".join(f"{d}:{n}" for d, n in counts_sorted[:12])
     header = (
         f"HA search results: {len(results)} row(s), "
         f"domain={domain_filter or '*'}, area={area_filter or '*'}, keyword={keyword or '*'}, "
-        f"scanned={scanned} entities"
+        f"scanned={scanned} entities\n"
+        f"domain inventory: {counts_summary}"
     )
     if not results:
         return header + "\nNo matching entity found."

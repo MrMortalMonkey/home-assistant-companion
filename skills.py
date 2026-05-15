@@ -1607,6 +1607,11 @@ def _ha_text_key(value):
 
 def _ha_area_lookup():
     try:
+        if shared._entity_areas and shared._areas_id_to_name:
+            return {
+                eid: shared._areas_id_to_name.get(area_id, area_id)
+                for eid, area_id in shared._entity_areas.items()
+            }
         entity_areas = ha_get_entity_areas()
         area_names = ha_get_areas_mapping()
         return {eid: area_names.get(area_id, area_id) for eid, area_id in entity_areas.items()}
@@ -1791,9 +1796,53 @@ def _ha_direct_action(text):
     return _ha_confirm_action(domain, service, [e["entity_id"] for e in selected], data)
 
 
+def _ha_offline_entities_response(text):
+    low = (text or "").lower()
+    if not any(k in low for k in ("offline", "unavailable", "down", "not responding")):
+        return None
+
+    states = ha_get("states") or []
+    offline_states = {"unavailable", "unknown", "offline"}
+    rows = []
+    for entity in states:
+        state = str(entity.get("state", "")).lower()
+        if state not in offline_states:
+            continue
+        eid = entity.get("entity_id", "")
+        attrs = entity.get("attributes", {})
+        friendly = attrs.get("friendly_name", eid)
+        room = ha_get_area(eid)
+        text_blob = _ha_text_key(f"{eid} {friendly} {room}")
+        if "zigbee" in low and not any(k in text_blob for k in ("zigbee", "z2m", "zha")):
+            continue
+        rows.append((eid, friendly, room, state))
+
+    if not rows:
+        if "zigbee" in low:
+            return "I do not see any offline Zigbee entities right now."
+        return "I do not see any offline entities right now."
+
+    if any(k in low for k in ("how many", "count")):
+        if "zigbee" in low:
+            return f"{len(rows)} Zigbee entities are currently offline."
+        return f"{len(rows)} entities are currently offline."
+
+    rows.sort(key=lambda r: r[0])
+    title = "Offline Zigbee entities" if "zigbee" in low else "Offline entities"
+    lines = [f"{title}: {len(rows)}"]
+    for eid, friendly, room, state in rows[:40]:
+        room_txt = f" [{room}]" if room else ""
+        lines.append(f"- {eid}{room_txt} ({friendly}) = {state}")
+    if len(rows) > 40:
+        lines.append(f"...and {len(rows) - 40} more.")
+    return "\n".join(lines)
+
+
 def _ha_entities_in_area_response(text):
     low = text.lower()
     if "entities" not in low and "devices" not in low:
+        return None
+    if ("offline" in low or "unavailable" in low or "zigbee" in low) and " in " not in low:
         return None
     area_match = re.search(r"\b(?:in|inside)\s+(?:the\s+)?(.+?)(?:\?|$)", low)
     if area_match:
@@ -1922,6 +1971,7 @@ def _ha_open_too_long_watch(text):
 def _ha_native_response(text):
     for handler in (
         _ha_direct_action,
+        _ha_offline_entities_response,
         _ha_entities_in_area_response,
         _ha_open_count_today_response,
         _ha_energy_today_response,
@@ -2622,9 +2672,9 @@ def ha_refresh_areas():
         for eid, current_room, fname in rows:
             new_room = ""
             # Attempt 1: Home Assistant area registry.
-            area_id = _entity_areas.get(eid, "")
+            area_id = shared._entity_areas.get(eid, "")
             if area_id:
-                new_room = _areas_id_to_name.get(area_id, area_id)
+                new_room = shared._areas_id_to_name.get(area_id, area_id)
             # Attempt 2: infer from friendly name.
             if not new_room and fname:
                 fn = fname.lower()
@@ -2645,9 +2695,9 @@ def ha_refresh_areas():
 
 def ha_get_area(entity_id):
     """Returns the readable room name for an entity"""
-    area_id = _entity_areas.get(entity_id, "")
+    area_id = shared._entity_areas.get(entity_id, "")
     if area_id:
-        return _areas_id_to_name.get(area_id, area_id)
+        return shared._areas_id_to_name.get(area_id, area_id)
     return ""
 
 
@@ -2730,27 +2780,25 @@ def ha_get_context_intelligent(question, states=None):
 
     index = {e["entity_id"]: e for e in states}
     categories_available = entity_map_get_all_categories()
-
-    if not categories_available:
-        return _ha_summary_generique(states)
-
-    prompt_detection = (
-        f"Question : \"{question}\"\n"
-        f"Available categories: {', '.join(categories_available)}\n"
-        "List ONLY the relevant categories, comma-separated."
-    )
-
-    try:
-        blocks, t_in, t_out = llm_provider.llm_completion(
-            CFG, [{"role": "user", "content": prompt_detection}],
-            max_tokens=80
+    target_categories = []
+    if categories_available:
+        prompt_detection = (
+            f"Question : \"{question}\"\n"
+            f"Available categories: {', '.join(categories_available)}\n"
+            "List ONLY the relevant categories, comma-separated."
         )
-        log_token_usage(t_in, t_out)
-        response_text = llm_provider.stream_text(blocks)
-        target_categories = [c.strip() for c in response_text.strip().split(",") if c.strip()]
-    except Exception as e:
-        log.error(f"❌ Category detection: {e}")
-        return _ha_summary_generique(states)
+
+        try:
+            blocks, t_in, t_out = llm_provider.llm_completion(
+                CFG, [{"role": "user", "content": prompt_detection}],
+                max_tokens=80
+            )
+            log_token_usage(t_in, t_out)
+            response_text = llm_provider.stream_text(blocks)
+            target_categories = [c.strip() for c in response_text.strip().split(",") if c.strip()]
+        except Exception as e:
+            log.error(f"❌ Category detection: {e}")
+            target_categories = []
 
     lines = []
     for cat in target_categories:
@@ -2763,6 +2811,71 @@ def ha_get_context_intelligent(question, states=None):
                 lines.append(f"{entity_id}{room_str} = {e['state']} {unit}".strip())
 
     q_low = str(question or "").lower()
+
+    # Domain-focused scope expansion (automations, scenes, entities, etc.)
+    domain_keywords = {
+        "automation": ["automation", "automations", "routine", "routines"],
+        "scene": ["scene", "scenes"],
+        "script": ["script", "scripts"],
+        "light": ["light", "lights", "lamp", "lamps"],
+        "switch": ["switch", "switches", "outlet", "outlets"],
+        "cover": ["cover", "covers", "blind", "blinds", "shade", "shades", "gate", "garage"],
+        "lock": ["lock", "locks", "door lock", "deadbolt"],
+        "climate": ["climate", "thermostat", "thermostats", "hvac", "heat pump"],
+        "fan": ["fan", "fans"],
+        "media_player": ["media", "speaker", "tv", "chromecast"],
+        "binary_sensor": ["binary sensor", "contact", "motion", "door", "window", "occupancy"],
+        "sensor": ["sensor", "sensors", "energy", "power", "consumption", "temperature", "humidity"],
+    }
+    hinted_domains = []
+    for domain, keys in domain_keywords.items():
+        if any(k in q_low for k in keys):
+            hinted_domains.append(domain)
+
+    for domain in hinted_domains:
+        added = 0
+        for e in states:
+            eid = e.get("entity_id", "")
+            if not eid.startswith(domain + "."):
+                continue
+            unit = e.get("attributes", {}).get("unit_of_measurement", "")
+            room = ha_get_area(eid)
+            room_txt = f" [{room}]" if room else ""
+            lines.append(f"{eid}{room_txt} = {e.get('state', '?')} {unit}".strip())
+            added += 1
+            if added >= 30:
+                break
+
+    # Query token match against full HA state to improve scope coverage.
+    stop_words = {
+        "the", "a", "an", "please", "can", "you", "would", "will", "turn", "switch", "toggle",
+        "set", "to", "at", "on", "off", "entity", "entities", "device", "devices", "status", "state",
+        "room", "area", "in", "of", "for", "and", "is", "are", "what", "which", "show", "list",
+        "all", "current", "currently", "today",
+    }
+    q_key = _ha_text_key(question or "")
+    q_tokens = [tok for tok in q_key.split() if tok and tok not in stop_words]
+    if q_tokens:
+        scored = []
+        for e in states:
+            eid = e.get("entity_id", "")
+            attrs = e.get("attributes", {})
+            room = ha_get_area(eid)
+            hay = _ha_text_key(f"{eid} {attrs.get('friendly_name', '')} {room}")
+            score = 0
+            if q_key and q_key in hay:
+                score += 70
+            if all(tok in hay for tok in q_tokens):
+                score += 80
+            score += sum(8 for tok in q_tokens if tok in hay)
+            if score > 0:
+                scored.append((score, e, room))
+        scored.sort(key=lambda item: item[0], reverse=True)
+        for score, e, room in scored[:60]:
+            eid = e.get("entity_id", "")
+            unit = e.get("attributes", {}).get("unit_of_measurement", "")
+            room_txt = f" [{room}]" if room else ""
+            lines.append(f"{eid}{room_txt} = {e.get('state', '?')} {unit}".strip())
     include_calendars = any(
         key in q_low
         for key in (
@@ -2818,7 +2931,18 @@ def ha_get_context_intelligent(question, states=None):
     calendar_lines = [l for l in lines if l.startswith("📅")]
     other_lines = [l for l in lines if not l.startswith("📅")]
     ordered_lines = calendar_lines + other_lines
-    context = "Available data:\n" + "\n".join(ordered_lines[:80]) if ordered_lines else _ha_summary_generique(states)
+
+    # Deduplicate while preserving order.
+    deduped = []
+    seen = set()
+    for line in ordered_lines:
+        key = line.strip().lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        deduped.append(line)
+
+    context = "Available data:\n" + "\n".join(deduped[:180]) if deduped else _ha_summary_generique(states)
 
     memory_store_extra = []
 
@@ -3076,16 +3200,49 @@ def ha_get_context_intelligent(question, states=None):
 
 
 def _ha_summary_generique(states):
-    summary = []
-    cats = {"sensor": [], "binary_sensor": [], "switch": [], "climate": [], "automation": []}
+    if not states:
+        return "HA unreachable"
+
+    buckets = {}
     for e in states:
-        d = e["entity_id"].split(".")[0]
-        if d in cats:
-            cats[d].append(f"{e['entity_id']}={e['state']}")
-    for d, items in cats.items():
-        if items:
-            summary.append(f"[{d}] {', '.join(items[:8])}")
-    return "\n".join(summary[:40])
+        eid = e.get("entity_id", "")
+        if "." not in eid:
+            continue
+        domain = eid.split(".", 1)[0]
+        buckets.setdefault(domain, []).append(e)
+
+    priority_domains = [
+        "light", "switch", "climate", "cover", "lock", "fan", "media_player",
+        "vacuum", "scene", "script", "automation", "binary_sensor", "sensor",
+    ]
+    ordered_domains = [d for d in priority_domains if d in buckets]
+    ordered_domains.extend(sorted(d for d in buckets if d not in ordered_domains))
+
+    lines = []
+    for domain in ordered_domains:
+        items = buckets.get(domain, [])
+        if not items:
+            continue
+        lines.append(f"[{domain}] count={len(items)}")
+
+        shown = 0
+        for entity in items:
+            if shown >= 10:
+                break
+            eid = entity.get("entity_id", "")
+            state = entity.get("state", "?")
+            attrs = entity.get("attributes", {})
+            unit = attrs.get("unit_of_measurement", "")
+            room = ha_get_area(eid)
+            room_txt = f" [{room}]" if room else ""
+            lines.append(f"  {eid}{room_txt}={state}{(' ' + str(unit)) if unit else ''}")
+            shown += 1
+
+        remaining = len(items) - shown
+        if remaining > 0:
+            lines.append(f"  ... +{remaining} more")
+
+    return "\n".join(lines[:220])
 
 
 def _match_pattern(entity_id, fname):
@@ -4128,6 +4285,52 @@ def cmd_roi():
     report += f"\n\n💡 The more the AI learns, the higher the ROI."
 
     return report
+
+
+def skill_window_solar(states):
+    """Learn typical solar production by weekday/hour to drive proactive suggestions."""
+    try:
+        if not states:
+            return
+
+        now = datetime.now()
+        # Ignore deep-night slots to avoid noise dominated by zeros.
+        if now.hour < 6 or now.hour > 20:
+            return
+
+        bucket_key = f"{now.strftime('%Y-%m-%d')}-{now.hour}-{now.minute // 15}"
+        if mem_get("window_solar_last_bucket") == bucket_key:
+            return
+        mem_set("window_solar_last_bucket", bucket_key)
+
+        production_w = ha_get_current_solar_production(states)
+        if production_w is None:
+            return
+        production_w = max(0.0, float(production_w))
+
+        data, nb = skill_get("window_solar")
+        if not isinstance(data, dict):
+            data = {}
+
+        day_key = str(now.weekday())
+        hour_key = str(now.hour)
+        day_slots = data.get(day_key, {})
+        slot = day_slots.get(hour_key, [0.0, 0])
+        try:
+            old_avg = float(slot[0])
+            old_count = int(slot[1])
+        except Exception:
+            old_avg = 0.0
+            old_count = 0
+
+        new_count = old_count + 1
+        new_avg = ((old_avg * old_count) + production_w) / new_count
+        day_slots[hour_key] = [round(new_avg, 2), new_count]
+        data[day_key] = day_slots
+
+        skill_set("window_solar", data, (nb or 0) + 1)
+    except Exception as ex:
+        log.debug(f"skill_window_solar: {ex}")
 
 
 def skill_suggestion_machine(states):
@@ -7218,7 +7421,7 @@ def cmd_scan():
     telegram_send("🔍 Home Assistant scan running...")
     try:
         ha_refresh_areas()
-        nb_areas = len(_areas_id_to_name)
+        nb_areas = len(shared._areas_id_to_name)
 
         conn = sqlite3.connect(DB_PATH)
         for sql in [

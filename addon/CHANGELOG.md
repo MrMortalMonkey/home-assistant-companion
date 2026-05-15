@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.13 beta (2026-05-15)
+- Fixed Home Assistant area cache usage in discovery/context paths to improve room/entity scope accuracy
+- Added missing `skill_window_solar` learner to stop recurring monitoring runtime errors
+- Expanded context building to include broader domain/entity coverage (lights, scenes, scripts, automations, sensors, etc.)
+- Added native offline-entity reporting (including Zigbee-focused offline queries)
+- Improved HA search tool output with domain inventory counts for better model-side discovery
+
 ## 0.1.12 beta (2026-05-14)
 - Runtime control actions now execute immediately (no extra confirm step for on/off type actions)
 - Home Assistant configuration changes remain confirmation-gated
