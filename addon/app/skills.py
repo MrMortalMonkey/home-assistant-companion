@@ -2790,45 +2790,56 @@ def ha_get_context_intelligent(question, states=None):
                 room_str = f" [{room}]" if room else ""
                 lines.append(f"{entity_id}{room_str} = {e['state']} {unit}".strip())
 
-    try:
-        now_dt = datetime.now()
-        start_dt = now_dt.strftime("%Y-%m-%dT00:00:00")
-        end_dt = (now_dt + timedelta(hours=72)).strftime("%Y-%m-%dT23:59:59")
-        headers_cal = {"Authorization": f"Bearer {CFG['ha_token']}"}
-        url_cals = f"{CFG['ha_url']}/api/calendars"
+    q_low = str(question or "").lower()
+    include_calendars = any(
+        key in q_low
+        for key in (
+            "calendar", "event", "events", "schedule", "scheduled",
+            "meeting", "appointment", "trash", "garbage", "recycling",
+            "pickup", "collection", "bin day",
+        )
+    )
 
-        r_list = requests.get(url_cals, headers=headers_cal, verify=False, timeout=15)
-        log.debug(f"Calendars API: {r_list.status_code} | {len(r_list.json()) if r_list.status_code == 200 else r_list.text[:100]}")
+    if include_calendars:
+        try:
+            now_dt = datetime.now()
+            start_dt = now_dt.strftime("%Y-%m-%dT00:00:00")
+            end_dt = (now_dt + timedelta(hours=72)).strftime("%Y-%m-%dT23:59:59")
+            headers_cal = {"Authorization": f"Bearer {CFG['ha_token']}"}
+            url_cals = f"{CFG['ha_url']}/api/calendars"
 
-        if r_list.status_code == 200:
-            for cal_info in r_list.json():
-                eid = cal_info.get("entity_id", "")
-                fname = cal_info.get("name", eid)
-                url_ev = f"{CFG['ha_url']}/api/calendars/{eid}?start={start_dt}&end={end_dt}"
-                try:
-                    r_ev = requests.get(url_ev, headers=headers_cal, verify=False, timeout=15)
-                    if r_ev.status_code == 200:
-                        events = r_ev.json()
-                        for ev in events[:5]:
-                            summary = ev.get("summary", "?")
-                            ev_start = ev.get("start", {})
-                            date_str = ev_start.get("dateTime", ev_start.get("date", "?"))
-                            try:
-                                if "T" in str(date_str):
-                                    dt_ev = datetime.fromisoformat(date_str.replace("Z", "+00:00")[:19])
-                                    days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-                                    readable_date = f"{days[dt_ev.weekday()]} {dt_ev.day}/{dt_ev.month} at {dt_ev.hour}:{dt_ev.minute:02d}"
-                                else:
+            r_list = requests.get(url_cals, headers=headers_cal, verify=False, timeout=15)
+            log.debug(f"Calendars API: {r_list.status_code} | {len(r_list.json()) if r_list.status_code == 200 else r_list.text[:100]}")
+
+            if r_list.status_code == 200:
+                for cal_info in r_list.json():
+                    eid = cal_info.get("entity_id", "")
+                    fname = cal_info.get("name", eid)
+                    url_ev = f"{CFG['ha_url']}/api/calendars/{eid}?start={start_dt}&end={end_dt}"
+                    try:
+                        r_ev = requests.get(url_ev, headers=headers_cal, verify=False, timeout=15)
+                        if r_ev.status_code == 200:
+                            events = r_ev.json()
+                            for ev in events[:5]:
+                                summary = ev.get("summary", "?")
+                                ev_start = ev.get("start", {})
+                                date_str = ev_start.get("dateTime", ev_start.get("date", "?"))
+                                try:
+                                    if "T" in str(date_str):
+                                        dt_ev = datetime.fromisoformat(date_str.replace("Z", "+00:00")[:19])
+                                        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+                                        readable_date = f"{days[dt_ev.weekday()]} {dt_ev.day}/{dt_ev.month} at {dt_ev.hour}:{dt_ev.minute:02d}"
+                                    else:
+                                        readable_date = str(date_str)
+                                except Exception:
                                     readable_date = str(date_str)
-                            except Exception:
-                                readable_date = str(date_str)
-                            lines.append(f"📅 CALENDAR {fname}: {summary} — {readable_date}")
-                        if not events:
-                            lines.append(f"📅 CALENDAR {fname}: nothing in the next 72h")
-                except Exception as ex_ev:
-                    log.debug(f"Calendar events {eid}: {ex_ev}")
-    except Exception as ex_cal:
-        log.debug(f"Calendars API error: {ex_cal}")
+                                lines.append(f"📅 CALENDAR {fname}: {summary} — {readable_date}")
+                            if not events:
+                                lines.append(f"📅 CALENDAR {fname}: nothing in the next 72h")
+                    except Exception as ex_ev:
+                        log.debug(f"Calendar events {eid}: {ex_ev}")
+        except Exception as ex_cal:
+            log.debug(f"Calendars API error: {ex_cal}")
 
     # ═══ BUILD CONTEXT ═══
     # Calendars FIRST (priority for daily questions)
@@ -9967,9 +9978,8 @@ def handle_message(text):
     context = ha_get_context_intelligent(text, states)
 
 
-    # Log calendars in the context
-    cal_lines = [l for l in context.split("\n") if "CALENDAR" in l or "EVENT" in l or "calendar" in l.lower() or "trash" in l.lower()]
-    log.info(f"Context to model: {len(context)} chars, {len(cal_lines)} calendar lines: {cal_lines[:5]}")
+    cal_count = context.count("📅 CALENDAR ")
+    log.debug(f"Context to model: {len(context)} chars, calendar lines={cal_count}")
     result = call_llm(text, context)
     if result is None:
         return "I could not produce a useful response. Try the exact device, room, or sensor name."

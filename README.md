@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-v0.1.10-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-v0.1.11-blue">
   <img alt="Status" src="https://img.shields.io/badge/status-beta-orange">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white">
   <img alt="Home Assistant" src="https://img.shields.io/badge/Home_Assistant-2024.1+-41BDF5?logo=home-assistant&logoColor=white">
@@ -167,7 +167,7 @@ The script is **free and open source (MIT)**. The only recurring AI cost is what
 
 ## 📊 Project status
 
-**Current version: v0.1.10 beta**
+**Current version: v0.1.11 beta**
 
 The code has been running in production since February 2026. It's functionally stable but has **not yet been validated on enough different installations** to be considered generally stable.
 
