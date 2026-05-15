@@ -1594,7 +1594,7 @@ def _execute_pending_ha_action():
         if result is not None:
             log.info(f"✅ HA action: {domain}/{service} on {entity_id}")
             return f"✅ Done: {entity_short}"
-        return f"❌ Action failed: {domain}.{service} on {entity_id}"
+        return f"❌ Action failed: {domain}.{service} on {entity_short}"
     except Exception as e:
         log.error(f"❌ HA action error: {e}")
         mem_set("ha_action_pending", "")
@@ -1621,7 +1621,27 @@ def _ha_area_lookup():
 
 
 def _ha_entity_label(entity):
-    return entity.get("attributes", {}).get("friendly_name") or entity.get("entity_id", "")
+    attrs = entity.get("attributes", {}) if isinstance(entity, dict) else {}
+    friendly = attrs.get("friendly_name")
+    if friendly:
+        return str(friendly)
+    eid = str(entity.get("entity_id", "")) if isinstance(entity, dict) else ""
+    if "." in eid:
+        return eid.split(".", 1)[1].replace("_", " ").title()
+    return eid
+
+
+def _ha_entity_display(entity, area=None):
+    """User-facing entity label: Room - Friendly Name (no raw entity_id by default)."""
+    label = _ha_entity_label(entity)
+    eid = entity.get("entity_id", "") if isinstance(entity, dict) else ""
+    if area is None and eid:
+        area = ha_get_area(eid)
+    if area and area.strip():
+        area_txt = str(area).strip()
+        if area_txt.lower() not in label.lower():
+            return f"{area_txt} - {label}"
+    return label
 
 
 def _ha_find_entities(query, domains=None, states=None, limit=20):
@@ -1815,7 +1835,7 @@ def _ha_offline_entities_response(text):
         text_blob = _ha_text_key(f"{eid} {friendly} {room}")
         if "zigbee" in low and not any(k in text_blob for k in ("zigbee", "z2m", "zha")):
             continue
-        rows.append((eid, friendly, room, state))
+        rows.append((entity, room, state))
 
     if not rows:
         if "zigbee" in low:
@@ -1827,12 +1847,11 @@ def _ha_offline_entities_response(text):
             return f"{len(rows)} Zigbee entities are currently offline."
         return f"{len(rows)} entities are currently offline."
 
-    rows.sort(key=lambda r: r[0])
+    rows.sort(key=lambda r: r[0].get("entity_id", ""))
     title = "Offline Zigbee entities" if "zigbee" in low else "Offline entities"
     lines = [f"{title}: {len(rows)}"]
-    for eid, friendly, room, state in rows[:40]:
-        room_txt = f" [{room}]" if room else ""
-        lines.append(f"- {eid}{room_txt} ({friendly}) = {state}")
+    for entity, room, state in rows[:40]:
+        lines.append(f"- {_ha_entity_display(entity, room)} = {state}")
     if len(rows) > 40:
         lines.append(f"...and {len(rows) - 40} more.")
     return "\n".join(lines)
@@ -1868,17 +1887,16 @@ def _ha_entities_in_area_response(text):
         eid = entity.get("entity_id", "")
         area = area_by_entity.get(eid, "")
         if area and area_key in _ha_text_key(area):
-            friendly = _ha_entity_label(entity)
             unit = entity.get("attributes", {}).get("unit_of_measurement", "")
             value = f"{entity.get('state', '?')} {unit}".strip()
-            rows.append((eid, friendly, value))
+            rows.append((entity, area, value))
 
     if not rows:
         return f"I could not find entities in an area matching '{area_query}'."
-    rows.sort(key=lambda item: item[0])
+    rows.sort(key=lambda item: item[0].get("entity_id", ""))
     lines = [f"I can see {len(rows)} entities in {area_query.title()}:"]
-    for eid, friendly, value in rows[:30]:
-        lines.append(f"- {eid}: {value} ({friendly})")
+    for entity, area, value in rows[:30]:
+        lines.append(f"- {_ha_entity_display(entity, area)}: {value}")
     if len(rows) > 30:
         lines.append(f"...and {len(rows) - 30} more.")
     return "\n".join(lines)
@@ -1907,7 +1925,7 @@ def _ha_open_count_today_response(text):
             count += 1
         previous_open = state_open
     current = entity.get("state", "?")
-    return f"{_ha_entity_label(entity)} opened {count} time(s) today. Current state: {current}."
+    return f"{_ha_entity_display(entity)} opened {count} time(s) today. Current state: {current}."
 
 
 def _ha_energy_today_response(text):
@@ -1936,10 +1954,10 @@ def _ha_energy_today_response(text):
     unit = candidates[0][2] or str(entity.get("attributes", {}).get("unit_of_measurement", ""))
     delta = _history_delta_numeric(entity["entity_id"])
     if delta is None:
-        return f"I found {_ha_entity_label(entity)} ({entity['entity_id']}), but Home Assistant history did not return enough data for today."
+        return f"I found {_ha_entity_display(entity)}, but Home Assistant history did not return enough data for today."
     display_delta = delta / 1000 if unit == "wh" else delta
     display_unit = "kWh" if unit == "wh" else (unit or "kWh")
-    return f"{_ha_entity_label(entity)} used {display_delta:.2f} {display_unit} today, based on {entity['entity_id']} history."
+    return f"{_ha_entity_display(entity)} used {display_delta:.2f} {display_unit} today."
 
 
 def _ha_open_too_long_watch(text):
@@ -2807,8 +2825,8 @@ def ha_get_context_intelligent(question, states=None):
             if entity_id in index:
                 e = index[entity_id]
                 unit = e.get("attributes", {}).get("unit_of_measurement", "")
-                room_str = f" [{room}]" if room else ""
-                lines.append(f"{entity_id}{room_str} = {e['state']} {unit}".strip())
+                display = _ha_entity_display(e, room)
+                lines.append(f"{display} = {e['state']} {unit} [entity_id={entity_id}]".strip())
 
     q_low = str(question or "").lower()
 
@@ -2840,8 +2858,8 @@ def ha_get_context_intelligent(question, states=None):
                 continue
             unit = e.get("attributes", {}).get("unit_of_measurement", "")
             room = ha_get_area(eid)
-            room_txt = f" [{room}]" if room else ""
-            lines.append(f"{eid}{room_txt} = {e.get('state', '?')} {unit}".strip())
+            display = _ha_entity_display(e, room)
+            lines.append(f"{display} = {e.get('state', '?')} {unit} [entity_id={eid}]".strip())
             added += 1
             if added >= 30:
                 break
@@ -2874,8 +2892,8 @@ def ha_get_context_intelligent(question, states=None):
         for score, e, room in scored[:60]:
             eid = e.get("entity_id", "")
             unit = e.get("attributes", {}).get("unit_of_measurement", "")
-            room_txt = f" [{room}]" if room else ""
-            lines.append(f"{eid}{room_txt} = {e.get('state', '?')} {unit}".strip())
+            display = _ha_entity_display(e, room)
+            lines.append(f"{display} = {e.get('state', '?')} {unit} [entity_id={eid}]".strip())
     include_calendars = any(
         key in q_low
         for key in (
@@ -7273,7 +7291,7 @@ def cmd_nas():
         if eid in index:
             e = index[eid]
             unit = e.get("attributes", {}).get("unit_of_measurement", "")
-            report += f"  {eid} = {e['state']} {unit}\n"
+            report += f"  {_ha_entity_display(e, room)} = {e['state']} {unit}\n"
     return report
 
 
@@ -7290,7 +7308,7 @@ def cmd_automations():
     if inactive_items:
         report += "\n⚠️ Disabled:\n"
         for e in inactive_items[:10]:
-            report += f"  • {e['entity_id']}\n"
+            report += f"  • {_ha_entity_label(e)}\n"
     return report
 
 

@@ -191,6 +191,7 @@ BASELINE_ENTITIES = {
     "sensor.ecojoko_outdoor_temperature": "outdoor_temperature",
 }
 HA_ALLOWED_DOMAINS = {"light", "switch", "lock", "cover", "climate", "fan", "vacuum", "media_player", "scene", "script"}
+_ENTITY_ID_TOKEN_RE = re.compile(r"\b([a-z_][a-z0-9_]*\.[a-z0-9_]+)\b")
 HA_TOOLS = [
     {
         "name": "ha_call_service",
@@ -1599,6 +1600,64 @@ def zigbee_absence_returned(entity_id):
     return False
 
 
+def _friendly_entity_name_inline(entity_id, entity=None, include_room=True):
+    entity = entity or {}
+    attrs = entity.get("attributes", {}) if isinstance(entity, dict) else {}
+    friendly = str(attrs.get("friendly_name", "") or "").strip()
+    if not friendly:
+        if "." in entity_id:
+            friendly = entity_id.split(".", 1)[1].replace("_", " ").title()
+        else:
+            friendly = entity_id
+    if not include_room:
+        return friendly
+    area_id = _entity_areas.get(entity_id, "")
+    area_name = _areas_id_to_name.get(area_id, area_id) if area_id else ""
+    if area_name and area_name.strip() and area_name.lower() not in friendly.lower():
+        return f"{area_name} - {friendly}"
+    return friendly
+
+
+def _state_map_for_humanize(ttl_sec=45):
+    now_ts = time.time()
+    cache = getattr(_state_map_for_humanize, "_cache", {})
+    cached_at = cache.get("ts", 0)
+    if cache.get("map") and (now_ts - cached_at) < ttl_sec:
+        return cache["map"]
+    try:
+        states = ha_get("states") or []
+        state_map = {e.get("entity_id", ""): e for e in states if e.get("entity_id")}
+        _state_map_for_humanize._cache = {"ts": now_ts, "map": state_map}
+        return state_map
+    except Exception:
+        return cache.get("map", {})
+
+
+def _humanize_entity_ids_for_display(text):
+    text = str(text or "")
+    if not text:
+        return text
+    if "entity_id" in text.lower():
+        return text
+    matches = _ENTITY_ID_TOKEN_RE.findall(text)
+    if not matches:
+        return text
+    state_map = _state_map_for_humanize()
+    if not state_map:
+        return text
+    replacements = {}
+    for eid in set(matches):
+        entity = state_map.get(eid)
+        if not entity:
+            continue
+        friendly = _friendly_entity_name_inline(eid, entity, include_room=True)
+        if friendly and friendly != eid:
+            replacements[eid] = friendly
+    if not replacements:
+        return text
+    return _ENTITY_ID_TOKEN_RE.sub(lambda m: replacements.get(m.group(1), m.group(1)), text)
+
+
 def telegram_send(text, parse_mode=None, force=False):
     """Central point for ALL outgoing messages — LEARNING FILTER.
     Each message is validated, logged, and the filter improves over time.
@@ -1606,6 +1665,8 @@ def telegram_send(text, parse_mode=None, force=False):
 
     if not text or len(text.strip()) < 5:
         return None
+
+    text = _humanize_entity_ids_for_display(text)
 
     if not str(CFG.get("telegram_chat_id", "")).strip():
         log.info("Telegram chat_id is not set yet; outgoing message deferred until the first user message.")
@@ -1789,6 +1850,7 @@ def filter_analyze_messages():
 
 
 def telegram_send_buttons(text, buttons, action_data=None):
+    text = _humanize_entity_ids_for_display(text)
     if not str(CFG.get("telegram_chat_id", "")).strip():
         log.info("Telegram chat_id is not set yet; outgoing button message deferred until the first user message.")
         return None
@@ -2283,7 +2345,8 @@ When the user requests an action, use the tool DIRECTLY without asking questions
 NEVER ask for textual confirmation for runtime actions.
 Home Assistant configuration writes always require explicit user confirmation.
 DO NOT say you don't have access to HA — you have real access via the tool.
-ALWAYS use the exact entity_id visible in the HA state.
+For tool calls and configuration payloads, ALWAYS use the exact entity_id visible in the HA state.
+In user-facing replies, prefer readable device names (and room when useful), not raw entity_ids.
 Be CONCISE: no markdown, no code blocks, just the action.
 
 ABSOLUTE RULES:
@@ -2459,6 +2522,11 @@ def _entity_area_name(entity_id):
     return _areas_id_to_name.get(area_id, area_id)
 
 
+def _friendly_entity_name(entity_id, entity=None, include_room=True):
+    """User-facing entity name: Room - Friendly Name when available."""
+    return _friendly_entity_name_inline(entity_id, entity=entity, include_room=include_room)
+
+
 def _format_ha_search_result(search_input):
     keyword = str(search_input.get("keyword", "") or "").strip().lower()
     domain_filter = str(search_input.get("domain", "") or "").strip().lower()
@@ -2496,11 +2564,11 @@ def _format_ha_search_result(search_input):
 
         state = entity.get("state", "")
         unit = attrs.get("unit_of_measurement", "")
-        info = f"{eid} = {state}"
+        display_name = _friendly_entity_name(eid, entity)
+        info = f"{display_name} = {state}"
         if unit:
             info += f" {unit}"
-        if fname:
-            info += f" ({fname})"
+        info += f" [entity_id={eid}]"
         if area_name:
             info += f" [area={area_name}]"
 
@@ -2560,11 +2628,20 @@ def _format_ha_history_result(history_input):
         return f"History error for {entity_id}: {str(ex)[:120]}"
 
     rows = []
+    friendly_name = _friendly_entity_name(entity_id, include_room=False)
+    try:
+        all_states = ha_get("states") or []
+        state_map = {e.get("entity_id", ""): e for e in all_states}
+        if entity_id in state_map:
+            friendly_name = _friendly_entity_name(entity_id, state_map[entity_id], include_room=True)
+    except Exception:
+        pass
+
     if payload and isinstance(payload, list) and isinstance(payload[0], list):
         rows = payload[0]
 
     if not rows:
-        return f"History for {entity_id}: no points in the last {hours} hour(s)."
+        return f"History for {friendly_name} ({entity_id}): no points in the last {hours} hour(s)."
 
     state_changes = 0
     open_count = 0
@@ -2588,7 +2665,7 @@ def _format_ha_history_result(history_input):
             ts = str(row.get("last_changed") or row.get("last_updated") or "")[:19]
             samples.append(f"{ts} => {state}")
 
-    summary = [f"History for {entity_id} ({hours}h): points={len(rows)}, state_changes={state_changes}, open_count={open_count}"]
+    summary = [f"History for {friendly_name} ({entity_id}, {hours}h): points={len(rows)}, state_changes={state_changes}, open_count={open_count}"]
     if len(numeric_values) >= 2:
         delta = numeric_values[-1] - numeric_values[0]
         summary.append(
@@ -2623,6 +2700,13 @@ def ha_execute_service_action(domain, service, entity_id, data=None):
     if result is None:
         return f"❌ Action failed: {domain}.{service}"
 
+    state_map = {}
+    try:
+        all_states = ha_get("states") or []
+        state_map = {e.get("entity_id", ""): e for e in all_states}
+    except Exception:
+        state_map = {}
+
     labels = {
         "turn_on": "Turned on",
         "turn_off": "Turned off",
@@ -2644,10 +2728,16 @@ def ha_execute_service_action(domain, service, entity_id, data=None):
     action_label = labels.get(service, f"Executed {service} for")
 
     if len(entity_ids) == 1:
-        short = entity_ids[0].split(".", 1)[1].replace("_", " ") if "." in entity_ids[0] else entity_ids[0]
-        target = short.title()
+        target = _friendly_entity_name(entity_ids[0], state_map.get(entity_ids[0], {}), include_room=True)
     else:
-        target = f"{len(entity_ids)} entities"
+        sample_names = [
+            _friendly_entity_name(eid, state_map.get(eid, {}), include_room=True)
+            for eid in entity_ids[:3]
+        ]
+        if len(entity_ids) > 3:
+            target = f"{len(entity_ids)} entities ({', '.join(sample_names)}, +{len(entity_ids) - 3} more)"
+        else:
+            target = ", ".join(sample_names)
 
     details = []
     if "brightness_pct" in data:
@@ -2708,6 +2798,7 @@ CRITICAL RULES:
 - Do not ask for textual confirmation before runtime actions.
 - Home Assistant configuration writes must always stay behind explicit user confirmation.
 - When a tool call is needed, make the tool call without extra narration.
+- In user-facing text, prefer friendly names (for example: "Living Room - Solar Wall") instead of raw entity_ids unless the user explicitly asks for IDs.
 
 TELEGRAM RESPONSE STYLE:
 - Keep normal replies to 1-3 short lines.

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.14 beta (2026-05-15)
+- User-facing replies now prefer friendly device names (and room context) instead of raw entity IDs
+- Native area/offline/energy responses were updated to display readable names
+- Runtime action confirmations now report friendly names for single and multi-entity actions
+- Outbound Telegram messages now auto-humanize known entity IDs to friendly names
+- Prompt guidance reinforced to keep entity IDs for internal/tool use unless explicitly requested by the user
+
 ## 0.1.13 beta (2026-05-15)
 - Fixed Home Assistant area cache usage in discovery/context paths to improve room/entity scope accuracy
 - Added missing `skill_window_solar` learner to stop recurring monitoring runtime errors
