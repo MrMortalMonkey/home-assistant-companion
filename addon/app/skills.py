@@ -1570,6 +1570,34 @@ def generate_energy_graph(states, index):
     return buf.read()
 
 
+def _execute_pending_ha_action():
+    pending = mem_get("ha_action_pending")
+    if not pending:
+        return "No Home Assistant action is pending."
+    try:
+        action = json.loads(pending)
+        domain = action["domain"]
+        service = action["service"]
+        entity_id = action["entity_id"]
+        extra_data = action.get("data", {})
+
+        service_data = {"entity_id": entity_id}
+        service_data.update(extra_data)
+        result = ha_post(f"services/{domain}/{service}", service_data)
+
+        mem_set("ha_action_pending", "")
+
+        entity_short = entity_id.split(".", 1)[1].replace("_", " ").title() if "." in entity_id else entity_id
+        if result is not None:
+            log.info(f"✅ HA action: {domain}/{service} on {entity_id}")
+            return f"✅ Done: {entity_short}"
+        return f"❌ Action failed: {domain}.{service} on {entity_id}"
+    except Exception as e:
+        log.error(f"❌ HA action error: {e}")
+        mem_set("ha_action_pending", "")
+        return f"❌ HA action error: {str(e)[:100]}"
+
+
 def handle_callback(callback_query):
     cqid = callback_query.get("id")
     data = callback_query.get("data", "")
@@ -1627,33 +1655,7 @@ def handle_callback(callback_query):
         return
 
     if data == "ha_action:confirm":
-        pending = mem_get("ha_action_pending")
-        if not pending:
-            telegram_send("⚠️ No action pending.")
-            return
-        try:
-            action = json.loads(pending)
-            domain = action["domain"]
-            service = action["service"]
-            entity_id = action["entity_id"]
-            extra_data = action.get("data", {})
-
-            service_data = {"entity_id": entity_id}
-            service_data.update(extra_data)
-            result = ha_post(f"services/{domain}/{service}", service_data)
-
-            mem_set("ha_action_pending", "")
-
-            if result is not None:
-                entity_short = entity_id.split(".", 1)[1].replace("_", " ").title() if "." in entity_id else entity_id
-                telegram_send(f"✅ Action executed\n{domain}.{service} → {entity_short}")
-                log.info(f"✅ HA action: {domain}/{service} on {entity_id}")
-            else:
-                telegram_send(f"❌ Action failed: {domain}.{service} on {entity_id}")
-        except Exception as e:
-            log.error(f"❌ HA action error: {e}")
-            telegram_send(f"❌ HA action error: {str(e)[:100]}")
-            mem_set("ha_action_pending", "")
+        telegram_send(_execute_pending_ha_action())
         return
 
     if data == "ha_action:cancel":
@@ -3029,12 +3031,7 @@ def discover_automatically(states=None):
         conn.commit()
         conn.close()
         if nb_plugs > 0:
-            names = [fn for _, cat, _, _, fn in auto_categorized if cat == "connected_plug"]
-            telegram_send(
-                f"🔌 {nb_plugs} new plug(s) detected:\n"
-                + "\n".join(f"  • {n}" for n in names) +
-                "\n\n📡 Monitoring active — appliance cycles detected automatically."
-            )
+            log.info(f"🔌 {nb_plugs} new plug(s) categorized for monitoring")
         log.info(f"✅ Plugs: {nb_plugs} useful ones categorized")
 
     new_items = items_for_ai
@@ -4561,6 +4558,95 @@ def learning_auto_correction():
 
     for action, nb in failures:
         log.debug(f"Recurring failure: {action} ({nb}x/7j)")
+
+
+def baseline_collect(states):
+    """Update hourly baselines for key numeric Home Assistant sensors."""
+    try:
+        if not states:
+            return
+        _refresh_baseline_entities()
+        index = {e.get("entity_id"): e for e in states}
+        now = datetime.now()
+        weekday = now.weekday()
+        hour = now.hour
+
+        conn = sqlite3.connect(DB_PATH)
+        for entity_id in list(BASELINE_ENTITIES.keys()):
+            entity = index.get(entity_id)
+            if not entity or entity.get("state") in ("unavailable", "unknown", None):
+                continue
+            value = _parse_numeric_state(entity.get("state"))
+            if value is None:
+                continue
+
+            row = conn.execute(
+                "SELECT avg_value, sample_count FROM baselines WHERE entity_id=? AND weekday=? AND hour=?",
+                (entity_id, weekday, hour),
+            ).fetchone()
+            if row:
+                avg_value, sample_count = row
+                sample_count = int(sample_count or 0) + 1
+                avg_value = ((float(avg_value or 0) * (sample_count - 1)) + value) / sample_count
+                conn.execute(
+                    "UPDATE baselines SET avg_value=?, sample_count=?, updated_at=? "
+                    "WHERE entity_id=? AND weekday=? AND hour=?",
+                    (avg_value, sample_count, now.isoformat(), entity_id, weekday, hour),
+                )
+            else:
+                conn.execute(
+                    "INSERT INTO baselines (entity_id, weekday, hour, avg_value, sample_count, updated_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    (entity_id, weekday, hour, value, 1, now.isoformat()),
+                )
+        conn.commit()
+        conn.close()
+    except Exception as ex:
+        log.debug(f"baseline_collect: {ex}")
+
+
+def baseline_detect_anomalies(states):
+    """Best-effort baseline comparison hook; intentionally quiet for beta installs."""
+    try:
+        if not states:
+            return []
+        index = {e.get("entity_id"): e for e in states}
+        now = datetime.now()
+        weekday = now.weekday()
+        hour = now.hour
+        anomalies = []
+
+        conn = sqlite3.connect(DB_PATH)
+        for entity_id, label in BASELINE_ENTITIES.items():
+            entity = index.get(entity_id)
+            if not entity or entity.get("state") in ("unavailable", "unknown", None):
+                continue
+            value = _parse_numeric_state(entity.get("state"))
+            if value is None:
+                continue
+            row = conn.execute(
+                "SELECT avg_value, sample_count FROM baselines WHERE entity_id=? AND weekday=? AND hour=?",
+                (entity_id, weekday, hour),
+            ).fetchone()
+            if not row or int(row[1] or 0) < 10:
+                continue
+            avg_value = float(row[0] or 0)
+            if avg_value <= 0:
+                continue
+            deviation = abs(value - avg_value) / avg_value * 100
+            if deviation >= 300:
+                anomalies.append({
+                    "entity_id": entity_id,
+                    "label": label,
+                    "current": value,
+                    "average": avg_value,
+                    "deviation_pct": round(deviation),
+                })
+        conn.close()
+        return anomalies
+    except Exception as ex:
+        log.debug(f"baseline_detect_anomalies: {ex}")
+        return []
 
 
 def _cycle_intelligence(states, index, now):
@@ -9213,6 +9299,13 @@ def handle_message(text):
         t = t[1:]
     log.info(f"Message: {text[:80]}")
 
+    if mem_get("ha_action_pending"):
+        if t in ("yes", "y", "confirm", "confirmed", "ok", "okay", "do it", "go ahead"):
+            return _execute_pending_ha_action()
+        if t in ("no", "n", "cancel", "stop"):
+            mem_set("ha_action_pending", "")
+            return "Action cancelled."
+
     commands = {
         "audit": cmd_audit,
         "energy": cmd_energy, "energy": cmd_energy, "heating": cmd_energy,
@@ -9346,6 +9439,16 @@ def handle_message(text):
         if arg in ("detail", "detail", "complete", "all"):
             return cmd_energy(detail=True)
 
+    if any(phrase in t for phrase in (
+        "daily energy usage",
+        "current daily energy",
+        "energy usage today",
+        "today's energy",
+        "todays energy",
+        "kwh today",
+    )):
+        return cmd_energy()
+
     # Command /problem → auto-correction (with or without description)
     if t in ("problem", "problem"):
         return (
@@ -9373,10 +9476,10 @@ def handle_message(text):
 
     # Log calendars in the context
     cal_lines = [l for l in context.split("\n") if "CALENDAR" in l or "EVENT" in l or "calendar" in l.lower() or "trash" in l.lower()]
-    log.info(f"CONTEXTE→HAIKU: {len(context)} chars, {len(cal_lines)} lines calendar: {cal_lines[:5]}")
+    log.info(f"Context to model: {len(context)} chars, {len(cal_lines)} calendar lines: {cal_lines[:5]}")
     result = call_llm(text, context)
     if result is None:
-        return "I did not understand your request"
+        return "I could not produce a useful response. Try the exact device, room, or sensor name."
     return result
 
 

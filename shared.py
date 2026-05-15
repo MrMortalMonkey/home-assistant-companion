@@ -1773,6 +1773,7 @@ def telegram_send_buttons(text, buttons, action_data=None):
             msg_id = r.json().get("result", {}).get("message_id")
             if action_data and msg_id:
                 pending_response[msg_id] = action_data
+            log.debug(f"Buttons sent: {text.splitlines()[0][:80] if text else 'message'}")
             return msg_id
         log.error(f"❌ Buttons Telegram {r.status_code}")
     except Exception as e:
@@ -2365,6 +2366,35 @@ def _clean_chat_response(response_text, user_message):
     return response_text
 
 
+def _tool_result_messages(messages, tool_block, tool_input, tool_result):
+    """Build provider-appropriate tool-result messages for a second LLM pass."""
+    provider_name = CFG.get("llm_provider", "anthropic")
+    tool_id = tool_block.get("id") or "tool_call_1"
+    tool_name = tool_block.get("name", "")
+
+    if provider_name == "anthropic":
+        return messages + [
+            {"role": "assistant", "content": [{"type": "tool_use", "id": tool_id, "name": tool_name, "input": tool_input}]},
+            {"role": "user", "content": [{"type": "tool_result", "tool_use_id": tool_id, "content": tool_result}]},
+        ]
+
+    return messages + [
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [{
+                "id": tool_id,
+                "type": "function",
+                "function": {
+                    "name": tool_name,
+                    "arguments": json.dumps(tool_input),
+                },
+            }],
+        },
+        {"role": "tool", "tool_call_id": tool_id, "content": tool_result},
+    ]
+
+
 def call_llm(user_message, context_ha=None):
     call_llm._search_count = 0
     if not check_budget():
@@ -2465,10 +2495,7 @@ AUTOMATIONS:
                                     info += f" [{k}={attrs[k]}]"
                             results.append(info)
                     search_result = f"Results for '{keyword}':\n" + "\n".join(results[:30]) if results else f"No entity found for '{keyword}'"
-                    followup_messages = messages + [
-                        {"role": "assistant", "content": [{"type": "tool_use", "id": block["id"], "name": "ha_search_entities", "input": search_input}]},
-                        {"role": "user", "content": [{"type": "tool_result", "tool_use_id": block["id"], "content": search_result}]}
-                    ]
+                    followup_messages = _tool_result_messages(messages, block, search_input, search_result)
                     blocks2, t_in2, t_out2 = llm_provider.llm_completion_with_tools(
                         CFG, followup_messages, HA_TOOLS, model=_model,
                         max_tokens=1200 if _use_strong else 450,
@@ -2679,7 +2706,9 @@ AUTOMATIONS:
         text_response = _clean_chat_response(text_response, user_message)
         if text_response:
             add_history("assistant", text_response)
-        return text_response
+            return text_response
+        log.warning("LLM returned no usable text or tool call")
+        return None
     except Exception as e:
         log.error(f"❌ LLM API error: {e}")
         return "⚠️ The AI could not process this request. Please retry or check your provider configuration."

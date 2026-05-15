@@ -82,6 +82,25 @@ def get_model(cfg, use_strong=False):
     return model_override or provider[key]
 
 
+def _openai_tool_schema(tools):
+    """Convert internal/Anthropic-style tools to OpenAI-compatible function tools."""
+    converted = []
+    for tool in tools or []:
+        if tool.get("type") == "function":
+            converted.append(tool)
+            continue
+
+        converted.append({
+            "type": "function",
+            "function": {
+                "name": tool.get("name", ""),
+                "description": tool.get("description", ""),
+                "parameters": tool.get("parameters") or tool.get("input_schema", {}),
+            },
+        })
+    return converted
+
+
 def _openai_compatible_chat(cfg, messages, model, max_tokens, system_prompt=None, tools=None, temperature=0):
     """Generic call for OpenAI-compatible APIs (OpenAI, OpenRouter, Ollama, LMStudio)."""
     import requests as _requests
@@ -115,7 +134,7 @@ def _openai_compatible_chat(cfg, messages, model, max_tokens, system_prompt=None
             "options": {"temperature": temperature}
         }
         if tools:
-            payload["tools"] = tools
+            payload["tools"] = _openai_tool_schema(tools)
         headers = {}
     else:
         url = f"{base_url.rstrip('/')}/chat/completions"
@@ -130,7 +149,8 @@ def _openai_compatible_chat(cfg, messages, model, max_tokens, system_prompt=None
             "temperature": temperature,
         }
         if tools:
-            payload["tools"] = tools
+            payload["tools"] = _openai_tool_schema(tools)
+            payload["tool_choice"] = "auto"
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}"
