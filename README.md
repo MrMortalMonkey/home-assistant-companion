@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-v0.1.11-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-v0.1.12-blue">
   <img alt="Status" src="https://img.shields.io/badge/status-beta-orange">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white">
   <img alt="Home Assistant" src="https://img.shields.io/badge/Home_Assistant-2024.1+-41BDF5?logo=home-assistant&logoColor=white">
@@ -162,12 +162,13 @@ The script is **free and open source (MIT)**. The only recurring AI cost is what
 
 - `config.json` contains your secrets: the installer automatically sets it to `600` permissions (owner read only)
 - Telegram channel locked at startup with a 6-digit code (SMS / HA notification / email)
-- All sensitive HA actions (lock, light, climate) go through a ✅/❌ confirmation button
+- Runtime control actions (lights, switches, climate, scenes, scripts) execute immediately
+- Home Assistant configuration changes stay behind explicit ✅/❌ confirmation
 - Beta tester mode **disabled by default** — `deploy_server` only activates if you explicitly enable it. See [BETA_CHANNEL.md](docs/BETA_CHANNEL.md) for implications.
 
 ## 📊 Project status
 
-**Current version: v0.1.11 beta**
+**Current version: v0.1.12 beta**
 
 The code has been running in production since February 2026. It's functionally stable but has **not yet been validated on enough different installations** to be considered generally stable.
 

@@ -127,6 +127,7 @@ __all__ = [
     "ha_get_forecast",
     "ha_get_current_solar_production",
     "ha_post",
+    "ha_execute_service_action",
     "init_db",
     "load_config",
     "log",
@@ -193,9 +194,10 @@ HA_ALLOWED_DOMAINS = {"light", "switch", "lock", "cover", "climate", "fan", "vac
 HA_TOOLS = [
     {
         "name": "ha_call_service",
-        "description": "Calls a Home Assistant service to control a device. "
+        "description": "Calls a Home Assistant runtime service to control a device. "
                        "Use DIRECTLY the entity_id visible in the HA state. "
-                       "NEVER ask for textual confirmation. The system handles confirmation via buttons. "
+                       "Do not ask for textual confirmation. Runtime actions execute immediately. "
+                       "Do not use this tool for Home Assistant configuration writes. "
                        "Do not write extra prose before or after this tool call.",
         "input_schema": {
             "type": "object",
@@ -253,7 +255,8 @@ HA_TOOLS = [
         "name": "ha_search_entities",
         "description": "Searches for entities in Home Assistant by keyword. "
                        "Use this tool BEFORE creating an automation to find the exact entity_ids. "
-                       "Returns all matching entity_ids, states and attributes.",
+                       "Returns matching entity_ids, states, and useful attributes. "
+                       "Supports entities, scenes, scripts, and automations.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -264,9 +267,47 @@ HA_TOOLS = [
                 "domain": {
                     "type": "string",
                     "description": "Filter by HA domain (optional): sensor, switch, light, cover, climate, lock, number, select, binary_sensor, automation"
+                },
+                "area": {
+                    "type": "string",
+                    "description": "Optional Home Assistant area name filter (e.g. kitchen, office, garage)"
+                },
+                "limit": {
+                    "type": "number",
+                    "description": "Maximum rows to return (default 30, max 100)"
+                },
+                "include_attributes": {
+                    "type": "boolean",
+                    "description": "When true, include a compact JSON snippet of attributes",
+                    "default": False
                 }
             },
-            "required": ["keyword"]
+            "required": []
+        }
+    },
+    {
+        "name": "ha_get_history",
+        "description": "Read-only access to Home Assistant history for one entity. "
+                       "Use for factual questions like usage today, state transitions, and how often something changed.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "entity_id": {
+                    "type": "string",
+                    "description": "Exact Home Assistant entity_id (e.g. sensor.water_heater_energy)"
+                },
+                "hours": {
+                    "type": "number",
+                    "description": "Lookback window in hours (default 24, max 168)",
+                    "default": 24
+                },
+                "max_points": {
+                    "type": "number",
+                    "description": "Maximum sample points returned in response (default 40, max 120)",
+                    "default": 40
+                }
+            },
+            "required": ["entity_id"]
         }
     },
     {
@@ -2239,7 +2280,8 @@ Priorities: energy (heat pump, solar, plugs), Zigbee, NAS, network.
 HOME ASSISTANT ACTIONS:
 You have the ha_call_service tool to act on devices.
 When the user requests an action, use the tool DIRECTLY without asking questions.
-NEVER ask for textual confirmation — the system handles confirmation via buttons.
+NEVER ask for textual confirmation for runtime actions.
+Home Assistant configuration writes always require explicit user confirmation.
 DO NOT say you don't have access to HA — you have real access via the tool.
 ALWAYS use the exact entity_id visible in the HA state.
 Be CONCISE: no markdown, no code blocks, just the action.
@@ -2399,6 +2441,222 @@ def _tool_result_messages(messages, tool_block, tool_input, tool_result):
     ]
 
 
+def _safe_int(value, default_value):
+    try:
+        return int(value)
+    except Exception:
+        return default_value
+
+
+def _text_key(value):
+    return re.sub(r"[^a-z0-9]+", " ", str(value or "").lower()).strip()
+
+
+def _entity_area_name(entity_id):
+    area_id = _entity_areas.get(entity_id, "")
+    if not area_id:
+        return ""
+    return _areas_id_to_name.get(area_id, area_id)
+
+
+def _format_ha_search_result(search_input):
+    keyword = str(search_input.get("keyword", "") or "").strip().lower()
+    domain_filter = str(search_input.get("domain", "") or "").strip().lower()
+    area_filter = str(search_input.get("area", "") or "").strip().lower()
+    include_attributes = bool(search_input.get("include_attributes", False))
+    limit = max(1, min(100, _safe_int(search_input.get("limit"), 30)))
+
+    all_states = ha_get("states") or []
+    area_key = _text_key(area_filter)
+    results = []
+    scanned = 0
+
+    for entity in all_states:
+        eid = entity.get("entity_id", "")
+        if not eid:
+            continue
+        scanned += 1
+        if domain_filter and not eid.startswith(domain_filter + "."):
+            continue
+
+        attrs = entity.get("attributes", {})
+        fname = str(attrs.get("friendly_name", ""))
+        area_name = _entity_area_name(eid)
+        area_match = True
+        if area_key:
+            area_match = area_key in _text_key(area_name)
+        if not area_match:
+            continue
+
+        if keyword and keyword not in eid.lower() and keyword not in fname.lower():
+            continue
+
+        state = entity.get("state", "")
+        unit = attrs.get("unit_of_measurement", "")
+        info = f"{eid} = {state}"
+        if unit:
+            info += f" {unit}"
+        if fname:
+            info += f" ({fname})"
+        if area_name:
+            info += f" [area={area_name}]"
+
+        for k in ("device_class", "state_class", "icon"):
+            if k in attrs:
+                info += f" [{k}={attrs[k]}]"
+
+        if include_attributes:
+            compact_attrs = {}
+            for k in ("min", "max", "options", "supported_features", "current_temperature", "temperature"):
+                if k in attrs:
+                    compact_attrs[k] = attrs[k]
+            if compact_attrs:
+                info += f" [attrs={json.dumps(compact_attrs, ensure_ascii=False)}]"
+
+        results.append(info)
+        if len(results) >= limit:
+            break
+
+    header = (
+        f"HA search results: {len(results)} row(s), "
+        f"domain={domain_filter or '*'}, area={area_filter or '*'}, keyword={keyword or '*'}, "
+        f"scanned={scanned} entities"
+    )
+    if not results:
+        return header + "\nNo matching entity found."
+    return header + "\n" + "\n".join(results)
+
+
+def _format_ha_history_result(history_input):
+    entity_id = str(history_input.get("entity_id", "") or "").strip()
+    if not entity_id:
+        return "History error: missing entity_id."
+
+    hours = max(1, min(168, _safe_int(history_input.get("hours"), 24)))
+    max_points = max(5, min(120, _safe_int(history_input.get("max_points"), 40)))
+
+    start_dt = datetime.now() - timedelta(hours=hours)
+    url = f"{CFG['ha_url']}/api/history/period/{start_dt.isoformat()}"
+    headers = {"Authorization": f"Bearer {CFG['ha_token']}"}
+    params = {
+        "filter_entity_id": entity_id,
+        "end_time": datetime.now().isoformat(),
+        "minimal_response": "",
+        "no_attributes": "",
+    }
+
+    try:
+        r = requests.get(url, headers=headers, params=params, verify=False, timeout=20)
+        if r.status_code != 200:
+            return f"History error for {entity_id}: HTTP {r.status_code}"
+        payload = r.json()
+    except Exception as ex:
+        return f"History error for {entity_id}: {str(ex)[:120]}"
+
+    rows = []
+    if payload and isinstance(payload, list) and isinstance(payload[0], list):
+        rows = payload[0]
+
+    if not rows:
+        return f"History for {entity_id}: no points in the last {hours} hour(s)."
+
+    state_changes = 0
+    open_count = 0
+    prev_state = None
+    numeric_values = []
+    samples = []
+    step = max(1, len(rows) // max_points)
+
+    for idx, row in enumerate(rows):
+        state = str(row.get("state", ""))
+        if prev_state is not None and state != prev_state:
+            state_changes += 1
+        if state in ("on", "open") and prev_state != state:
+            open_count += 1
+        prev_state = state
+        try:
+            numeric_values.append(float(state.replace(",", ".")))
+        except Exception:
+            pass
+        if idx % step == 0 or idx == len(rows) - 1:
+            ts = str(row.get("last_changed") or row.get("last_updated") or "")[:19]
+            samples.append(f"{ts} => {state}")
+
+    summary = [f"History for {entity_id} ({hours}h): points={len(rows)}, state_changes={state_changes}, open_count={open_count}"]
+    if len(numeric_values) >= 2:
+        delta = numeric_values[-1] - numeric_values[0]
+        summary.append(
+            f"numeric: first={numeric_values[0]:.3f}, last={numeric_values[-1]:.3f}, "
+            f"delta={delta:.3f}, min={min(numeric_values):.3f}, max={max(numeric_values):.3f}"
+        )
+    summary.append("samples:")
+    summary.extend(samples[:max_points])
+    return "\n".join(summary)
+
+
+def ha_execute_service_action(domain, service, entity_id, data=None):
+    """Execute a Home Assistant runtime action immediately (no confirmation gate)."""
+    if domain not in HA_ALLOWED_DOMAINS:
+        return f"❌ Domain '{domain}' is not authorized."
+
+    data = data or {}
+    if isinstance(entity_id, list):
+        entity_ids = [str(e).strip() for e in entity_id if str(e).strip()]
+        if not entity_ids:
+            return "❌ Missing target entity."
+        entity_payload = entity_ids
+    else:
+        entity_payload = str(entity_id or "").strip()
+        if not entity_payload:
+            return "❌ Missing target entity."
+        entity_ids = [entity_payload]
+
+    payload = {"entity_id": entity_payload}
+    payload.update(data)
+    result = ha_post(f"services/{domain}/{service}", payload)
+    if result is None:
+        return f"❌ Action failed: {domain}.{service}"
+
+    labels = {
+        "turn_on": "Turned on",
+        "turn_off": "Turned off",
+        "toggle": "Toggled",
+        "lock": "Locked",
+        "unlock": "Unlocked",
+        "open_cover": "Opened",
+        "close_cover": "Closed",
+        "stop_cover": "Stopped",
+        "set_temperature": "Set temperature for",
+        "set_hvac_mode": "Updated HVAC mode for",
+        "start": "Started",
+        "stop": "Stopped",
+        "return_to_base": "Sent to base",
+        "media_play": "Started playback for",
+        "media_pause": "Paused playback for",
+        "volume_set": "Set volume for",
+    }
+    action_label = labels.get(service, f"Executed {service} for")
+
+    if len(entity_ids) == 1:
+        short = entity_ids[0].split(".", 1)[1].replace("_", " ") if "." in entity_ids[0] else entity_ids[0]
+        target = short.title()
+    else:
+        target = f"{len(entity_ids)} entities"
+
+    details = []
+    if "brightness_pct" in data:
+        details.append(f"brightness {data['brightness_pct']}%")
+    if "temperature" in data:
+        details.append(f"temperature {data['temperature']}")
+    if "hvac_mode" in data:
+        details.append(f"mode {data['hvac_mode']}")
+
+    msg = f"✅ {action_label} {target}."
+    if details:
+        msg += " " + ", ".join(details) + "."
+    return msg
+
+
 def _queue_watch_confirmation(pattern, condition, state_value, message, cooldown):
     """Queue a watch request and ask the user to confirm before creating it."""
     payload = {
@@ -2439,8 +2697,10 @@ CRITICAL RULES:
 - Never ask the user to look up entity IDs.
 - When the user describes their home, appliances, rates, or monitoring preferences, treat it as setup context and use it in future answers.
 - For monitoring or alert requests, use ha_create_watch when you can identify a reasonable entity or pattern.
+- For factual questions, use ha_search_entities and ha_get_history to retrieve real Home Assistant data before answering.
 - For simple actions such as turn on/off, use ha_call_service directly.
-- Do not ask for textual confirmation before an action. The app sends confirmation buttons.
+- Do not ask for textual confirmation before runtime actions.
+- Home Assistant configuration writes must always stay behind explicit user confirmation.
 - When a tool call is needed, make the tool call without extra narration.
 
 TELEGRAM RESPONSE STYLE:
@@ -2490,63 +2750,52 @@ AUTOMATIONS:
         requested_action = None
         requested_watch = None
         requested_automation = None
+
+        def _consume_followup_blocks(followup_blocks):
+            nonlocal text_response, requested_action, requested_watch, requested_automation
+            if not followup_blocks:
+                return
+            for block2 in llm_provider.dictify_content_blocks(followup_blocks):
+                if block2["type"] == "text":
+                    text_response += block2.get("text", "")
+                elif block2["type"] == "tool_use" and block2["name"] == "ha_call_service":
+                    requested_action = block2["input"]
+                elif block2["type"] == "tool_use" and block2["name"] == "ha_create_automation":
+                    requested_automation = block2["input"]
+                elif block2["type"] == "tool_use" and block2["name"] == "ha_create_watch":
+                    requested_watch = block2["input"]
+
         for block in blocks:
             if block["type"] == "text":
                 text_response += block.get("text", "")
             elif block["type"] == "tool_use" and block["name"] == "ha_call_service":
                 requested_action = block["input"]
-            elif block["type"] == "tool_use" and block["name"] == "ha_search_entities":
-                _search_count = getattr(call_llm, '_search_count', 0) + 1
-                if _search_count > 2:
-                    log.warning(f"⚠️ Search loop detected ({_search_count} calls) — stopping")
-                    text_response = "I could not find the necessary entities. Please rephrase your request."
+            elif block["type"] == "tool_use" and block["name"] in ("ha_search_entities", "ha_get_history"):
+                _search_count = getattr(call_llm, "_search_count", 0) + 1
+                if _search_count > 3:
+                    log.warning(f"⚠️ Tool loop detected ({_search_count} calls) — stopping")
+                    text_response = "I could not retrieve all requested Home Assistant data. Please rephrase your request."
                     break
                 call_llm._search_count = _search_count
-                search_input = block["input"]
-                keyword = search_input.get("keyword", "").lower()
-                domain_filter = search_input.get("domain", "")
-                # Search in HA
+
+                tool_input = block.get("input", {}) or {}
                 try:
-                    all_states = ha_get("states") or []
-                    results = []
-                    for e in all_states:
-                        eid = e["entity_id"]
-                        fname = e.get("attributes", {}).get("friendly_name", "")
-                        state = e.get("state", "")
-                        if keyword in eid.lower() or keyword in fname.lower():
-                            if domain_filter and not eid.startswith(domain_filter + "."):
-                                continue
-                            attrs = e.get("attributes", {})
-                            info = f"{eid} = {state}"
-                            if fname:
-                                info += f" ({fname})"
-                            # Add useful attributes
-                            for k in ["unit_of_measurement", "device_class", "min", "max", "options"]:
-                                if k in attrs:
-                                    info += f" [{k}={attrs[k]}]"
-                            results.append(info)
-                    search_result = f"Results for '{keyword}':\n" + "\n".join(results[:30]) if results else f"No entity found for '{keyword}'"
-                    followup_messages = _tool_result_messages(messages, block, search_input, search_result)
+                    if block["name"] == "ha_search_entities":
+                        tool_result = _format_ha_search_result(tool_input)
+                    else:
+                        tool_result = _format_ha_history_result(tool_input)
+
+                    followup_messages = _tool_result_messages(messages, block, tool_input, tool_result)
                     blocks2, t_in2, t_out2 = llm_provider.llm_completion_with_tools(
                         CFG, followup_messages, HA_TOOLS, model=_model,
                         max_tokens=1200 if _use_strong else 450,
                         system_prompt=system_prompt
                     )
                     log_token_usage(t_in2, t_out2)
-                    if blocks2:
-                        blocks2 = llm_provider.dictify_content_blocks(blocks2)
-                        for block2 in blocks2:
-                            if block2["type"] == "text":
-                                text_response += block2.get("text", "")
-                            elif block2["type"] == "tool_use" and block2["name"] == "ha_call_service":
-                                requested_action = block2["input"]
-                            elif block2["type"] == "tool_use" and block2["name"] == "ha_create_automation":
-                                requested_automation = block2["input"]
-                            elif block2["type"] == "tool_use" and block2["name"] == "ha_create_watch":
-                                requested_watch = block2["input"]
+                    _consume_followup_blocks(blocks2)
                 except Exception as e:
-                    log.error(f"Search entities: {e}")
-                    text_response = f"Search error: {e}"
+                    log.error(f"{block['name']}: {e}")
+                    text_response = f"Tool error: {e}"
             elif block["type"] == "tool_use" and block["name"] == "ha_create_automation":
                 requested_automation = block["input"]
             elif block["type"] == "tool_use" and block["name"] == "ha_create_watch":
@@ -2559,55 +2808,9 @@ AUTOMATIONS:
             service = requested_action.get("service", "")
             entity_id = requested_action.get("entity_id", "")
             data = requested_action.get("data", {})
-
-            if domain not in HA_ALLOWED_DOMAINS:
-                msg = f"❌ Domain '{domain}' not authorized."
-                add_history("assistant", msg)
-                return msg
-
-            # Store the pending action
-            action_json = json.dumps({
-                "domain": domain, "service": service,
-                "entity_id": entity_id, "data": data
-            })
-            mem_set("ha_action_pending", action_json)
-
-            # Human-readable action description
-            LABELS = {
-                "turn_on": "Turn on", "turn_off": "Turn off", "toggle": "Toggle",
-                "lock": "Lock", "unlock": "Unlock",
-                "open_cover": "Open", "close_cover": "Close", "stop_cover": "Stop",
-                "set_temperature": "Set temperature", "set_hvac_mode": "Change mode",
-                "start": "Start", "stop": "Stop", "return_to_base": "Return to base",
-                "media_play": "Play", "media_pause": "Pause", "volume_set": "Volume",
-            }
-            action_label = LABELS.get(service, service)
-            entity_short = entity_id.split(".", 1)[1].replace("_", " ").title() if "." in entity_id else entity_id
-
-            confirm_msg = f"Confirm action?\n{action_label}: {entity_short}"
-            if data:
-                friendly_params = []
-                if "brightness_pct" in data:
-                    friendly_params.append(f"brightness {data['brightness_pct']}%")
-                if "brightness" in data:
-                    try:
-                        friendly_params.append(f"brightness {round(float(data['brightness']) / 255 * 100)}%")
-                    except Exception:
-                        friendly_params.append(f"brightness {data['brightness']}")
-                if "temperature" in data:
-                    friendly_params.append(f"temperature {data['temperature']}")
-                if "hvac_mode" in data:
-                    friendly_params.append(f"mode {data['hvac_mode']}")
-                confirm_msg += "\n" + (", ".join(friendly_params) if friendly_params else json.dumps(data))
-            confirm_msg += f"\n{entity_id}"
-
-            buttons = [
-                {"text": "✅ Confirm", "callback_data": "ha_action:confirm"},
-                {"text": "❌ Cancel", "callback_data": "ha_action:cancel"},
-            ]
-            telegram_send_buttons(confirm_msg, buttons)
-            add_history("assistant", f"[ACTION] {action_label} {entity_short}")
-            return ""
+            msg = ha_execute_service_action(domain, service, entity_id, data)
+            add_history("assistant", msg)
+            return msg
 
         if requested_watch:
             try:

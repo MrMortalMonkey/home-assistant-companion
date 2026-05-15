@@ -1718,38 +1718,10 @@ def _history_delta_numeric(entity_id):
 
 def _ha_confirm_action(domain, service, entity_ids, data=None):
     if isinstance(entity_ids, str):
-        entity_ids = [entity_ids]
-    entity_payload = entity_ids[0] if len(entity_ids) == 1 else entity_ids
-    data = data or {}
-    mem_set("ha_action_pending", json.dumps({
-        "domain": domain,
-        "service": service,
-        "entity_id": entity_payload,
-        "data": data,
-    }))
-
-    names = []
-    states = ha_get("states") or []
-    by_id = {e.get("entity_id"): e for e in states}
-    for eid in entity_ids[:5]:
-        names.append(_ha_entity_label(by_id.get(eid, {"entity_id": eid})))
-    label = ", ".join(names)
-    if len(entity_ids) > 5:
-        label += f", +{len(entity_ids) - 5} more"
-
-    action = service.replace("_", " ")
-    msg = f"Confirm action?\n{action.title()}: {label}"
-    if data:
-        if "brightness_pct" in data:
-            msg += f"\nBrightness: {data['brightness_pct']}%"
-        else:
-            msg += f"\nData: {json.dumps(data)}"
-    msg += "\n" + (entity_ids[0] if len(entity_ids) == 1 else f"{len(entity_ids)} entities")
-    telegram_send_buttons(msg, [
-        {"text": "✅ Confirm", "callback_data": "ha_action:confirm"},
-        {"text": "❌ Cancel", "callback_data": "ha_action:cancel"},
-    ])
-    return ""
+        entity_payload = entity_ids
+    else:
+        entity_payload = entity_ids[0] if len(entity_ids) == 1 else entity_ids
+    return ha_execute_service_action(domain, service, entity_payload, data or {})
 
 
 def _ha_queue_watch_request(entity_pattern, condition, state_value, message, cooldown_min):
@@ -2025,12 +1997,12 @@ def handle_callback(callback_query):
         return
 
     if data == "ha_action:confirm":
-        telegram_send(_execute_pending_ha_action())
+        telegram_send("ℹ️ Runtime actions now execute immediately. No pending action to confirm.")
         return
 
     if data == "ha_action:cancel":
         mem_set("ha_action_pending", "")
-        telegram_send("❌ Action cancelled.")
+        telegram_send("ℹ️ Runtime actions now execute immediately.")
         return
 
     if data == "ha_watch:confirm":
@@ -9801,7 +9773,18 @@ def handle_message(text):
 
     if mem_get("ha_action_pending"):
         if t in ("yes", "y", "confirm", "confirmed", "ok", "okay", "do it", "go ahead"):
-            return _execute_pending_ha_action()
+            pending = mem_get("ha_action_pending")
+            mem_set("ha_action_pending", "")
+            try:
+                action = json.loads(pending)
+                return ha_execute_service_action(
+                    action.get("domain", ""),
+                    action.get("service", ""),
+                    action.get("entity_id", ""),
+                    action.get("data", {}),
+                )
+            except Exception:
+                return "No pending action to confirm."
         if t in ("no", "n", "cancel", "stop"):
             mem_set("ha_action_pending", "")
             return "Action cancelled."
