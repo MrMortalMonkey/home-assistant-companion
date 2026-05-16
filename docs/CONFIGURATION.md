@@ -35,6 +35,27 @@ All configuration is in `config.json`. This file is generated automatically by `
 | `poll_interval_sec` | int | ✅ | Telegram polling interval (default: 2) |
 | `audit_interval_sec` | int | ✅ | Full audit interval in seconds (default: 1800) |
 | `deploy_secret` | str | ✅ | 64-char HMAC secret (auto-generated) — **never share** |
+| `timezone` | str | Optional | IANA timezone string (e.g. `"America/New_York"`, `"Europe/London"`). Leave blank to use system timezone. |
+| `country_code` | str | Optional | Country code for public holiday detection: `"fr"`, `"us"`, `"gb"`, `"au"`, `"de"`, or `"none"`. Default: `"fr"`. |
+| `electricity_rate_kwh` | float | Optional | Fallback electricity rate in currency/kWh. Used when `electricity_provider` is `"custom"` or unrecognized. |
+| `currency` | str | Optional | Currency symbol for cost display (default: `"€"`). |
+| `enable_tempo_ejp` | bool | Optional | Enable France EDF Tempo/EJP tariff alerts. Default: `false`. Set to `true` only if you have a Tempo or EJP subscription. |
+| `baseline_entities` | dict | Optional | Manual entity→label mappings to add or override HA Energy dashboard auto-discovery. See [Energy entities](#energy-entities) below. |
+
+## Energy entities
+
+On startup, the app automatically discovers grid, solar, and battery entities from the Home Assistant Energy dashboard (via `/api/config/energy`). No configuration is needed if you have already set up the HA Energy dashboard.
+
+To add entities that are not in the Energy dashboard (such as real-time watt sensors), or to override a discovered label, use `baseline_entities` in `config.json`:
+
+```json
+"baseline_entities": {
+  "sensor.my_realtime_power": "realtime_consumption_w",
+  "sensor.my_solar_today_kwh": "production_solar_kwh"
+}
+```
+
+Labels used by the app: `grid_consumption_kwh`, `grid_return_kwh`, `production_solar_kwh`, `battery_charge_kwh`, `realtime_consumption_w`.
 
 ## Getting credentials
 
@@ -131,7 +152,13 @@ At startup, AI Assistant sends a 6-digit code to verify it's you accessing the b
   "poll_interval_sec": 2,
   "audit_interval_sec": 1800,
   "llm_monthly_budget_usd": 0,
-  "deploy_secret": "3f8a9b2c7e1d4f5a6b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a"
+  "deploy_secret": "3f8a9b2c7e1d4f5a6b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a",
+  "timezone": "",
+  "country_code": "us",
+  "electricity_rate_kwh": 0.15,
+  "currency": "$",
+  "enable_tempo_ejp": false,
+  "baseline_entities": {}
 }
 ```
 

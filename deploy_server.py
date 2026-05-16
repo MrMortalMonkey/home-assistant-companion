@@ -18,20 +18,22 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 _LOG_LOCK = threading.Lock()
 
-CONFIG_PATH = "/home/lolufe/assistant/config.json"
-SCRIPT_PATH = "/home/lolufe/assistant/assistant.py"
-ASSISTANT_DIR = "/home/lolufe/assistant"
-VERSIONS_DIR = "/home/lolufe/assistant/versions"
-DEPLOY_LOG = "/home/lolufe/assistant/deploy.log"
+_BASE_DIR = os.environ.get("ASSISTANT_DIR", os.path.dirname(os.path.abspath(__file__)))
+_SYS_USER = os.environ.get("USER", os.environ.get("LOGNAME", "root"))
+CONFIG_PATH   = os.path.join(_BASE_DIR, "config.json")
+SCRIPT_PATH   = os.path.join(_BASE_DIR, "assistant.py")
+ASSISTANT_DIR = _BASE_DIR
+VERSIONS_DIR  = os.path.join(_BASE_DIR, "versions")
+DEPLOY_LOG    = os.path.join(_BASE_DIR, "deploy.log")
 PORT = 8501
 
 # ═══ INFRA ═══
-TUNNEL_URL_FILE = "/home/lolufe/assistant/tunnel_url.txt"
+TUNNEL_URL_FILE = os.path.join(_BASE_DIR, "tunnel_url.txt")
 NTFY_TOPIC = "assistant-deploy-8501-secret"
 HEARTBEAT_INTERVAL = 3600  # 1h — keeps the URL fresh within ntfy's 24h window
 
 # Systemd unit files (written by /infra_install)
-DEPLOY_SERVER_UNIT = """[Unit]
+DEPLOY_SERVER_UNIT = f"""[Unit]
 Description=AI Companion Deploy Server
 After=network-online.target
 Wants=network-online.target
@@ -39,13 +41,13 @@ StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-User=lolufe
-WorkingDirectory=/home/lolufe/assistant
-ExecStart=/usr/bin/python3 -u /home/lolufe/assistant/deploy_server.py
+User={_SYS_USER}
+WorkingDirectory={_BASE_DIR}
+ExecStart=/usr/bin/python3 -u {_BASE_DIR}/deploy_server.py
 Restart=always
 RestartSec=3
-StandardOutput=append:/home/lolufe/assistant/deploy_server.log
-StandardError=append:/home/lolufe/assistant/deploy_server.log
+StandardOutput=append:{_BASE_DIR}/deploy_server.log
+StandardError=append:{_BASE_DIR}/deploy_server.log
 KillMode=control-group
 TimeoutStopSec=10
 
@@ -53,16 +55,16 @@ TimeoutStopSec=10
 WantedBy=multi-user.target
 """
 
-WATCHDOG_SERVICE_UNIT = """[Unit]
+WATCHDOG_SERVICE_UNIT = f"""[Unit]
 Description=AI Companion Infra Watchdog (one-shot health check)
 
 [Service]
 Type=oneshot
-User=lolufe
-WorkingDirectory=/home/lolufe/assistant
-ExecStart=/bin/bash /home/lolufe/assistant/watchdog.sh
-StandardOutput=append:/home/lolufe/assistant/watchdog.log
-StandardError=append:/home/lolufe/assistant/watchdog.log
+User={_SYS_USER}
+WorkingDirectory={_BASE_DIR}
+ExecStart=/bin/bash {_BASE_DIR}/watchdog.sh
+StandardOutput=append:{_BASE_DIR}/watchdog.log
+StandardError=append:{_BASE_DIR}/watchdog.log
 """
 
 WATCHDOG_TIMER_UNIT = """[Unit]
@@ -78,7 +80,7 @@ AccuracySec=10s
 WantedBy=timers.target
 """
 
-CLOUDFLARED_TUNNEL_UNIT = """[Unit]
+CLOUDFLARED_TUNNEL_UNIT = f"""[Unit]
 Description=Cloudflare Tunnel for AI Companion Deploy Server
 After=network-online.target deploy_server.service
 Wants=network-online.target
@@ -86,13 +88,13 @@ StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-User=lolufe
-WorkingDirectory=/home/lolufe/assistant
-ExecStart=/bin/bash /home/lolufe/assistant/tunnel_wrapper.sh
+User={_SYS_USER}
+WorkingDirectory={_BASE_DIR}
+ExecStart=/bin/bash {_BASE_DIR}/tunnel_wrapper.sh
 Restart=always
 RestartSec=5
-StandardOutput=append:/home/lolufe/assistant/tunnel.log
-StandardError=append:/home/lolufe/assistant/tunnel.log
+StandardOutput=append:{_BASE_DIR}/tunnel.log
+StandardError=append:{_BASE_DIR}/tunnel.log
 KillMode=control-group
 TimeoutStopSec=15
 
@@ -420,9 +422,9 @@ def action_kill_zombies():
 def action_eliminate_duplicate():
     """Eliminates the cloudflared.service (duplicate).
     Detached to survive a potential tunnel drop during the operation."""
-    script = """#!/bin/bash
+    script = f"""#!/bin/bash
 set -u
-exec >> /home/lolufe/assistant/handoff.log 2>&1
+exec >> {_BASE_DIR}/handoff.log 2>&1
 echo ""
 echo "════════ ELIMINATE_DUPLICATE $(date -Iseconds) ════════"
 
@@ -445,7 +447,7 @@ sudo -n systemctl disable cloudflared.service || true
 
 echo "[T3] Remove unit file"
 sudo -n rm /etc/systemd/system/cloudflared.service || true
-# Clean aussi the symlink wants/ s'il existe
+# Also clean the symlink in wants/ if it exists
 sudo -n rm /etc/systemd/system/multi-user.target.wants/cloudflared.service 2>/dev/null || true
 
 echo "[T4] daemon-reload"
@@ -475,7 +477,7 @@ echo "  Wrappers : $(pgrep -af tunnel_wrapper.sh | wc -l)"
 echo "  Cloudflared : $(pgrep -f 'cloudflared tunnel.*localhost' | wc -l)"
 pgrep -af tunnel_wrapper.sh || true
 pgrep -af "cloudflared tunnel" || true
-echo "  URL : $(cat /home/lolufe/assistant/tunnel_url.txt 2>/dev/null)"
+echo "  URL : $(cat {_BASE_DIR}/tunnel_url.txt 2>/dev/null)"
 
 W=$(pgrep -f 'tunnel_wrapper.sh' | wc -l)
 C=$(pgrep -f 'cloudflared tunnel.*localhost' | wc -l)
@@ -548,9 +550,9 @@ def action_check_orchestrators():
 
 def action_final_clean():
     """Final atomic cleanup, with checks at each step."""
-    script = """#!/bin/bash
+    script = f"""#!/bin/bash
 set -u
-exec >> /home/lolufe/assistant/handoff.log 2>&1
+exec >> {_BASE_DIR}/handoff.log 2>&1
 echo ""
 echo "════════ FINAL_KEYAN $(date -Iseconds) ════════"
 echo "[T0] :"
@@ -595,7 +597,7 @@ sleep 12
 
 echo "[T4+12s] FINAL :"
 ps -eo pid,ppid,etime,cmd | grep -E 'tunnel_wrapper|cloudflared.tunnel.*localhost' | grep -v grep
-echo "[URL] : $(cat /home/lolufe/assistant/tunnel_url.txt 2>/dev/null)"
+echo "[URL] : $(cat {_BASE_DIR}/tunnel_url.txt 2>/dev/null)"
 
 W=$(pgrep -f 'tunnel_wrapper.sh' | wc -l)
 C=$(pgrep -f 'cloudflared tunnel.*localhost' | wc -l)
@@ -619,16 +621,16 @@ echo "════════ DONE FINAL_KEYAN ════════"
 def action_admin_clean_double_tunnel():
     """Kills all wrappers/cloudflared and lets systemd start ONE service.
     Detached because it cuts our channel."""
-    script = """#!/bin/bash
+    script = f"""#!/bin/bash
 set -u
-exec >> /home/lolufe/assistant/handoff.log 2>&1
+exec >> {_BASE_DIR}/handoff.log 2>&1
 echo ""
 echo "════════ KEYAN_DOUBLE $(date -Iseconds) ════════"
 echo "[PRE] :"
 pgrep -af tunnel_wrapper || true
 pgrep -af "cloudflared tunnel" || true
 sleep 2
-# Stopper proprement the service (KillMode=control-group tue alle the cgroup)
+# Cleanly stop the service (KillMode=control-group kills all cgroup processes)
 sudo -n systemctl stop cloudflared_tunnel.service
 sleep 2
 # Kill remaining processes (orphans outside cgroup)
@@ -647,7 +649,7 @@ sleep 15
 echo "[POST T+15s] :"
 pgrep -af tunnel_wrapper || true
 pgrep -af "cloudflared tunnel" || true
-echo "[URL] : $(cat /home/lolufe/assistant/tunnel_url.txt 2>/dev/null)"
+echo "[URL] : $(cat {_BASE_DIR}/tunnel_url.txt 2>/dev/null)"
 echo "════════ DONE KEYAN_DOUBLE ════════"
 """
     p = "/tmp/clean_double.sh"
@@ -663,16 +665,16 @@ echo "════════ DONE KEYAN_DOUBLE ════════"
 def action_admin_restart_tunnel():
     """Kills all tunnel processes and restarts cleanly via systemd.
     Detached because it may cut our own channel."""
-    script = """#!/bin/bash
+    script = f"""#!/bin/bash
 set -u
-exec >> /home/lolufe/assistant/handoff.log 2>&1
+exec >> {_BASE_DIR}/handoff.log 2>&1
 echo ""
 echo "════════ TUNNEL_RESTART $(date -Iseconds) ════════"
 echo "[PRE] tunnel processes :"
 pgrep -af tunnel_wrapper || true
 pgrep -af "cloudflared tunnel" || true
 
-# 1. Stopper the service systemd (KillMode=control-group tue alle the cgroup)
+# 1. Stop the systemd service (KillMode=control-group kills all cgroup processes)
 sudo -n systemctl stop cloudflared_tunnel.service
 sleep 2
 
@@ -689,7 +691,7 @@ sleep 8
 echo "[POST] tunnel processes :"
 pgrep -af tunnel_wrapper || true
 pgrep -af "cloudflared tunnel" || true
-echo "[POST] URL : $(cat /home/lolufe/assistant/tunnel_url.txt 2>/dev/null)"
+echo "[POST] URL : $(cat {_BASE_DIR}/tunnel_url.txt 2>/dev/null)"
 echo "════════ DONE TUNNEL_RESTART ════════"
 """
     p = "/tmp/tunnel_restart.sh"
@@ -774,15 +776,17 @@ def action_check_autostart():
     except Exception as e: out["systemd_timers"] = f"ERR: {e}"
     # Search for tunnel_wrapper in any startup script
     try:
+        _home = os.path.expanduser("~")
         r = subprocess.run(["bash", "-c",
-            "grep -rl tunnel_wrapper /etc/systemd /home/lolufe 2>/dev/null | head -20"],
+            f"grep -rl tunnel_wrapper /etc/systemd {_home} 2>/dev/null | head -20"],
             capture_output=True, text=True, timeout=10)
         out["files_referencing_wrapper"] = r.stdout.strip().split("\n")
     except Exception as e: out["files_referencing_wrapper"] = f"ERR: {e}"
     # bashrc, profile, etc
     try:
+        _home = os.path.expanduser("~")
         r = subprocess.run(["bash", "-c",
-            "grep -l 'tunnel_wrapper|cloudflared|deploy_server' /home/lolufe/.bashrc /home/lolufe/.profile /home/lolufe/.bash_profile /etc/rc.local 2>/dev/null"],
+            f"grep -l 'tunnel_wrapper|cloudflared|deploy_server' {_home}/.bashrc {_home}/.profile {_home}/.bash_profile /etc/rc.local 2>/dev/null"],
             capture_output=True, text=True, timeout=5)
         out["shell_init_files"] = r.stdout
     except Exception as e: out["shell_init_files"] = f"ERR: {e}"
@@ -912,12 +916,12 @@ def action_infra_install():
                 return {"status": "error", "steps": steps}
 
         # Write the watchdog script (executable by user, no sudo needed)
-        watchdog_script = """#!/bin/bash
-LOG="/home/lolufe/assistant/watchdog.log"
-URL_FILE="/home/lolufe/assistant/tunnel_url.txt"
-STATE_FILE="/home/lolufe/assistant/watchdog.state"
+        watchdog_script = f"""#!/bin/bash
+LOG="{_BASE_DIR}/watchdog.log"
+URL_FILE="{_BASE_DIR}/tunnel_url.txt"
+STATE_FILE="{_BASE_DIR}/watchdog.state"
 
-log() { echo "[$(date -Iseconds)] $*"; }
+log() {{ echo "[$(date -Iseconds)] $*"; }}
 
 # 1. Test deploy_server local
 if ! curl -sf -m 5 http://127.0.0.1:8501/ping >/dev/null 2>&1; then
@@ -927,7 +931,7 @@ if ! curl -sf -m 5 http://127.0.0.1:8501/ping >/dev/null 2>&1; then
     exit 0
 fi
 
-# 2. Test tunnel externe
+# 2. Test tunnel
 URL=$(cat "$URL_FILE" 2>/dev/null)
 if [ -z "$URL" ]; then
     log "⚠️  no URL in $URL_FILE -> restart tunnel"
@@ -936,7 +940,7 @@ if [ -z "$URL" ]; then
 fi
 
 # 3. Test ping via the tunnel (curl does not follow auth so we accept 401)
-HTTP=$(curl -s -m 8 -o /dev/null -w "%{http_code}" "$URL/ping" 2>/dev/null)
+HTTP=$(curl -s -m 8 -o /dev/null -w "%{{http_code}}" "$URL/ping" 2>/dev/null)
 if [ "$HTTP" != "401" ] && [ "$HTTP" != "200" ]; then
     log "⚠️  tunnel failed (HTTP=$HTTP) on $URL -> restart"
     sudo -n systemctl restart cloudflared_tunnel.service
@@ -948,9 +952,9 @@ if [ "$SIZE" -gt 204800 ]; then
     tail -500 "$LOG" > "$LOG.tmp" && mv "$LOG.tmp" "$LOG"
 fi
 """
-        with open("/home/lolufe/assistant/watchdog.sh", "w") as f:
+        with open(os.path.join(_BASE_DIR, "watchdog.sh"), "w") as f:
             f.write(watchdog_script)
-        os.chmod("/home/lolufe/assistant/watchdog.sh", 0o755)
+        os.chmod(os.path.join(_BASE_DIR, "watchdog.sh"), 0o755)
         steps.append(("write watchdog.sh", 0, ""))
 
         # daemon-reload + enable + start timer
@@ -1028,7 +1032,7 @@ def action_infra_handoff():
     my_pid = os.getpid()
     script = f"""#!/bin/bash
 set -u
-exec >> /home/lolufe/assistant/handoff.log 2>&1
+exec >> {_BASE_DIR}/handoff.log 2>&1
 echo ""
 echo "════════ HANDOFF $(date -Iseconds) ════════"
 echo "[PRE] my_pid (deploy_server to kill): {my_pid}"
@@ -1042,7 +1046,7 @@ ss -tlnp sport = :8501 || true
 
 sleep 3
 
-# 1. Kill TOUS the wrappers and cloudflared orphans (lolufe can the faire without sudo)
+# 1. Kill all wrappers and cloudflared orphans (user can do this without sudo)
 echo "[KILL] orphans tunnel..."
 pkill -TERM -f "tunnel_wrapper.sh" 2>/dev/null || true
 pkill -TERM -f "cloudflared tunnel --url http://localhost:8501" 2>/dev/null || true
@@ -1094,9 +1098,9 @@ sudo -n systemctl start cloudflared_tunnel.service
 # 7. Wait URL (max 30s)
 URL=""
 for i in $(seq 1 30); do
-    if [ -f /home/lolufe/assistant/tunnel_url.txt ]; then
-        CANDIDATE=$(cat /home/lolufe/assistant/tunnel_url.txt 2>/dev/null)
-        FILE_AGE=$(($(date +%s) - $(stat -c %Y /home/lolufe/assistant/tunnel_url.txt 2>/dev/null || echo 0)))
+    if [ -f {_BASE_DIR}/tunnel_url.txt ]; then
+        CANDIDATE=$(cat {_BASE_DIR}/tunnel_url.txt 2>/dev/null)
+        FILE_AGE=$(($(date +%s) - $(stat -c %Y {_BASE_DIR}/tunnel_url.txt 2>/dev/null || echo 0)))
         if [ -n "$CANDIDATE" ] && [ "$FILE_AGE" -lt 60 ]; then
             URL="$CANDIDATE"
             echo "[OK] URL published by tunnel ($FILE_AGE s): $URL"
@@ -1190,7 +1194,7 @@ def action_rollback():
             return {"status": "error", "message": "No backup found"}
         last_backup = os.path.join(VERSIONS_DIR, backups[-1])
         shutil.copy2(last_backup, SCRIPT_PATH)
-        log_deploy(f"✅ Rollback vers {backups[-1]}")
+        log_deploy(f"✅ Rollback to {backups[-1]}")
         subprocess.run(["sudo", "-n", "systemctl", "restart", "assistant.service"], capture_output=True, timeout=30)
         return {"status": "ok", "restored": backups[-1], "timestamp": datetime.now().isoformat()}
     except Exception as e:
@@ -1211,7 +1215,7 @@ def action_status():
 
 def action_logs(n=50):
     try:
-        with open("/home/lolufe/assistant/assistant.log", "r") as f:
+        with open(os.path.join(_BASE_DIR, "assistant.log"), "r") as f:
             lines = f.readlines()
         return {"status": "ok", "lines": [l.rstrip() for l in lines[-n:]], "total_lines": len(lines)}
     except Exception as e:

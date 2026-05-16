@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.2.0 beta (2026-05-16)
+- Fixed runtime crash: `plt.tight_layout()` typo corrected in energy graph generation
+- Fixed morning briefing firing at 5am — now correctly uses `WORKDAY_BRIEFING_HOUR` (7am) / `WEEKEND_BRIEFING_HOUR` (10am) constants
+- Fixed undefined variable crash in automation-modify flow; block moved to correct scope in `handle_message()`
+- Fixed context graph cache bypass that caused cache to be skipped on every call
+- Fixed tautological battery entity filter (duplicated OR/AND conditions simplified)
+- Fixed battery monitoring loop: sleep extended to 3600s to prevent repeated 9am alerts
+- Fixed duplicate `cmd_programs` definition (stale version using deprecated skill key removed)
+- Removed dead `_enregistrer_program` function (never called)
+- Removed duplicate keys in Telegram commands dispatch dict (`energy`, `automations`, `rooms`, `memory_store`, `export`)
+- Fixed token cost calculation to be provider-aware (Anthropic, OpenAI, OpenRouter, Ollama, LM Studio)
+- Translated all French user-visible strings, comments, function names, and variable names to English
+- Renamed internal functions: `_calculer_signature_cycle` → `_calculate_cycle_signature`, `_notif_tempo_ejp` → `_notify_tempo_ejp`, `_rollback_si_errors_repetees` → `_rollback_on_repeated_errors`
+- Removed hardcoded `Europe/Paris` timezone — configurable via `timezone` key in config.json
+- Replaced hardcoded French public holiday list with configurable multi-country table (`country_code`: fr/us/gb/au/de/none)
+- Replaced hardcoded `BASELINE_ENTITIES` (developer's personal entity IDs) with automatic discovery from HA Energy dashboard API, with config.json override support (`baseline_entities`)
+- Added configurable electricity rate for non-French providers (`electricity_rate_kwh`, `currency` config keys)
+- Added Tempo/EJP alert guard: disabled by default, opt-in via `enable_tempo_ejp: true` in config.json (France EDF-specific)
+- Changed default `MODE` from `"DEV"` to `"PROD"` — eliminates security bypass for new installs
+- Fixed `deploy_server.py` hardcoded `/home/lolufe/assistant` paths — now derived from `__file__` or `ASSISTANT_DIR` env var
+- Added behavior.txt header noting the device list is an example to be replaced with user's own devices
+- Updated README: corrected Google Home/Alexa capability description; clarified `/budget` cost estimate accuracy
+- Documented new config keys: `timezone`, `country_code`, `electricity_rate_kwh`, `currency`, `enable_tempo_ejp`, `baseline_entities`
+- All changes mirrored to `addon/app/` counterparts
+
 ## 0.1.19 beta (2026-05-16)
 - Added missing `skill_heat_pump_behavior` learner used by the intelligence loop
 - Fixed recurring runtime `NameError` in `monitoring_core intelligence` caused by the missing heat-pump skill function

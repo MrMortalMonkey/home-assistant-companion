@@ -636,9 +636,8 @@ def _engine_savings_proactive(states, index, now):
 
     conn = sqlite3.connect(DB_PATH)
 
-    # ═══ 1. MORNING BRIEFING (1x/day between 7h00-7h05) ═══
-    # Briefing: 5h Mon-Fri (work), 10h Sat-Sun (rest)
-    hour_briefing = 5 if now.weekday() < 5 else 10
+    # ═══ 1. MORNING BRIEFING (1x/day) ═══
+    hour_briefing = WORKDAY_BRIEFING_HOUR if now.weekday() < 5 else WEEKEND_BRIEFING_HOUR
     if hour == hour_briefing and minute < 5 and _eco_proactive_state.get("briefing") != now.strftime("%Y-%m-%d"):
         _eco_proactive_state["briefing"] = now.strftime("%Y-%m-%d")
 
@@ -812,7 +811,7 @@ def _engine_savings_proactive(states, index, now):
                     if trash_events:
                         msg += f"\n🗑️ Trash tomorrow : {', '.join(trash_events)} — put them out tonight!"
                     if others:
-                        msg += f"\n📅 Demain : {', '.join(others)}"
+                        msg += f"\n📅 Tomorrow: {', '.join(others)}"
         except Exception:
             pass
 
@@ -822,8 +821,8 @@ def _engine_savings_proactive(states, index, now):
         is_workday = now.weekday() < 5  # Mon-Fri
 
         if is_workday:
-            waze_rortes = []
-            for eid in ("sensor.waze_a103", "sensor.waze_rortes_locales", "sensor.waze_travel_time"):
+            waze_routes = []
+            for eid in ("sensor.waze_a103", "sensor.waze_routes_locales", "sensor.waze_travel_time"):
                 e_w = index.get(eid)
                 if e_w and e_w["state"] not in ("unavailable", "unknown"):
                     try:
@@ -835,19 +834,19 @@ def _engine_savings_proactive(states, index, now):
                         dist_str = f" ({distance:.1f}km)" if isinstance(distance, (int, float)) else ""
                         # Find the route short
                         route_short = route.split(";")[0].strip() if route else name
-                        waze_rortes.append({"name": route_short, "duration": duration, "dist": dist_str})
+                        waze_routes.append({"name": route_short, "duration": duration, "dist": dist_str})
                     except (ValueError, TypeError):
                         pass
 
-            if waze_rortes:
-                waze_rortes.sort(key=lambda x: x["duration"])
-                best = waze_rortes[0]
-                msg += f"\n\n🚗 TRAJET"
-                for wr in waze_rortes:
+            if waze_routes:
+                waze_routes.sort(key=lambda x: x["duration"])
+                best = waze_routes[0]
+                msg += f"\n\n🚗 COMMUTE"
+                for wr in waze_routes:
                     icon = "🟢" if wr["duration"] < 30 else ("🟡" if wr["duration"] < 45 else "🔴")
-                    best_marker = " ← best" if wr == best and len(waze_rortes) > 1 else ""
+                    best_marker = " ← best" if wr == best and len(waze_routes) > 1 else ""
                     msg += f"\n  {icon} {wr['name']}{wr['dist']} : {int(wr['duration'])} min{best_marker}"
-                msg += f"\n\n🚗 Bonne route !"
+                msg += f"\n\n🚗 Safe travels!"
             else:
                 msg += f"\n\n🚗 Have a great day!"
         else:
@@ -960,12 +959,12 @@ def _engine_savings_proactive(states, index, now):
             ).fetchall()
 
             # Appliance cycles this week
-            cycles_sem = conn.execute(
+            cycles_week = conn.execute(
                 "SELECT COUNT(*), COALESCE(SUM(consumption_kwh), 0), COALESCE(SUM(saving_eur), 0) FROM appliance_cycles "
                 "WHERE ended_at IS NOT NULL AND created_at >= ?",
                 (monday,)
             ).fetchone()
-            nb_cycles, kwh_cycles, eco_cycles = cycles_sem
+            nb_cycles, kwh_cycles, eco_cycles = cycles_week
 
             # Intelligence score
             nb_success = conn.execute(
@@ -984,7 +983,7 @@ def _engine_savings_proactive(states, index, now):
             ).fetchone()[0]
 
             # Build the message
-            msg = f"📊 SUMMARY HEBDO\n━━━━━━━━━━━━━━━━━━\n"
+            msg = f"📊 WEEKLY SUMMARY\n━━━━━━━━━━━━━━━━━━\n"
             msg += f"Week of {monday[5:]} to {now.strftime('%d/%m')}\n\n"
 
             # Savings
@@ -1017,7 +1016,7 @@ def _engine_savings_proactive(states, index, now):
             total_decisions = nb_success + nb_failures
             if total_decisions > 0:
                 rate = nb_success / total_decisions * 100
-                msg += f"\n🛡️ FAIBILITE\n"
+                msg += f"\n🛡️ RELIABILITY\n"
                 msg += f"  {nb_success}✅ {nb_failures}❌ ({rate:.0f}%)\n"
 
             # Closing note
@@ -1073,7 +1072,7 @@ def _engine_savings_proactive(states, index, now):
             consumption_eid = role_get("consumption_day_kwh")
             cost_entity_id = role_get("consumption_day_cost")
 
-            day_count = previous_month.day  # Last day of previors month
+            day_count = previous_month.day  # Last day of previous month
             consumption_kwh_month = 0
             grid_cost_month = 0
 
@@ -1144,7 +1143,7 @@ def _engine_savings_proactive(states, index, now):
             if eco_m2 > 0.01:
                 delta = ((eco_month[0] - eco_m2) / eco_m2 * 100)
                 tendance = "📈" if delta > 5 else ("📉" if delta < -5 else "➡️")
-                msg += f"  vs previors month: {tendance} ({delta:+.0f}%)\n"
+                msg += f"  vs previous month: {tendance} ({delta:+.0f}%)\n"
 
             type_labels = {
                 "cycle_solar": "☀️ Solar",
@@ -1286,7 +1285,7 @@ def cycle_ended_at(entity_id, consumption_kwh=0.0):
 
     try:
         samples = _powers_history.get(entity_id, [])
-        signature = _calculer_signature_cycle(samples)
+        signature = _calculate_cycle_signature(samples)
         if signature and duration > 10:
             name_prog = _learning_cycle(entity_id, signature, duration, consumption_kwh)
             # Store the signature in the cycle in DB
@@ -1319,8 +1318,8 @@ def cycle_ended_at(entity_id, consumption_kwh=0.0):
     }
 
 
-def _calculer_signature_cycle(samples):
-    """Calculates a digital ended_atgerprint of a cycle from its power measurements.
+def _calculate_cycle_signature(samples):
+    """Calculate a digital fingerprint of a cycle from its power measurements.
     
     The signature encodes the cycle profile: heating, washing, spinning, and pause phases.
     Two cycles of the same program will have very similar signatures.
@@ -1343,9 +1342,9 @@ def _calculer_signature_cycle(samples):
         tranche = watts[i:i+tranche_size]
         avg = sum(tranche) / len(tranche)
         if avg < 5:
-            phases.append("C9")    # Corpure / pause
+            phases.append("C9")    # Pause / power cut
         elif avg < 50:
-            phases.append("L1")    # Low — standby / ended_at of cycle
+            phases.append("L1")    # Low — standby / end of cycle
         elif avg < 200:
             phases.append("L2")    # Medium — wash / rinse
         elif avg < 500:
@@ -1364,7 +1363,7 @@ def _compare_signatures(sig1, sig2):
         return 0
     p1 = sig1.split("-")
     p2 = sig2.split("-")
-    # Align by length (shortst)
+    # Align by length (shortest)
     min_len = min(len(p1), len(p2))
     max_len = max(len(p1), len(p2))
     if min_len == 0:
@@ -1396,24 +1395,6 @@ def _identifier_program(entity_id, signature, duration_min, consumption_kwh):
     return None
 
 
-def _enregistrer_program(entity_id, program_name, signature, duration_min, consumption_kwh):
-    """Record a new program in the skill."""
-    programs, _ = skill_get("machine_programs")
-    if not programs:
-        programs = {}
-    if entity_id not in programs:
-        programs[entity_id] = {}
-
-    programs[entity_id][program_name] = {
-        "signature": signature,
-        "duration_avg": duration_min,
-        "consumption_avg": consumption_kwh,
-        "nb_cycles": 1,
-        "last_utilisation": datetime.now().isoformat()
-    }
-    skill_set("machine_programs", programs)
-
-
 def _learning_cycle(entity_id, signature, duration_min, consumption_kwh):
     """After a cycle : identifier or ask the name of the program.
     
@@ -1432,7 +1413,7 @@ def _learning_cycle(entity_id, signature, duration_min, consumption_kwh):
         if programs and entity_id in programs and recognized_name in programs[entity_id]:
             prog = programs[entity_id][recognized_name]
             nb = prog.get("nb_cycles", 1)
-            # Average glishealth
+            # Sliding average
             prog["duration_avg"] = round((prog["duration_avg"] * nb + duration_min) / (nb + 1), 1)
             prog["consumption_avg"] = round((prog["consumption_avg"] * nb + consumption_kwh) / (nb + 1), 3)
             prog["nb_cycles"] = nb + 1
@@ -1443,24 +1424,6 @@ def _learning_cycle(entity_id, signature, duration_min, consumption_kwh):
     # Program unknown → automatic recording silent
     log.info(f"New cycle {app_name}: {signature[:40]} | {duration_min}min | {consumption_kwh:.2f}kWh")
     return None
-
-
-def cmd_programs():
-    """Show the learned programs for each appliance."""
-    programs, _ = skill_get("machine_programs")
-    if not programs:
-        return "📋 No program learned yet.\nPrograms are learned automatically after each cycle."
-
-    report = "📋 PROGRAMMES APPRIS\n━━━━━━━━━━━━━━━━━━\n"
-    for eid, progs in programs.items():
-        app = appliance_get(eid)
-        app_name = app["name"] if app and app.get("name") else eid
-        report += f"\n🔌 {app_name}\n"
-        for name, data in progs.items():
-            report += f"  📊 {name} : ~{data.get('duration_avg', '?')} min | ~{data.get('consumption_avg', '?')} kWh | {data.get('nb_cycles', 0)} cycles\n"
-    
-    report += "\n💡 Mention appliance changes in chat so the assistant can adapt."
-    return report
 
 
 def cycle_in_progress(entity_id):
@@ -1559,7 +1522,7 @@ def generate_energy_graph(states, index):
     ax.set_xlim(0, 23)
     ax.set_xticks(range(0, 24, 2))
 
-    plt.tight_layort()
+    plt.tight_layout()
 
     # Convert to bytes
     import io
@@ -2240,7 +2203,7 @@ def handle_callback(callback_query):
                     msg += "Detected services:\n" + "\n".join(f"  • {n}" for n in mobile_apps[:5])
                 else:
                     msg += "Services notify :\n" + "\n".join(f"  • {n}" for n in notify_list[:5])
-                msg += "\n\nEnvoyez the name of the service :"
+                msg += "\n\nSend the name of the service:"
             else:
                 msg += "Send the notify service name (e.g.: mobile_app_my_iphone):"
             telegram_send(msg)
@@ -2335,7 +2298,7 @@ def handle_callback(callback_query):
             conn_cc.close()
         except Exception:
             pass
-        telegram_send(f"🔄 {app_name} — cycle summaryd. I continue monitoring.", force=True)
+        telegram_send(f"🔄 {app_name} — cycle complete. Continuing monitoring.", force=True)
         return
 
     if data.startswith("cmd:"):
@@ -2590,8 +2553,8 @@ def handle_callback(callback_query):
             result = json.loads(resp_patch.read().decode())
             if result.get("status") == "ok":
                 telegram_send(
-                    f"✅ PATCH APPLIQUE + REDEMARRE\n"
-                    f"Correction : {explanation}\n"
+                    f"✅ PATCH APPLIED + RESTARTED\n"
+                    f"Fix: {explanation}\n"
                     f"Backup : {result.get('patch', {}).get('backup', '?')}"
                 )
             else:
@@ -2968,7 +2931,8 @@ def _ha_build_context_graph(states=None, force_refresh=False):
     """Build a normalized Home Assistant context graph for better grounding."""
     now_ts = time.time()
     cache = getattr(_ha_build_context_graph, "_cache", {})
-    if not force_refresh and cache and states is None and (now_ts - cache.get("ts", 0) < 90):
+    _states_provided = states is not None
+    if not force_refresh and cache and not _states_provided and (now_ts - cache.get("ts", 0) < 90):
         return cache.get("graph", {})
 
     states = states or ha_get("states") or []
@@ -3017,9 +2981,7 @@ def _ha_build_context_graph(states=None, force_refresh=False):
         "built_at": datetime.now().isoformat(),
     }
 
-    if states is None:
-        _ha_build_context_graph._cache = {"ts": now_ts, "graph": graph}
-    else:
+    if not _states_provided:
         _ha_build_context_graph._cache = {"ts": now_ts, "graph": graph}
     return graph
 
@@ -5565,11 +5527,11 @@ def learning_log_failure(source, description, context=None):
 
 
 def learning_log_success(source, description, context=None):
-    """Record a success for renforcer the pattern"""
+    """Record a success to reinforce the pattern."""
     conn = sqlite3.connect(DB_PATH)
     conn.execute(
         "INSERT INTO decisions_log (action, context, result, success, created_at) VALUES (?, ?, ?, 1, ?)",
-        (f"SUCCES_{source}", json.dumps(context or {}, ensure_ascii=False),
+        (f"SUCCESS_{source}", json.dumps(context or {}, ensure_ascii=False),
          description, datetime.now().isoformat())
     )
     conn.commit()
@@ -8415,9 +8377,9 @@ def cmd_commands():
             ("📚 Expertise", "/expertise"),
             ("🎯 Roles", "/roles"),
         ],
-        "📋 Outils": [
+        "📋 Tools": [
             ("📋 Audit", "/audit"),
-            ("📅 Calendrier", "/calendar"),
+            ("📅 Calendar", "/calendar"),
             ("💰 Savings", "/savings"),
             ("📖 Help", "/help"),
         ],
@@ -9825,7 +9787,7 @@ def _detect_internet_outage(now):
                 except Exception:
                     pass
     except Exception as e:
-        log.debug(f"Corpure internet: {e}")
+        log.debug(f"Internet outage check error: {e}")
 
 
 def _heartbeat_init_table():
@@ -10230,7 +10192,7 @@ def _alert_zigbee_device_mort(index, now):
         log.debug(f"Zigbee dead: {e}")
 
 
-def _notif_tempo_ejp(now):
+def _notify_tempo_ejp(now):
     """If contract Tempo/EJP, notify standby status on red days. CRASH-PROOF."""
     try:
         if now.hour != 19 or now.minute > 5:
@@ -10430,7 +10392,7 @@ def cmd_rooms():
 # =============================================================================
 # =============================================================================
 
-def _rollback_si_errors_repetees(now):
+def _rollback_on_repeated_errors(now):
     """If 3+ crashes occur in 1h → rollback to the last backup. CRASH-PROOF."""
     try:
         if now.minute != 0:
@@ -10466,7 +10428,7 @@ def _rollback_si_errors_repetees(now):
                 telegram_send(
                     f"⚠️ ROLLBACK AUTOMATIQUE\n━━━━━━━━━━━━━━━━━━\n"
                     f"{recent_crashes} crashes detected in 1h.\n"
-                    f"Rolling back to previors version.\n"
+                    f"Rolling back to previous version.\n"
                     f"Restarting..."
                 )
                 import subprocess
@@ -10607,6 +10569,18 @@ def handle_message(text):
         t = t[1:]
     log.info(f"Message: {text[:80]}")
 
+    if mem_get("ha_automation_modify") == "yes":
+        pending = mem_get("ha_automation_pending")
+        if pending:
+            mem_set("ha_automation_modify", "")
+            context = ha_get_context_intelligent()
+            msg_modif = (
+                f"Here is the automation currently being modified:\n{pending}\n\n"
+                f"Requested change: {text}\n\n"
+                f"Apply the change and return the corrected automation using ha_create_automation."
+            )
+            return call_llm(msg_modif, context)
+
     if mem_get("ha_action_pending"):
         if t in ("yes", "y", "confirm", "confirmed", "ok", "okay", "do it", "go ahead"):
             pending = mem_get("ha_action_pending")
@@ -10627,47 +10601,46 @@ def handle_message(text):
 
     commands = {
         "audit": cmd_audit,
-        "energy": cmd_energy, "energy": cmd_energy, "heating": cmd_energy,
+        "energy": cmd_energy, "heating": cmd_energy,
         "solar": cmd_solar,
-        "batteries": cmd_batteries,  
+        "batteries": cmd_batteries,
         "zigbee": cmd_zigbee,
         "nas": cmd_nas,
-        "automations": cmd_automations, "automations": cmd_automations,
+        "automations": cmd_automations,
         "addons": cmd_addons,
         "budget": cmd_budget,
         "heartbeat": cmd_heartbeat,
         "debug": cmd_debug,
         "logs": cmd_logs,
-        "memory_store": cmd_memory_store, "memory_store": cmd_memory_store,
+        "memory_store": cmd_memory_store,
         "scan": cmd_scan,
         "cycles": cmd_cycles,
         "summary": automatic_summary,
         "documentation": cmd_documentation,
         "report": cmd_audit,
-        "export": cmd_script_export,    # ✅ Export SCRIPT
-        "script": cmd_script_export,    # ✅ Export SCRIPT
-        "ai": cmd_script_export,    # ✅ Export SCRIPT
-        "diag_energy": cmd_diag_energy,  # 🔧 Diagnostic energy
-        "diag_offpeak": cmd_diag_hc,            # 🔧 Search off-peak hours
-        "diag_plugs": cmd_diag_plugs,    # 🔧 Diagnostic plugs
-        "diag_ecojoko": cmd_diag_ecojoko,  # 🔧 Diagnostic Ecojoko
-        "diag_nas": cmd_diag_nas,          # 🔧 Diagnostic NAS
-        "diag_carto": cmd_diag_carto,      # 🔧 Diagnostic entity_map
-        "clean_map": cmd_clean_carto,    # 🧹 Cleanup entity_map
-        "baselines": cmd_baselines,        # 📊 Behavior baselines
-        "skills": cmd_skills,              # 🧠 Skills autonomous
-        "analysis": cmd_analysis,            # 🧠 Trigger analysis AI
-        "expertise": cmd_expertise,        # 📚 Expertise accumulated
-        "learning": cmd_learning, # 📕 Learning jorrnal
-        "intelligence": cmd_intelligence,  # 🧠 Score + dashboard
-        "roles": cmd_roles,                # 🎯 Roles auto-discovered
-        "sms": cmd_sms,                    # 📱 Resend code SMS
-        "md": cmd_md,                      # 📧 Send MD by email
-        "rate": cmd_rate,                # ⚡ Rate electricity
-                "roi": cmd_roi,                    # 📈 ROI tokens vs savings
-                        "diag_weather": cmd_diag_weather,      # 🌦️ Diagnostic weather
-        "diag_forecast": cmd_diag_forecast, # 🔧 Debug forecast
-        "help": cmd_documentation,          # 📖 Help (alias)
+        "script": cmd_script_export,
+        "ai": cmd_script_export,
+        "diag_energy": cmd_diag_energy,
+        "diag_offpeak": cmd_diag_hc,
+        "diag_plugs": cmd_diag_plugs,
+        "diag_ecojoko": cmd_diag_ecojoko,
+        "diag_nas": cmd_diag_nas,
+        "diag_carto": cmd_diag_carto,
+        "clean_map": cmd_clean_carto,
+        "baselines": cmd_baselines,
+        "skills": cmd_skills,
+        "analysis": cmd_analysis,
+        "expertise": cmd_expertise,
+        "learning": cmd_learning,
+        "intelligence": cmd_intelligence,
+        "roles": cmd_roles,
+        "sms": cmd_sms,
+        "md": cmd_md,
+        "rate": cmd_rate,
+        "roi": cmd_roi,
+        "diag_weather": cmd_diag_weather,
+        "diag_forecast": cmd_diag_forecast,
+        "help": cmd_documentation,
         "commands": cmd_commands, "command": cmd_commands, "menu": cmd_commands,
         "watches": cmd_watches,
         "score": cmd_score,
@@ -10677,18 +10650,16 @@ def handle_message(text):
         "contract": cmd_advice_contract,
         "advice": cmd_advice_contract,
         "rooms": cmd_rooms,
-        "rooms": cmd_rooms,
-        "rooms": cmd_rooms,
         "known_appliances": cmd_known_appliances,
-        "alerts": cmd_watches,  # 🔔 Dynamic alerts  # 📋 Menu buttons
-        "programs": cmd_programs,      # 🔄 Learned appliance programs
-        "appliances": cmd_appliances,          # 🔌 Appliances on plugs
-        "monitoring": cmd_monitoring,    # 🛡️ Everything monitored
-        "profile": cmd_profile,                # 👥 Household profile
-        "savings": cmd_savings,          # 💰 Detail of the savings
-        "dashboard": cmd_dashboard,          # 📊 Push stats to HA (Lovelace)
-        "calendar": cmd_calendar,        # 📅 Events calendar HA
-        "test_weather": cmd_test_weather,      # 🧪 Test monitoring weather
+        "alerts": cmd_watches,
+        "programs": cmd_programs,
+        "appliances": cmd_appliances,
+        "monitoring": cmd_monitoring,
+        "profile": cmd_profile,
+        "savings": cmd_savings,
+        "dashboard": cmd_dashboard,
+        "calendar": cmd_calendar,
+        "test_weather": cmd_test_weather,
     }
 
     if t in commands:
@@ -10816,21 +10787,6 @@ def automatic_summary():
     except Exception:
         pass
 
-    # Pending automation modification
-    try:
-        if mem_get("ha_automation_modify") == "yes":
-            pending = mem_get("ha_automation_pending")
-            if pending:
-                mem_set("ha_automation_modify", "")
-                context = ha_get_context_intelligent()
-                msg_modif = (
-                    f"Here is the automation currently being modified :\n{pending}\n\n"
-                    f"Requested change: {text}\n\n"
-                    f"Apply the change and return the corrected automation using ha_create_automation."
-                )
-                return call_llm(msg_modif, context)
-    except Exception:
-        pass
     telegram_send("📊 Automatic report generation in progress...")
     states = ha_get("states")
     if not states:

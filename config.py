@@ -14,8 +14,8 @@ LOG_PATH     = os.path.join(BASE_DIR, "assistant.log")
 BEHAVIOR_PROMPT = os.path.join(BASE_DIR, "behavior.txt")
 
 # ═══ VERSION ═══
-MODE    = "DEV"
-VERSION = "0.1.19"
+MODE    = "PROD"
+VERSION = "0.2.0"
 
 # ═══ LLM PROVIDER CONFIGURATION ═══
 # Supported providers:

@@ -19,8 +19,8 @@ from skills import (
     _check_dynamic_watches,
     _heartbeat_observe,
     _monitoring_deploy_server,
-    _notif_tempo_ejp,
-    _rollback_si_errors_repetees,
+    _notify_tempo_ejp,
+    _rollback_on_repeated_errors,
 )
 from shared import (_wizard_step, _wizard_save_config, _is_authorized_chat, transcribe_voice,
     _state_plugs, _grace_ended_at, _powers_history, _last_high_phase,
@@ -501,9 +501,9 @@ def check_night_urgencies():
     try:
         r = ha_get("")
         if not r or r.get("message") != "API running.":
-            alerts.append("🚨 URGENCE — HA INACCESSIBLE")
+            alerts.append("🚨 ALERT — HA UNREACHABLE")
     except Exception:
-        alerts.append("🚨 URGENCE — HA INACCESSIBLE")
+        alerts.append("🚨 ALERT — HA UNREACHABLE")
 
     states = ha_get("states")
     if states:
@@ -512,7 +512,7 @@ def check_night_urgencies():
             if "volume" in sous_cat.lower() and entity_id in index:
                 v = index[entity_id]
                 if v["state"] not in ["normal", "on", "unknown", "unavailable"]:
-                    alerts.append(f"🚨 NAS VOLUME DEGRADE : {entity_id} = {v['state']}")
+                    alerts.append(f"🚨 NAS VOLUME DEGRADED: {entity_id} = {v['state']}")
     return alerts
 
 
@@ -628,8 +628,7 @@ def monitoring_batteries():
                     is_battery = (
                         attrs_b.get("device_class") == "battery" or
                         "state_of_charge" in eid.lower() or
-                        (("battery" in eid.lower() or "battery" in eid.lower()) and
-                         "power" not in eid.lower() and "power" not in eid.lower())
+                        ("battery" in eid.lower() and "power" not in eid.lower())
                     )
                     unit_b = attrs_b.get("unit_of_measurement", "")
                     if unit_b and unit_b not in ["%", ""]:
@@ -664,7 +663,7 @@ def monitoring_batteries():
                 else:
                     log.info("✅ Batteries: all OK")
 
-            time.sleep(300)
+            time.sleep(3600)
         time.sleep(60)
 
 
@@ -764,14 +763,16 @@ def monitoring_core():
                     except Exception as e:
                         log.debug(f"{fn.__name__}: {e}")
 
-                for fn in (
+                background_fns = [
                     _detect_vacation_mode,
                     _backup_auto_db,
                     _detect_internet_outage,
-                    _notif_tempo_ejp,
-                    _rollback_si_errors_repetees,
+                    _rollback_on_repeated_errors,
                     _monitoring_deploy_server,
-                ):
+                ]
+                if CFG.get("enable_tempo_ejp", False):
+                    background_fns.append(_notify_tempo_ejp)
+                for fn in background_fns:
                     try:
                         fn(now)
                     except Exception as e:

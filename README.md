@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-v0.1.19-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-v0.2.0-blue">
   <img alt="Status" src="https://img.shields.io/badge/status-beta-orange">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white">
   <img alt="Home Assistant" src="https://img.shields.io/badge/Home_Assistant-2024.1+-41BDF5?logo=home-assistant&logoColor=white">
@@ -144,7 +144,7 @@ The script is **free and open source (MIT)**. The only recurring AI cost is what
 | AI usage | Variable — depends on provider, selected model, and usage |
 | Hosting | Variable — between $0 (HA App, free VM) and ~$10 (dedicated Pi) |
 
-**On AI usage:** normal hosted-model usage (1 briefing/day, a few conversational commands, passive monitoring) generally runs around **$5–15/month**, depending on provider and model. Local providers such as Ollama or LM Studio can avoid per-token API billing. Use your provider's key-level usage limits when available; the bot's `/budget` command reports estimated token cost locally.
+**On AI usage:** normal hosted-model usage (1 briefing/day, a few conversational commands, passive monitoring) generally runs around **$5–15/month**, depending on provider and model. Local providers such as Ollama or LM Studio can avoid per-token API billing. Use your provider's key-level usage limits when available; the bot's `/budget` command reports estimated token cost locally. *(Note: cost estimates are approximate and calibrated per provider — Ollama and LM Studio report $0.)*
 
 **On savings:** the script measures what it saves you (optimized solar, machines shifted to off-peak, eliminated standbys) and shows it in dollars via `/roi`. **You judge whether the cost/benefit ratio works for you.** Savings depend heavily on your setup: if you have solar + a heat pump + an off-peak rate, there are many levers. If you have a minimal setup, savings probably just cover the token cost — and that's fine, the value shifts to conversational convenience.
 
@@ -161,7 +161,7 @@ The script is **free and open source (MIT)**. The only recurring AI cost is what
 ## 📦 Release policy
 
 - The repository keeps only the **current supported tag**.
-- As of now, the active tag is **`v0.1.19`**.
+- As of now, the active tag is **`v0.2.0`**.
 - Older beta tags are retired to avoid version confusion during Home Assistant App testing.
 
 ## 🛡 Security
@@ -174,7 +174,7 @@ The script is **free and open source (MIT)**. The only recurring AI cost is what
 
 ## 📊 Project status
 
-**Current supported version: v0.1.19 beta**
+**Current supported version: v0.2.0 beta**
 
 The code has been running in production since February 2026. It's functionally stable but has **not yet been validated on enough different installations** to be considered generally stable.
 
@@ -192,7 +192,7 @@ If you're testing, feedback via [GitHub Issues](https://github.com/MrMortalMonke
 - [x] Universal detection (Matter / Zigbee / Z-Wave / WiFi)
 - [x] Proactive monitoring engine (7am briefing, solar peak, standby, off-peak/peak, 9pm summary)
 - [x] Auto-fix via `/problem`
-- [x] Google Home / Alexa integration (TTS)
+- [x] Google Home / Alexa voice bridge (HTTP polling endpoint — requires manual wiring of an Alexa routine or Google Home action)
 - [x] HA App + Docker + systemd
 - [x] Documented installation, opt-in deploy_server
 

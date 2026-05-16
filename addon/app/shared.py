@@ -25,10 +25,6 @@ import llm_provider
 
 # =============================================================================
 # =============================================================================
-import os as _tz_os
-_tz_os.environ['TZ'] = 'Europe/Paris'
-import time as _tz_time
-_tz_time.tzset()
 
 __all__ = [
     "ANTI_DUPLICATE_SEC",
@@ -183,13 +179,7 @@ log = logging.getLogger(__name__)
 # GLOBAL STATE VARIABLES
 # =============================================================================
 
-BASELINE_ENTITIES = {
-    "sensor.ecojoko_realtime_consumption": "grid_consumption_w",
-    "sensor.ecu_current_power": "production_aps_w",
-    "sensor.air_water_heat_pump_energy_current": "consumption_heat_pump_w",
-    "sensor.ecojoko_indoor_temperature": "indoor_temperature",
-    "sensor.ecojoko_outdoor_temperature": "outdoor_temperature",
-}
+BASELINE_ENTITIES = {}  # Populated at startup from HA Energy dashboard + config overrides
 HA_ALLOWED_DOMAINS = {"light", "switch", "lock", "cover", "climate", "fan", "vacuum", "media_player", "scene", "script"}
 _ENTITY_ID_TOKEN_RE = re.compile(r"\b([a-z_][a-z0-9_]*\.[a-z0-9_]+)\b")
 HA_TOOLS = [
@@ -526,6 +516,13 @@ def load_config():
 
 
 CFG = load_config()
+
+# Apply timezone from config (IANA format, e.g. "Europe/Paris", "America/New_York")
+_tz = CFG.get("timezone", "")
+if _tz:
+    import os as _tz_os, time as _tz_time
+    _tz_os.environ["TZ"] = _tz
+    _tz_time.tzset()
 
 # sms_method migration
 if "sms_method" not in CFG and not CFG.get("_wizard_step"):
@@ -2014,6 +2011,38 @@ def check_code(message):
     return False
 
 
+def _init_baseline_entities():
+    """Discover energy entities from HA Energy dashboard, then apply config overrides."""
+    result = {}
+    try:
+        energy_cfg = ha_get("config/energy", _retries=0)
+        if energy_cfg:
+            for src in energy_cfg.get("energy_sources", []):
+                src_type = src.get("type", "")
+                if src_type == "grid":
+                    for flow in src.get("flow_from", []):
+                        eid = flow.get("stat_energy_from")
+                        if eid:
+                            result[eid] = "grid_consumption_kwh"
+                    for flow in src.get("flow_to", []):
+                        eid = flow.get("stat_energy_to")
+                        if eid:
+                            result[eid] = "grid_return_kwh"
+                elif src_type == "solar":
+                    eid = src.get("stat_energy_from")
+                    if eid:
+                        result[eid] = "production_solar_kwh"
+                elif src_type == "battery":
+                    eid = src.get("stat_energy_to")
+                    if eid:
+                        result[eid] = "battery_charge_kwh"
+    except Exception:
+        pass
+    # Manual overrides from config.json take precedence over auto-discovery
+    result.update(CFG.get("baseline_entities", {}))
+    return result
+
+
 def ha_get(endpoint, _retries=2, _delay=5):
     """GET HA API with automatic retry on transient grid errors."""
     if not CFG.get("ha_url"):
@@ -2070,9 +2099,9 @@ def ha_execute_config_write(endpoint, data):
 
 
 def ha_get_forecast(entity_id=None, forecast_type="daily"):
+    """Retrieve the weather forecast via the weather.get_forecasts service (HA 2024+)."""
     if entity_id is None:
         entity_id = role_get("weather") or "weather.pavillons_sous_bois"
-    """Retrieves the forecast weather via the service weather.get_forecasts (HA 2024+)"""
     try:
         url = f"{CFG['ha_url']}/api/services/weather/get_forecasts?return_response"
         headers = {"Authorization": f"Bearer {CFG['ha_token']}", "Content-Type": "application/json"}
@@ -2181,7 +2210,7 @@ def _alert_if_new(key_name, message, delay_h=2):
 
 
 def skill_get(name):
-    """Lit a skill since SQLite"""
+    """Read a skill from SQLite."""
     conn = sqlite3.connect(DB_PATH)
     r = conn.execute("SELECT data, learning_count FROM skills WHERE name=?", (name,)).fetchone()
     conn.close()
@@ -2191,7 +2220,7 @@ def skill_get(name):
 
 
 def skill_set(name, data, nb=None):
-    """Ecrit a skill in SQLite"""
+    """Write a skill to SQLite."""
     conn = sqlite3.connect(DB_PATH)
     old = conn.execute("SELECT learning_count FROM skills WHERE name=?", (name,)).fetchone()
     nb_val = nb if nb is not None else ((old[0] + 1) if old else 1)
@@ -2233,17 +2262,23 @@ def _is_off_peak_hour_ranges(off_peak_hours):
     return False
 
 
+_COUNTRY_HOLIDAYS = {
+    "fr": [(1,1),(5,1),(5,8),(7,14),(8,15),(11,1),(11,11),(12,25)],
+    "us": [(1,1),(7,4),(11,11),(12,25)],
+    "gb": [(1,1),(12,25),(12,26)],
+    "au": [(1,1),(4,25),(12,25),(12,26)],
+    "de": [(1,1),(10,3),(12,25),(12,26)],
+    "none": [],
+}
+
+
 def _is_weekend_or_holiday():
-    """Checks whether today is a weekend or holiday"""
+    """Check whether today is a weekend or public holiday (country set via config.json `country_code`)."""
     now = datetime.now()
-    if now.weekday() >= 5:  # Samedi=5, Dimanche=6
+    if now.weekday() >= 5:  # Saturday=5, Sunday=6
         return True
-    # Fixed-date public holidays
-    y = now.year
-    holidays = [
-        (1, 1), (5, 1), (5, 8), (7, 14), (8, 15),
-        (11, 1), (11, 11), (12, 25),
-    ]
+    country = CFG.get("country_code", "fr")
+    holidays = _COUNTRY_HOLIDAYS.get(country, _COUNTRY_HOLIDAYS["fr"])
     if (now.month, now.day) in holidays:
         return True
     return False
@@ -2297,7 +2332,10 @@ def rate_current_kwh_price():
         hc = _is_off_peak_hour_ranges(rate.get("off_peak_hours", []))
         return rate.get("price_blue_hc" if hc else "price_blue_hp", 0.12)
 
-    return 0.2516
+    if ttype == "custom":
+        return float(CFG.get("electricity_rate_kwh", rate.get("price_kwh", 0.20)))
+
+    return float(CFG.get("electricity_rate_kwh", 0.2516))
 
 
 def rate_is_off_peak_hour():
@@ -2375,7 +2413,15 @@ ABSOLUTE RULES:
 
 def check_budget():
     tokens_in, tokens_out = get_token_usage()
-    cost = (tokens_in * 0.000001) + (tokens_out * 0.000005)
+    _COST_PER_TOKEN = {
+        "anthropic":  (0.000001,  0.000005),
+        "openai":     (0.0000005, 0.0000015),
+        "openrouter": (0.000001,  0.000003),
+        "ollama":     (0.0,       0.0),
+        "lmstudio":   (0.0,       0.0),
+    }
+    in_rate, out_rate = _COST_PER_TOKEN.get(CFG.get("llm_provider", "anthropic"), (0.000001, 0.000005))
+    cost = tokens_in * in_rate + tokens_out * out_rate
     budget = CFG.get("llm_monthly_budget_usd", 0)
     pct = (cost / budget * 100) if budget > 0 else 0
 
@@ -3115,3 +3161,10 @@ def transcribe_voice(file_id):
                     os.remove(f)
                 except Exception:
                     pass
+
+
+# Populate BASELINE_ENTITIES from HA Energy dashboard + config overrides
+try:
+    BASELINE_ENTITIES.update(_init_baseline_entities())
+except Exception:
+    pass
