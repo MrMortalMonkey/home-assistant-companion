@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1 beta (2026-05-16)
+- Fixed missing `skill_optimisation_rate` function causing `monitoring_core intelligence` NameError every 5 minutes
+- Fixed noisy 404 warnings on optional HA Energy dashboard endpoints (`config/energy`, `energy/info`) — now logged at DEBUG level when the Energy dashboard is not configured
+- Added message logging before channel lock check so incoming Telegram messages always appear in logs
+
 ## 0.2.0 beta (2026-05-16)
 - Fixed runtime crash: `plt.tight_layout()` typo corrected in energy graph generation
 - Fixed morning briefing firing at 5am — now correctly uses `WORKDAY_BRIEFING_HOUR` (7am) / `WEEKEND_BRIEFING_HOUR` (10am) constants

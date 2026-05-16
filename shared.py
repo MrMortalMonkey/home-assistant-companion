@@ -2015,7 +2015,7 @@ def _init_baseline_entities():
     """Discover energy entities from HA Energy dashboard, then apply config overrides."""
     result = {}
     try:
-        energy_cfg = ha_get("config/energy", _retries=0)
+        energy_cfg = ha_get("config/energy", _retries=0, _silent=True)
         if energy_cfg:
             for src in energy_cfg.get("energy_sources", []):
                 src_type = src.get("type", "")
@@ -2043,8 +2043,9 @@ def _init_baseline_entities():
     return result
 
 
-def ha_get(endpoint, _retries=2, _delay=5):
-    """GET HA API with automatic retry on transient grid errors."""
+def ha_get(endpoint, _retries=2, _delay=5, _silent=False):
+    """GET HA API with automatic retry on transient grid errors.
+    Pass _silent=True to suppress non-200 warnings (e.g. for optional endpoints)."""
     if not CFG.get("ha_url"):
         return None
     url = f"{CFG['ha_url']}/api/{endpoint}"
@@ -2054,13 +2055,17 @@ def ha_get(endpoint, _retries=2, _delay=5):
             r = requests.get(url, headers=headers, verify=False, timeout=15)
             if r.status_code == 200:
                 return r.json()
-            log.warning(f"⚠️ HA {endpoint}: HTTP {r.status_code}")
+            if not _silent:
+                log.warning(f"⚠️ HA {endpoint}: HTTP {r.status_code}")
+            else:
+                log.debug(f"HA {endpoint}: HTTP {r.status_code} (optional endpoint)")
             return None
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
             if attempt < _retries:
                 import time as _t; _t.sleep(_delay * (attempt + 1))
                 continue
-            log.warning(f"⚠️ HA {endpoint}: network unavailable after {_retries+1} attempts")
+            if not _silent:
+                log.warning(f"⚠️ HA {endpoint}: network unavailable after {_retries+1} attempts")
         except Exception as e:
             log.error(f"❌ HA {endpoint}: {e}")
             break

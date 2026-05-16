@@ -423,7 +423,7 @@ def _ha_energy_entity_ids():
     entity_ids = set()
     for endpoint in ("config/energy", "energy/info"):
         try:
-            payload = ha_get(endpoint, _retries=0)
+            payload = ha_get(endpoint, _retries=0, _silent=True)
             if payload:
                 entity_ids.update(_collect_entity_ids(payload))
         except Exception:
@@ -6489,6 +6489,22 @@ def rate_cost_cycle(consumption_kwh, duration_min, started_at_iso=None):
         }
 
     return {"cost_total": round(consumption_kwh * 0.2516, 3), "detail": "default", "price_avg_kwh": 0.2516}
+
+
+def skill_optimisation_rate(states):
+    """Detect and learn off-peak electricity rate periods from HA states.
+    Runs detection at most once per hour; enables range-learning if off-peak confirmed."""
+    try:
+        if not states:
+            return
+        now = datetime.now()
+        bucket = f"{now.strftime('%Y-%m-%d')}-{now.hour}"
+        if mem_get("rate_detect_bucket") == bucket:
+            return
+        mem_set("rate_detect_bucket", bucket)
+        _rate_detect_off_peak_hours()
+    except Exception:
+        pass
 
 
 def _rate_detect_off_peak_hours():

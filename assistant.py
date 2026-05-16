@@ -1134,6 +1134,8 @@ def main():
                         log.warning(f"⚠️ Unknown chat_id: {chat_id}")
                     continue
 
+                log.info(f"📩 [{chat_id}] {text[:80]}")
+
                 # ═══ WIZARD SETUP (first startup) ═══
                 if _wizard_step():
                     if _wizard_handle_message(text):
