@@ -1647,6 +1647,9 @@ def _ha_entity_display(entity, area=None):
 def _ha_find_entities(query, domains=None, states=None, limit=20):
     """Find entities by natural name, area, friendly name, or entity_id."""
     states = states or ha_get("states") or []
+    graph = _ha_build_context_graph(states=states)
+    entity_registry = graph.get("entity_registry", {})
+    device_registry = graph.get("device_registry", {})
     area_by_entity = _ha_area_lookup()
     domains = set(domains or [])
     q_raw = str(query or "").strip()
@@ -1667,7 +1670,20 @@ def _ha_find_entities(query, domains=None, states=None, limit=20):
 
         friendly = _ha_entity_label(entity)
         area = area_by_entity.get(eid, "")
-        hay = _ha_text_key(f"{eid} {friendly} {area}")
+        reg = entity_registry.get(eid, {})
+        device_name = ""
+        manufacturer = ""
+        model = ""
+        dev_id = str(reg.get("device_id", "") or "")
+        if dev_id and dev_id in device_registry:
+            dev = device_registry.get(dev_id, {})
+            if isinstance(dev, dict):
+                device_name = str(dev.get("name_by_user", "") or dev.get("name", "") or "")
+                manufacturer = str(dev.get("manufacturer", "") or "")
+                model = str(dev.get("model", "") or "")
+        reg_name = str(reg.get("name", "") or reg.get("original_name", "") or "")
+        aliases = str(reg.get("aliases", "") or "")
+        hay = _ha_text_key(f"{eid} {friendly} {area} {reg_name} {device_name} {manufacturer} {model} {aliases}")
         score = 0
 
         if q and q in hay:
@@ -1677,7 +1693,11 @@ def _ha_find_entities(query, domains=None, states=None, limit=20):
         if tokens and all(tok in hay for tok in tokens):
             score += 80
         score += sum(8 for tok in tokens if tok in hay)
-        if area and _ha_text_key(area) in q:
+        if device_name and q and q in _ha_text_key(device_name):
+            score += 30
+        if reg_name and q and q in _ha_text_key(reg_name):
+            score += 20
+        if area and q and q in _ha_text_key(area):
             score += 25
         if "light" in q and domain == "light":
             score += 12
@@ -1730,15 +1750,104 @@ def _ha_history(entity_id, start_dt=None, end_dt=None):
 
 def _history_delta_numeric(entity_id):
     rows = _ha_history(entity_id)
-    values = []
-    for row in rows:
+    points = _history_numeric_points(rows)
+    if len(points) < 2:
+        return None
+    return _history_delta_positive(points)
+
+
+def _history_numeric_points(rows):
+    points = []
+    for row in rows or []:
+        ts_raw = row.get("last_changed") or row.get("last_updated") or ""
         try:
-            values.append(float(str(row.get("state")).replace(",", ".")))
+            ts = datetime.fromisoformat(str(ts_raw).replace("Z", "+00:00"))
         except Exception:
             continue
-    if len(values) < 2:
+        try:
+            value = float(str(row.get("state", "")).replace(",", "."))
+        except Exception:
+            continue
+        points.append((ts, value))
+    points.sort(key=lambda item: item[0])
+    return points
+
+
+def _history_delta_positive(points):
+    """Robust positive delta: sums only positive increments (handles resets)."""
+    if len(points) < 2:
         return None
-    return max(0.0, values[-1] - values[0])
+    total = 0.0
+    prev = points[0][1]
+    for _ts, value in points[1:]:
+        if value >= prev:
+            total += (value - prev)
+        prev = value
+    return max(0.0, total)
+
+
+def _history_integrate_power_kwh(points):
+    """Integrate power samples (W) over time to kWh."""
+    if len(points) < 2:
+        return None
+    kwh = 0.0
+    for i in range(1, len(points)):
+        t_prev, w_prev = points[i - 1]
+        t_curr, w_curr = points[i]
+        dt_h = max(0.0, (t_curr - t_prev).total_seconds() / 3600.0)
+        avg_w = (w_prev + w_curr) / 2.0
+        kwh += (avg_w * dt_h) / 1000.0
+    return max(0.0, kwh)
+
+
+def _facts_open_count_today(entity_id, open_states):
+    rows = _ha_history(entity_id)
+    if not rows:
+        return 0, 0
+    count = 0
+    previous_open = str(rows[0].get("state", "")).lower() in open_states
+    for row in rows:
+        state_open = str(row.get("state", "")).lower() in open_states
+        if state_open and not previous_open:
+            count += 1
+        previous_open = state_open
+    return count, len(rows)
+
+
+def _facts_energy_today(entity):
+    """Return deterministic energy usage fact tuple: (value, unit, source, points)."""
+    attrs = entity.get("attributes", {}) if isinstance(entity, dict) else {}
+    eid = entity.get("entity_id", "") if isinstance(entity, dict) else ""
+    unit_raw = str(attrs.get("unit_of_measurement", "") or "")
+    unit = unit_raw.lower()
+    device_class = str(attrs.get("device_class", "") or "").lower()
+    rows = _ha_history(eid)
+    points = _history_numeric_points(rows)
+    if len(points) < 2:
+        return None
+
+    # Energy counters (kWh/Wh) should use positive deltas across the day.
+    if device_class == "energy" or unit in ("kwh", "wh", "mwh"):
+        delta = _history_delta_positive(points)
+        if delta is None:
+            return None
+        if unit == "wh":
+            return delta / 1000.0, "kWh", "history_positive_delta_wh", len(points)
+        if unit == "mwh":
+            return delta * 1000.0, "kWh", "history_positive_delta_mwh", len(points)
+        return delta, "kWh" if unit == "kwh" else (unit_raw or "kWh"), "history_positive_delta", len(points)
+
+    # Power sensors (W) can be integrated over time.
+    if unit in ("w", "watt", "watts") or device_class == "power":
+        kwh = _history_integrate_power_kwh(points)
+        if kwh is not None:
+            return kwh, "kWh", "history_power_integration", len(points)
+
+    # Fallback: positive delta in native unit.
+    delta = _history_delta_positive(points)
+    if delta is None:
+        return None
+    return delta, unit_raw or "units", "history_positive_delta_fallback", len(points)
 
 
 def _ha_confirm_action(domain, service, entity_ids, data=None):
@@ -1916,15 +2025,10 @@ def _ha_open_count_today_response(text):
     entity = matches[0][1]
     eid = entity["entity_id"]
     open_states = _ha_open_states_for_entity(eid)
-    rows = _ha_history(eid)
-    count = 0
-    previous_open = False
-    for row in rows:
-        state_open = str(row.get("state", "")).lower() in open_states
-        if state_open and not previous_open:
-            count += 1
-        previous_open = state_open
+    count, sample_count = _facts_open_count_today(eid, open_states)
     current = entity.get("state", "?")
+    if sample_count <= 0:
+        return f"{_ha_entity_display(entity)} has no history points yet for today. Current state: {current}."
     return f"{_ha_entity_display(entity)} opened {count} time(s) today. Current state: {current}."
 
 
@@ -1951,13 +2055,11 @@ def _ha_energy_today_response(text):
 
     candidates.sort(key=lambda item: item[0], reverse=True)
     entity = candidates[0][1]
-    unit = candidates[0][2] or str(entity.get("attributes", {}).get("unit_of_measurement", ""))
-    delta = _history_delta_numeric(entity["entity_id"])
-    if delta is None:
+    fact = _facts_energy_today(entity)
+    if fact is None:
         return f"I found {_ha_entity_display(entity)}, but Home Assistant history did not return enough data for today."
-    display_delta = delta / 1000 if unit == "wh" else delta
-    display_unit = "kWh" if unit == "wh" else (unit or "kWh")
-    return f"{_ha_entity_display(entity)} used {display_delta:.2f} {display_unit} today."
+    value, unit, _source, points = fact
+    return f"{_ha_entity_display(entity)} used {value:.2f} {unit} today (based on {points} history points)."
 
 
 def _ha_open_too_long_watch(text):
@@ -2035,11 +2137,7 @@ def handle_callback(callback_query):
                 mem_set("ha_automation_pending", "")
                 return
 
-            mem_set("ha_config_write_consent", "yes")
-            try:
-                result = ha_post(f"config/automation/config/{auto_id}", auto_data)
-            finally:
-                mem_set("ha_config_write_consent", "")
+            result = shared.ha_execute_config_write(f"config/automation/config/{auto_id}", auto_data)
             mem_set("ha_automation_pending", "")
             if result is not None:
                 telegram_send(f"✅ Automation created: {alias}")
@@ -2671,139 +2769,259 @@ def ha_get_entity_areas():
     return entity_map
 
 
-def ha_get_assist_exposed_entities():
-    """Return Assist-exposed entity_ids when available.
+def _ha_ws_url():
+    base = str(CFG.get("ha_url", "") or "").strip().rstrip("/")
+    if not base:
+        return ""
+    if base.endswith("/api/websocket"):
+        return base
+    if base.startswith("https://"):
+        return "wss://" + base[len("https://"):] + "/api/websocket"
+    if base.startswith("http://"):
+        return "ws://" + base[len("http://"):] + "/api/websocket"
+    if base.startswith("wss://") or base.startswith("ws://"):
+        return base + "/api/websocket"
+    return "ws://" + base + "/api/websocket"
 
-    Uses the Home Assistant WebSocket API command:
-      `homeassistant/expose_entity/list`
 
-    Returns:
-      - a `set(entity_id)` when exposure metadata is available
-      - `None` when exposure metadata cannot be determined
-    """
-    def _ws_url():
-        base = str(CFG.get("ha_url", "") or "").strip().rstrip("/")
-        if not base:
-            return ""
-        if base.endswith("/api/websocket"):
-            return base
-        if base.startswith("https://"):
-            return "wss://" + base[len("https://"):] + "/api/websocket"
-        if base.startswith("http://"):
-            return "ws://" + base[len("http://"):] + "/api/websocket"
-        if base.startswith("wss://") or base.startswith("ws://"):
-            return base + "/api/websocket"
-        return "ws://" + base + "/api/websocket"
+def _ha_ws_command(msg_type, timeout=12, **payload):
+    ws_url = _ha_ws_url()
+    if not ws_url:
+        return None
+    try:
+        import ssl
+        import websocket
 
-    ws_url = _ws_url()
-    if ws_url:
+        sslopt = None
+        if ws_url.startswith("wss://"):
+            sslopt = {"cert_reqs": ssl.CERT_NONE, "check_hostname": False}
+
+        ws = websocket.create_connection(ws_url, timeout=timeout, sslopt=sslopt)
         try:
-            import ssl
-            import websocket
+            hello = json.loads(ws.recv())
+            if hello.get("type") != "auth_required":
+                log.debug(f"WS unexpected hello: {hello.get('type')}")
 
-            sslopt = None
-            if ws_url.startswith("wss://"):
-                sslopt = {"cert_reqs": ssl.CERT_NONE, "check_hostname": False}
+            ws.send(json.dumps({
+                "type": "auth",
+                "access_token": str(CFG.get("ha_token", "") or ""),
+            }))
+            auth_reply = json.loads(ws.recv())
+            if auth_reply.get("type") != "auth_ok":
+                log.warning(f"WS auth failed for {msg_type}: {auth_reply.get('type')}")
+                return None
 
-            ws = websocket.create_connection(ws_url, timeout=12, sslopt=sslopt)
+            req_id = int(time.time() * 1000) % 1000000000
+            message = {"id": req_id, "type": msg_type}
+            message.update(payload or {})
+            ws.send(json.dumps(message))
+
+            deadline = time.time() + timeout
+            while time.time() < deadline:
+                raw = ws.recv()
+                if not raw:
+                    continue
+                msg = json.loads(raw)
+                if msg.get("id") != req_id:
+                    continue
+                if msg.get("type") != "result":
+                    return None
+                if not msg.get("success"):
+                    return None
+                return msg.get("result")
+            return None
+        finally:
             try:
-                hello = json.loads(ws.recv())
-                if hello.get("type") != "auth_required":
-                    log.debug(f"Assist exposure WS unexpected hello: {hello.get('type')}")
+                ws.close()
+            except Exception:
+                pass
+    except Exception as ex:
+        log.debug(f"WS command {msg_type}: {ex}")
+        return None
 
-                ws.send(json.dumps({
-                    "type": "auth",
-                    "access_token": str(CFG.get("ha_token", "") or ""),
-                }))
-                auth_reply = json.loads(ws.recv())
-                if auth_reply.get("type") != "auth_ok":
-                    log.warning(f"Assist exposure WS auth failed: {auth_reply.get('type')}")
-                    return None
 
-                req_id = int(time.time() * 1000) % 1000000000
-                ws.send(json.dumps({"id": req_id, "type": "homeassistant/expose_entity/list"}))
+def _ha_get_entity_registry_entries():
+    rows = _ha_ws_command("config/entity_registry/list")
+    if isinstance(rows, list):
+        out = {}
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            eid = str(row.get("entity_id", "") or "").strip()
+            if eid:
+                out[eid] = row
+        if out:
+            return out
 
-                deadline = time.time() + 10
-                while time.time() < deadline:
-                    msg = json.loads(ws.recv())
-                    if msg.get("id") != req_id:
-                        continue
-                    if msg.get("type") != "result" or not msg.get("success"):
-                        log.warning("Assist exposure WS returned non-success result")
-                        return None
-
-                    result = msg.get("result", {}) or {}
-                    exposed_entities = result.get("exposed_entities", {}) or {}
-                    if not isinstance(exposed_entities, dict):
-                        return None
-
-                    exposed = set()
-                    flags_seen = 0
-                    for entity_id, assistants in exposed_entities.items():
-                        if not isinstance(assistants, dict):
-                            continue
-                        if "conversation" not in assistants:
-                            continue
-                        flags_seen += 1
-                        if assistants.get("conversation") is True:
-                            exposed.add(entity_id)
-
-                    if flags_seen > 0:
-                        log.info(f"🗣️ Assist exposure WS map loaded: {len(exposed)} entity/entities exposed to conversation")
-                        return exposed
-
-                    # If there are no explicit conversation flags, HA will use
-                    # defaults. In that case, don't force a restrictive filter.
-                    log.info("🗣️ Assist exposure WS returned no explicit conversation flags; keeping discovery open")
-                    return None
-            finally:
-                try:
-                    ws.close()
-                except Exception:
-                    pass
-        except Exception as ex:
-            log.warning(f"Assist exposure WS unavailable: {ex}")
-
-    # Fallback to registry options when WS is unavailable.
-    endpoints = ["/api/config/entity_registry/list", "/api/entity_registry"]
     headers = {"Authorization": f"Bearer {CFG['ha_token']}"}
-    for endpoint in endpoints:
+    for endpoint in ["/api/config/entity_registry/list", "/api/entity_registry"]:
         try:
             url = f"{CFG['ha_url']}{endpoint}"
             r = requests.get(url, headers=headers, verify=False, timeout=15)
             if r.status_code != 200:
                 continue
             data = r.json()
-            if not isinstance(data, list):
-                continue
+            if isinstance(data, list):
+                out = {}
+                for row in data:
+                    if not isinstance(row, dict):
+                        continue
+                    eid = str(row.get("entity_id", "") or "").strip()
+                    if eid:
+                        out[eid] = row
+                if out:
+                    return out
+        except Exception as ex:
+            log.debug(f"Entity registry {endpoint}: {ex}")
+    return {}
 
+
+def _ha_get_device_registry_entries():
+    rows = _ha_ws_command("config/device_registry/list")
+    if isinstance(rows, list):
+        out = {}
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            did = str(row.get("id", "") or "").strip()
+            if did:
+                out[did] = row
+        if out:
+            return out
+
+    headers = {"Authorization": f"Bearer {CFG['ha_token']}"}
+    for endpoint in ["/api/config/device_registry/list", "/api/device_registry"]:
+        try:
+            url = f"{CFG['ha_url']}{endpoint}"
+            r = requests.get(url, headers=headers, verify=False, timeout=15)
+            if r.status_code != 200:
+                continue
+            data = r.json()
+            if isinstance(data, list):
+                out = {}
+                for row in data:
+                    if not isinstance(row, dict):
+                        continue
+                    did = str(row.get("id", "") or "").strip()
+                    if did:
+                        out[did] = row
+                if out:
+                    return out
+        except Exception as ex:
+            log.debug(f"Device registry {endpoint}: {ex}")
+    return {}
+
+
+def ha_get_assist_exposed_entities():
+    """Return Assist-exposed entity_ids when explicit metadata is available."""
+    cache = getattr(ha_get_assist_exposed_entities, "_cache", {})
+    now_ts = time.time()
+    if cache and (now_ts - cache.get("ts", 0) < 180):
+        return cache.get("value")
+
+    result = _ha_ws_command("homeassistant/expose_entity/list")
+    if isinstance(result, dict):
+        exposed_entities = result.get("exposed_entities", {}) or {}
+        if isinstance(exposed_entities, dict):
             exposed = set()
             flags_seen = 0
-            for row in data:
-                if not isinstance(row, dict):
+            for entity_id, assistants in exposed_entities.items():
+                if not isinstance(assistants, dict):
                     continue
-                entity_id = str(row.get("entity_id", "") or "").strip()
-                if not entity_id:
-                    continue
-                options = row.get("options", {})
-                if not isinstance(options, dict):
-                    continue
-                convo = options.get("conversation", {})
-                if not isinstance(convo, dict):
-                    continue
-                if "should_expose" not in convo:
+                if "conversation" not in assistants:
                     continue
                 flags_seen += 1
-                if convo.get("should_expose") is True:
+                if assistants.get("conversation") is True:
                     exposed.add(entity_id)
-
             if flags_seen > 0:
-                log.info(f"🗣️ Assist exposure registry map loaded: {len(exposed)} entity/entities explicitly exposed")
+                log.info(f"🗣️ Assist exposure WS map loaded: {len(exposed)} entity/entities exposed to conversation")
+                ha_get_assist_exposed_entities._cache = {"ts": now_ts, "value": exposed}
                 return exposed
-        except Exception as ex:
-            log.debug(f"Assist exposure registry ({endpoint}): {ex}")
 
+    # Fallback to registry options when WS explicit data is unavailable.
+    entity_registry = _ha_get_entity_registry_entries()
+    if entity_registry:
+        exposed = set()
+        flags_seen = 0
+        for entity_id, row in entity_registry.items():
+            options = row.get("options", {})
+            if not isinstance(options, dict):
+                continue
+            convo = options.get("conversation", {})
+            if not isinstance(convo, dict):
+                continue
+            if "should_expose" not in convo:
+                continue
+            flags_seen += 1
+            if convo.get("should_expose") is True:
+                exposed.add(entity_id)
+        if flags_seen > 0:
+            log.info(f"🗣️ Assist exposure registry map loaded: {len(exposed)} entity/entities explicitly exposed")
+            ha_get_assist_exposed_entities._cache = {"ts": now_ts, "value": exposed}
+            return exposed
+
+    ha_get_assist_exposed_entities._cache = {"ts": now_ts, "value": None}
     return None
+
+
+def _ha_build_context_graph(states=None, force_refresh=False):
+    """Build a normalized Home Assistant context graph for better grounding."""
+    now_ts = time.time()
+    cache = getattr(_ha_build_context_graph, "_cache", {})
+    if not force_refresh and cache and states is None and (now_ts - cache.get("ts", 0) < 90):
+        return cache.get("graph", {})
+
+    states = states or ha_get("states") or []
+    state_map = {e.get("entity_id", ""): e for e in states if e.get("entity_id")}
+
+    if not shared._entity_areas or not shared._areas_id_to_name:
+        try:
+            ha_refresh_areas()
+        except Exception:
+            pass
+    entity_areas = dict(shared._entity_areas or {})
+    area_names = dict(shared._areas_id_to_name or {})
+
+    by_domain = {}
+    by_area = {}
+    area_by_entity = {}
+    for eid in state_map:
+        domain = eid.split(".", 1)[0] if "." in eid else ""
+        by_domain.setdefault(domain, []).append(eid)
+        area_id = entity_areas.get(eid, "")
+        area_name = area_names.get(area_id, area_id) if area_id else ""
+        if area_name:
+            area_by_entity[eid] = area_name
+            by_area.setdefault(area_name, []).append(eid)
+
+    entity_registry = _ha_get_entity_registry_entries()
+    device_registry = _ha_get_device_registry_entries()
+    entity_to_device = {}
+    for eid, row in entity_registry.items():
+        did = str(row.get("device_id", "") or "").strip()
+        if did:
+            entity_to_device[eid] = did
+
+    assist_exposed = ha_get_assist_exposed_entities()
+
+    graph = {
+        "states": states,
+        "state_map": state_map,
+        "by_domain": by_domain,
+        "by_area": by_area,
+        "area_by_entity": area_by_entity,
+        "entity_registry": entity_registry,
+        "device_registry": device_registry,
+        "entity_to_device": entity_to_device,
+        "assist_exposed": assist_exposed,
+        "built_at": datetime.now().isoformat(),
+    }
+
+    if states is None:
+        _ha_build_context_graph._cache = {"ts": now_ts, "graph": graph}
+    else:
+        _ha_build_context_graph._cache = {"ts": now_ts, "graph": graph}
+    return graph
 
 
 def ha_refresh_areas():
@@ -2815,7 +3033,7 @@ def ha_refresh_areas():
 
     _KNOWN_ROOMS_REFRESH = [
         "kitchen", "living_room", "guest bedroom", "child bedroom", "bedroom",
-        "laundry_room", "garage", "office", "salle of bain", "sdb",
+        "laundry_room", "garage", "office", "bathroom",
         "entry", "hallway", "garden", "terrace", "attic", "basement",
     ]
     try:
@@ -3704,11 +3922,11 @@ def discover_automatically(states=None):
 
     _KNOWN_ROOMS = [
         "kitchen", "living_room", "bedroom", "laundry_room", "garage", "office",
-        "salle of bain", "sdb", "entree", "corloir", "jardin", "terrasse",
+        "bathroom", "entry", "hallway", "garden", "terrace",
         "attic", "basement", "wc", "toilet", "guest bedroom", "child bedroom",
     ]
 
-    def _extraire_room(fname):
+    def _extract_room(fname):
         """Extracts the room from friendly_name when the HA API does not respond."""
         fn = fname.lower()
         for p in _KNOWN_ROOMS:
@@ -3720,7 +3938,7 @@ def discover_automatically(states=None):
         eid    = e["entity_id"]
         attrs  = e.get("attributes", {})
         fname  = attrs.get("friendly_name", eid)
-        room  = ha_get_area(eid) or _extraire_room(fname)
+        room  = ha_get_area(eid) or _extract_room(fname)
         domain = eid.split(".")[0]
         name_lower = eid.lower()
 
@@ -3905,9 +4123,9 @@ def _detect_new_entities(index):
         "automation", "button", "select", "update", "number"
     }
 
-    _PIECES_DETECT = [
+    _ROOM_HINTS = [
         "kitchen", "living_room", "guest bedroom", "child bedroom", "bedroom",
-        "laundry_room", "garage", "office", "salle of bain", "sdb",
+        "laundry_room", "garage", "office", "bathroom",
     ]
 
     new_items_plugs = []
@@ -3927,7 +4145,7 @@ def _detect_new_entities(index):
         room = ha_get_area(eid)
         if not room:
             fn_low = fname.lower()
-            for p in _PIECES_DETECT:
+            for p in _ROOM_HINTS:
                 if p in fn_low:
                     room = p
                     break
@@ -4075,41 +4293,38 @@ def _detect_new_entities(index):
 
 
 def _surface_errors():
-    """SKILL AUTO-GUERISON — Pipeline ferme, 0 intervention user.
+    """Self-healing error pipeline with minimal user noise.
 
-    Cycle complete :
-    1. CAPTURE : _ErrorCaptureHandler intercepte log.error()
-    2. TRIAGE : group by signature, anti-spam 6h
-    3. DIAGNOSTIC: if error ≥ 3x/1h → AI-assisted auto-correction
-    4. CORRECTION: patch applied + restart WITHOUT asking
-    5. VERIFICATION: if error recurs after fix → rollback
-    6. NOTIFICATION: 1 summary message only — never spam
-
-    The user sees NOTHING. Ever. Errors are the script's problem, not the user's.
+    Flow:
+    1. Capture `log.error` entries into `_errors_buffer`
+    2. Group by signature and enforce anti-spam windows
+    3. When an error repeats (>=3/hour), try an automated patch
+    4. Record result, then retry once with richer logs if needed
+    5. Keep a 24h memory of signatures to avoid repeated loops
     """
-    # # global _errors_buffer, _errors_seen    # via shared# via shared
+    global _errors_buffer, _errors_seen
 
     if not _errors_buffer:
         return
 
-    # Copier and vider the buffer
+    # Copy and clear current buffer snapshot.
     errors = _errors_buffer.copy()
-    _errors_buffer.key_namear()
+    _errors_buffer.clear()
 
-    # Group by signature
-    groupes = {}
+    # Group by signature.
+    groups = {}
     for ts, msg, sig in errors:
-        if sig not in groupes:
-            groupes[sig] = {"count": 0, "first_ts": ts, "last_ts": ts, "msg": msg}
-        groupes[sig]["count"] += 1
-        groupes[sig]["last_ts"] = ts
+        if sig not in groups:
+            groups[sig] = {"count": 0, "first_ts": ts, "last_ts": ts, "msg": msg}
+        groups[sig]["count"] += 1
+        groups[sig]["last_ts"] = ts
 
     now = datetime.now()
 
     h1 = (now - timedelta(hours=1)).isoformat()
     h24 = (now - timedelta(hours=24)).isoformat()
 
-    for sig, info in groupes.items():
+    for sig, info in groups.items():
         try:
             conn = sqlite3.connect(DB_PATH)
             conn.execute(
@@ -4149,7 +4364,7 @@ def _surface_errors():
         if already_tried > 0:
             continue  # Already tried and failed → wait 24h
 
-        # Anti-spam only on the action (not the comptage)
+        # Anti-spam only on the action level.
         last_action = _errors_seen.get(sig)
         if last_action:
             try:
@@ -4180,11 +4395,11 @@ def _surface_errors():
             except Exception:
                 pass
             if result == "FAIL":
-                _auto_heal(sig, info["msg"], occurrence_count, retry=True)
+                _auto_heal(sig, info["msg"], occurrence_count=nb_1h, retry=True)
         except Exception:
             pass
 
-    # Clean the vieilles signatures
+    # Keep only recent signatures.
     cutoff = (now - timedelta(hours=24)).isoformat()
     _errors_seen = {k: v for k, v in _errors_seen.items() if v > cutoff}
 
@@ -8165,11 +8380,11 @@ def cmd_problem(description):
     )
 
     user_prompt = (
-        f"PROBLEM SIGNALE :\n{description}\n\n"
-        f"SCRIPT COMPLET ({script_lines} lines) :\n{script_code}"
+        f"PROBLEM REPORTED:\n{description}\n\n"
+        f"FULL SCRIPT ({script_lines} lines):\n{script_code}"
     )
 
-    # 3. Calledr LLM
+    # 3. Call configured LLM provider.
     try:
         blocks, t_in, t_out = llm_provider.llm_completion(
             CFG, [{"role": "user", "content": user_prompt}],
@@ -8184,7 +8399,7 @@ def cmd_problem(description):
     except Exception as e:
         return f"❌ AI provider error: {e}"
 
-    # 4. Parser the JSON
+    # 4. Parse JSON response.
     try:
         text_json = response_raw.replace("```json", "").replace("```", "").strip()
         patch_data = json.loads(text_json)
@@ -8193,7 +8408,7 @@ def cmd_problem(description):
         explanation = patch_data.get("explanation", "no explanation")
     except Exception as e:
         telegram_send(f"❌ Unparseable AI response:\n{response_raw[:500]}")
-        return f"❌ Invalid JSON : {e}"
+        return f"❌ Invalid JSON: {e}"
 
     if not old_code:
         return f"❌ Empty patch — the AI model found no fix.\nExplanation: {explanation}"
@@ -9860,11 +10075,11 @@ def _detect_water_leak(index, now):
     """If HA water sensor detects a leak → immediate alert. CRASH-PROOF."""
     try:
         for eid, e in index.items():
-            if "monthture" in eid or "water_leak" in eid or "fuite" in eid:
+            if "moisture" in eid or "water_leak" in eid or "leak" in eid:
                 if e.get("state") in ("on", "True", "wet", "detected"):
                     fname = e.get("attributes", {}).get("friendly_name", eid)
                     _alert_if_new(
-                        f"fuite_{eid}",
+                        f"water_leak_{eid}",
                         f"💧 WATER LEAK DETECTED\n━━━━━━━━━━━━━━━━━━\n"
                         f"Sensor: {fname}\n"
                         f"State: {e.get('state')}\n\n"
@@ -9872,7 +10087,7 @@ def _detect_water_leak(index, now):
                         delay_h=1
                     )
     except Exception as e:
-        log.debug(f"Fuite eau: {e}")
+        log.debug(f"Water leak detection: {e}")
 
 
 def cmd_rooms():
@@ -9887,8 +10102,8 @@ def cmd_rooms():
 
         KNOWN_ROOMS = [
             "kitchen", "living_room", "bedroom", "office", "laundry_room", "garage",
-            "salle of bain", "sdb", "entree", "corloir", "jardin", "terrasse",
-            "attic", "basement", "cellier", "wc", "toilette",
+            "bathroom", "entry", "hallway", "garden", "terrace",
+            "attic", "basement", "pantry", "wc", "toilet",
         ]
 
         conn = sqlite3.connect(DB_PATH)

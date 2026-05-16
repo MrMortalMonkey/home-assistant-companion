@@ -2038,9 +2038,14 @@ def ha_get(endpoint, _retries=2, _delay=5):
     return None
 
 
+def _is_ha_config_write_endpoint(endpoint):
+    endpoint = str(endpoint or "").lstrip("/")
+    return endpoint.startswith("config/")
+
+
 def ha_post(endpoint, data):
     # Guard Home Assistant configuration writes behind explicit user consent.
-    if endpoint.startswith("config/") and mem_get("ha_config_write_consent", "") != "yes":
+    if _is_ha_config_write_endpoint(endpoint) and mem_get("ha_config_write_consent", "") != "yes":
         log.warning(f"⛔ Blocked HA config write without consent: {endpoint}")
         return None
     url = f"{CFG['ha_url']}/api/{endpoint}"
@@ -2051,6 +2056,17 @@ def ha_post(endpoint, data):
     except Exception as e:
         log.error(f"❌ HA POST {endpoint}: {e}")
     return None
+
+
+def ha_execute_config_write(endpoint, data):
+    """Execute a Home Assistant config write with explicit temporary consent."""
+    if not _is_ha_config_write_endpoint(endpoint):
+        return ha_post(endpoint, data)
+    mem_set("ha_config_write_consent", "yes")
+    try:
+        return ha_post(endpoint, data)
+    finally:
+        mem_set("ha_config_write_consent", "")
 
 
 def ha_get_forecast(entity_id=None, forecast_type="daily"):

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.17 beta (2026-05-16)
+- Added centralized Home Assistant config-write execution helper to enforce confirmation-gated writes consistently
+- Improved entity matching with Home Assistant entity/device registry context (friendly names, device names, manufacturer/model, aliases)
+- Added deterministic history-based fact helpers for "opened today" and "energy used today" responses
+- Simplified user-facing fact replies to reduce noisy diagnostic output in Telegram
+- Fixed self-healing error pipeline runtime issues (`_errors_buffer.clear`, signature tracking scope, retry argument)
+- Removed remaining French room and messaging remnants in root runtime code paths
+
 ## 0.1.16 beta (2026-05-16)
 - Switched Assist exposure detection to the Home Assistant WebSocket API command `homeassistant/expose_entity/list`
 - Discovery now uses WebSocket exposure data for `conversation` when explicit flags are available

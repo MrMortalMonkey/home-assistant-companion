@@ -988,10 +988,10 @@ def main():
     # Restore the state of ongoing cycles from SQLite
     try:
         conn_cycles = sqlite3.connect(DB_PATH)
-        cycles_ouverts = conn_cycles.execute(
+        open_cycles = conn_cycles.execute(
             "SELECT entity_id, started_at FROM appliance_cycles WHERE ended_at IS NULL"
         ).fetchall()
-        for eid, started_at in cycles_ouverts:
+        for eid, started_at in open_cycles:
             # Load measurements from SQLite
             rows = conn_cycles.execute(
                 "SELECT ts, watts FROM cycle_measurements WHERE entity_id=? ORDER BY ts", (eid,)
