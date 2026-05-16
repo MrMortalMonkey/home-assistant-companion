@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.16 beta (2026-05-16)
+- Switched Assist exposure detection to the Home Assistant WebSocket API command `homeassistant/expose_entity/list`
+- Discovery now uses WebSocket exposure data for `conversation` when explicit flags are available
+- Added `websocket-client` dependency for App runtime
+- Kept registry-based exposure detection as fallback if WebSocket is unavailable
+
 ## 0.1.15 beta (2026-05-16)
 - Removed per-entity Telegram approval prompts during discovery
 - Discovery now auto-categorizes new entities silently instead of asking "Is this correct?"

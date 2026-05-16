@@ -8,7 +8,8 @@ RUN apk add --no-cache python3 py3-pip py3-requests jq curl ffmpeg
 RUN pip3 install --no-cache-dir --break-system-packages \
     anthropic \
     openai \
-    matplotlib
+    matplotlib \
+    websocket-client
 
 # Startup script
 COPY run.sh /

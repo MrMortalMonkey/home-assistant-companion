@@ -8,6 +8,7 @@ openai>=1.0.0              # Required for OpenAI / OpenRouter / Ollama / LM Stud
 # HTTP / Utilities
 requests>=2.31.0
 matplotlib>=3.7.0
+websocket-client>=1.8.0
 
 # Optional — for the tests
 # pytest>=7.4.0

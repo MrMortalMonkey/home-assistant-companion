@@ -2674,14 +2674,99 @@ def ha_get_entity_areas():
 def ha_get_assist_exposed_entities():
     """Return Assist-exposed entity_ids when available.
 
-    Uses the entity registry options (`conversation.should_expose`) when the
-    endpoint is available. Returns:
+    Uses the Home Assistant WebSocket API command:
+      `homeassistant/expose_entity/list`
+
+    Returns:
       - a `set(entity_id)` when exposure metadata is available
       - `None` when exposure metadata cannot be determined
     """
+    def _ws_url():
+        base = str(CFG.get("ha_url", "") or "").strip().rstrip("/")
+        if not base:
+            return ""
+        if base.endswith("/api/websocket"):
+            return base
+        if base.startswith("https://"):
+            return "wss://" + base[len("https://"):] + "/api/websocket"
+        if base.startswith("http://"):
+            return "ws://" + base[len("http://"):] + "/api/websocket"
+        if base.startswith("wss://") or base.startswith("ws://"):
+            return base + "/api/websocket"
+        return "ws://" + base + "/api/websocket"
+
+    ws_url = _ws_url()
+    if ws_url:
+        try:
+            import ssl
+            import websocket
+
+            sslopt = None
+            if ws_url.startswith("wss://"):
+                sslopt = {"cert_reqs": ssl.CERT_NONE, "check_hostname": False}
+
+            ws = websocket.create_connection(ws_url, timeout=12, sslopt=sslopt)
+            try:
+                hello = json.loads(ws.recv())
+                if hello.get("type") != "auth_required":
+                    log.debug(f"Assist exposure WS unexpected hello: {hello.get('type')}")
+
+                ws.send(json.dumps({
+                    "type": "auth",
+                    "access_token": str(CFG.get("ha_token", "") or ""),
+                }))
+                auth_reply = json.loads(ws.recv())
+                if auth_reply.get("type") != "auth_ok":
+                    log.warning(f"Assist exposure WS auth failed: {auth_reply.get('type')}")
+                    return None
+
+                req_id = int(time.time() * 1000) % 1000000000
+                ws.send(json.dumps({"id": req_id, "type": "homeassistant/expose_entity/list"}))
+
+                deadline = time.time() + 10
+                while time.time() < deadline:
+                    msg = json.loads(ws.recv())
+                    if msg.get("id") != req_id:
+                        continue
+                    if msg.get("type") != "result" or not msg.get("success"):
+                        log.warning("Assist exposure WS returned non-success result")
+                        return None
+
+                    result = msg.get("result", {}) or {}
+                    exposed_entities = result.get("exposed_entities", {}) or {}
+                    if not isinstance(exposed_entities, dict):
+                        return None
+
+                    exposed = set()
+                    flags_seen = 0
+                    for entity_id, assistants in exposed_entities.items():
+                        if not isinstance(assistants, dict):
+                            continue
+                        if "conversation" not in assistants:
+                            continue
+                        flags_seen += 1
+                        if assistants.get("conversation") is True:
+                            exposed.add(entity_id)
+
+                    if flags_seen > 0:
+                        log.info(f"🗣️ Assist exposure WS map loaded: {len(exposed)} entity/entities exposed to conversation")
+                        return exposed
+
+                    # If there are no explicit conversation flags, HA will use
+                    # defaults. In that case, don't force a restrictive filter.
+                    log.info("🗣️ Assist exposure WS returned no explicit conversation flags; keeping discovery open")
+                    return None
+            finally:
+                try:
+                    ws.close()
+                except Exception:
+                    pass
+        except Exception as ex:
+            log.warning(f"Assist exposure WS unavailable: {ex}")
+
+    # Fallback to registry options when WS is unavailable.
     endpoints = ["/api/config/entity_registry/list", "/api/entity_registry"]
     headers = {"Authorization": f"Bearer {CFG['ha_token']}"}
-
     for endpoint in endpoints:
         try:
             url = f"{CFG['ha_url']}{endpoint}"
@@ -2708,16 +2793,15 @@ def ha_get_assist_exposed_entities():
                     continue
                 if "should_expose" not in convo:
                     continue
-
                 flags_seen += 1
                 if convo.get("should_expose") is True:
                     exposed.add(entity_id)
 
             if flags_seen > 0:
-                log.info(f"🗣️ Assist exposure map loaded: {len(exposed)} entity/entities explicitly exposed")
+                log.info(f"🗣️ Assist exposure registry map loaded: {len(exposed)} entity/entities explicitly exposed")
                 return exposed
         except Exception as ex:
-            log.debug(f"Assist exposure ({endpoint}): {ex}")
+            log.debug(f"Assist exposure registry ({endpoint}): {ex}")
 
     return None
 
