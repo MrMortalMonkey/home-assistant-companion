@@ -158,6 +158,12 @@ The script is **free and open source (MIT)**. The only recurring AI cost is what
 - [docs/BETA_CHANNEL.md](docs/BETA_CHANNEL.md) — Beta tester mode (remote patches, **opt-in**)
 - [LESSONS.md](LESSONS.md) — Known installation pitfalls and fixes
 
+## 📦 Release policy
+
+- The repository keeps only the **current supported tag**.
+- As of now, the active tag is **`v0.1.17`**.
+- Older beta tags are retired to avoid version confusion during Home Assistant App testing.
+
 ## 🛡 Security
 
 - `config.json` contains your secrets: the installer automatically sets it to `600` permissions (owner read only)
@@ -168,7 +174,7 @@ The script is **free and open source (MIT)**. The only recurring AI cost is what
 
 ## 📊 Project status
 
-**Current version: v0.1.17 beta**
+**Current supported version: v0.1.17 beta**
 
 The code has been running in production since February 2026. It's functionally stable but has **not yet been validated on enough different installations** to be considered generally stable.
 

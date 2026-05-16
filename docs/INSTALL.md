@@ -9,6 +9,8 @@ Four installation methods supported. Choose according to your environment.
 | Native Linux | 🟡 Medium | ✅ systemd | `git pull && restart` |
 | Manual | 🟡 Medium | ❌ | `git pull` |
 
+> Version policy: this repository tracks a single active release line. Use the latest published tag shown in `README.md`.
+
 ---
 
 ## HA App

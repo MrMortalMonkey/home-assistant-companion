@@ -97,7 +97,7 @@ To start clean, preserving your credentials:
 cp config.json config.json.backup
 cp memory.db memory.db.backup
 
-# Keyan
+# Clean reset
 rm memory.db
 rm -rf __pycache__
 

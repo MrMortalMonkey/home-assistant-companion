@@ -14,8 +14,8 @@ The Home Assistant URL and token are configured **automatically** by the Supervi
 
 1. Start the app
 2. Send a message to your Telegram bot → chat_id is detected automatically
-3. The bot asks a few questions: security method, electricity rate, appliances on plugs
-4. That's it — the assistant monitors your home
+3. The bot confirms it is online and ready
+4. Describe what you want monitored or controlled, and the assistant starts working from your request
 
 ## Commands
 
