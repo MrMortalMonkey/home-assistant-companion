@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.15 beta (2026-05-16)
+- Removed per-entity Telegram approval prompts during discovery
+- Discovery now auto-categorizes new entities silently instead of asking "Is this correct?"
+- Added Assist exposure-aware discovery: when Assist exposure metadata is available, only entities exposed to Assist are auto-processed
+- Existing unanswered discovery prompts are auto-closed to stop repeated notification spam
+
 ## 0.1.14 beta (2026-05-15)
 - User-facing replies now prefer friendly device names (and room context) instead of raw entity IDs
 - Native area/offline/energy responses were updated to display readable names

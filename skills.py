@@ -2671,6 +2671,57 @@ def ha_get_entity_areas():
     return entity_map
 
 
+def ha_get_assist_exposed_entities():
+    """Return Assist-exposed entity_ids when available.
+
+    Uses the entity registry options (`conversation.should_expose`) when the
+    endpoint is available. Returns:
+      - a `set(entity_id)` when exposure metadata is available
+      - `None` when exposure metadata cannot be determined
+    """
+    endpoints = ["/api/config/entity_registry/list", "/api/entity_registry"]
+    headers = {"Authorization": f"Bearer {CFG['ha_token']}"}
+
+    for endpoint in endpoints:
+        try:
+            url = f"{CFG['ha_url']}{endpoint}"
+            r = requests.get(url, headers=headers, verify=False, timeout=15)
+            if r.status_code != 200:
+                continue
+            data = r.json()
+            if not isinstance(data, list):
+                continue
+
+            exposed = set()
+            flags_seen = 0
+            for row in data:
+                if not isinstance(row, dict):
+                    continue
+                entity_id = str(row.get("entity_id", "") or "").strip()
+                if not entity_id:
+                    continue
+                options = row.get("options", {})
+                if not isinstance(options, dict):
+                    continue
+                convo = options.get("conversation", {})
+                if not isinstance(convo, dict):
+                    continue
+                if "should_expose" not in convo:
+                    continue
+
+                flags_seen += 1
+                if convo.get("should_expose") is True:
+                    exposed.add(entity_id)
+
+            if flags_seen > 0:
+                log.info(f"🗣️ Assist exposure map loaded: {len(exposed)} entity/entities explicitly exposed")
+                return exposed
+        except Exception as ex:
+            log.debug(f"Assist exposure ({endpoint}): {ex}")
+
+    return None
+
+
 def ha_refresh_areas():
     """Load HA areas and update rooms in entity_map."""
     # # global _areas_id_to_name, _entity_areas    # via shared# via shared
@@ -3390,7 +3441,12 @@ def _check_entity_map_consistency(index):
 
 
 def handle_pending_entities(index):
-    """Infiltration scan — detects all new entities"""
+    """Silent infiltration scan for new entities.
+
+    Auto-categorizes entities without per-entity Telegram prompts.
+    When Assist exposure metadata is available, only entities exposed to
+    Assist are processed.
+    """
     conn = sqlite3.connect(DB_PATH)
     known = set(
         r[0] for r in conn.execute(
@@ -3400,6 +3456,11 @@ def handle_pending_entities(index):
     pending = set(r[0] for r in conn.execute(
         "SELECT entity_id FROM pending_entities WHERE response IS NULL OR response = ''"
     ).fetchall())
+    if pending:
+        conn.execute(
+            "UPDATE pending_entities SET response='auto' WHERE response IS NULL OR response = ''"
+        )
+        conn.commit()
     conn.close()
 
     domains_ignores = {
@@ -3410,9 +3471,18 @@ def handle_pending_entities(index):
         "automation", "button", "select", "update", "number"
     }
 
-    question_count = 0
+    assist_exposed = ha_get_assist_exposed_entities()
+    assist_filter_active = assist_exposed is not None
+
+    auto_count = 0
+    assist_skipped = 0
+    conn = sqlite3.connect(DB_PATH)
+
     for entity_id, e in index.items():
         if entity_id in known or entity_id in pending:
+            continue
+        if assist_filter_active and entity_id not in assist_exposed:
+            assist_skipped += 1
             continue
         domain = entity_id.split(".")[0]
         if domain in domains_ignores:
@@ -3425,32 +3495,32 @@ def handle_pending_entities(index):
         state  = e.get("state", "")
 
         cat, subcategory, desc = _match_pattern(entity_id, fname)
-        if cat:
-            if cat in ("energy_battery", "energy_production", "energy_forecast"):
-                conn = sqlite3.connect(DB_PATH)
-                room = ha_get_area(entity_id)
-                conn.execute(
-                    """INSERT OR REPLACE INTO entity_map
-                       (entity_id, category, subcategory, room, friendly_name, learned_at)
-                       VALUES (?, ?, ?, ?, ?, ?)""",
-                    (entity_id, cat, subcategory, room, fname, datetime.now().isoformat())
-                )
-                conn.commit()
-                conn.close()
-                log.info(f"✅ Auto-categorized: {fname} → {cat}")
-                ask_entity_question(entity_id, fname, cat, desc)
-                question_count += 1
-                if question_count >= 3:
-                    break
-                continue
 
-        if question_count < 3:
-            ai_category, ai_description = _build_intelligent_question(entity_id, fname, state, attrs)
-            ask_entity_question(entity_id, fname, ai_category, ai_description)
-            question_count += 1
+        if not cat:
+            ai_category, _ai_description = _build_intelligent_question(entity_id, fname, state, attrs)
+            cat = ai_category
+            subcategory = ""
 
-    if question_count > 0:
-        log.info(f"❓ {question_count} question(s) asked")
+        if cat not in VALID_CATEGORIES:
+            cat = "ignore"
+        room = ha_get_area(entity_id)
+
+        conn.execute(
+            """INSERT OR REPLACE INTO entity_map
+               (entity_id, category, subcategory, room, friendly_name, learned_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (entity_id, cat, subcategory or "", room, fname, datetime.now().isoformat())
+        )
+        auto_count += 1
+
+    conn.commit()
+    conn.close()
+
+    if auto_count > 0:
+        mode = "Assist-exposed entities only" if assist_filter_active else "all new entities"
+        log.info(f"✅ Infiltration auto-categorized {auto_count} entity/entities ({mode})")
+    elif assist_filter_active and assist_skipped > 0:
+        log.info(f"🗣️ Infiltration skipped {assist_skipped} non-Assist entity/entities")
 
     _check_entity_map_consistency(index)
 
