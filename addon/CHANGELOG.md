@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.18 beta (2026-05-16)
+- Fixed false leak alerts on startup by changing water leak detection to transition-based behavior
+- Added first-seen state baselining for leak sensors so retained `on` states at boot no longer trigger immediate Telegram alerts
+- Tightened leak entity classification to prioritize binary leak/problem classes and explicit leak/flood naming
+
 ## 0.1.17 beta (2026-05-16)
 - Added centralized Home Assistant config-write execution helper to enforce confirmation-gated writes consistently
 - Improved entity matching with Home Assistant entity/device registry context (friendly names, device names, manufacturer/model, aliases)

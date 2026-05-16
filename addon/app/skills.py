@@ -10071,21 +10071,63 @@ def _notif_tempo_ejp(now):
 
 
 
+def _is_water_leak_candidate(eid, entity):
+    """Return True when an entity looks like a leak/flood detector."""
+    attrs = entity.get("attributes", {}) if isinstance(entity, dict) else {}
+    domain = eid.split(".", 1)[0] if "." in eid else ""
+    device_class = str(attrs.get("device_class", "") or "").lower()
+    friendly = str(attrs.get("friendly_name", "") or "").lower()
+    text = f"{eid.lower()} {friendly}"
+
+    # Home Assistant binary leak/problem sensors are reliable signals.
+    if domain == "binary_sensor" and device_class in {"moisture", "problem"}:
+        return True
+
+    # Fallback for integrations exposing leak alerts as generic sensors.
+    leak_keywords = (
+        "water_leak", "_leak", " leak", "leak_",
+        "flood", "water alarm", "leak detected", "water detected",
+    )
+    return domain in {"binary_sensor", "sensor"} and any(k in text for k in leak_keywords)
+
+
 def _detect_water_leak(index, now):
-    """If HA water sensor detects a leak → immediate alert. CRASH-PROOF."""
+    """Alert only on leak state transitions (no startup spam)."""
     try:
+        active_states = {"on", "wet", "detected", "true", "leak", "leaking", "alarm", "problem"}
         for eid, e in index.items():
-            if "moisture" in eid or "water_leak" in eid or "leak" in eid:
-                if e.get("state") in ("on", "True", "wet", "detected"):
-                    fname = e.get("attributes", {}).get("friendly_name", eid)
-                    _alert_if_new(
-                        f"water_leak_{eid}",
-                        f"💧 WATER LEAK DETECTED\n━━━━━━━━━━━━━━━━━━\n"
-                        f"Sensor: {fname}\n"
-                        f"State: {e.get('state')}\n\n"
-                        f"⚠️ Check immediately!",
-                        delay_h=1
-                    )
+            if not _is_water_leak_candidate(eid, e):
+                continue
+
+            state_raw = str(e.get("state", "")).strip().lower()
+            if not state_raw or state_raw in {"unknown", "unavailable", "none"}:
+                continue
+            leak_now = state_raw in active_states
+
+            state_key = f"water_leak_state_{eid}"
+            seen_key = f"water_leak_seen_{eid}"
+            prev_seen = mem_get(seen_key, "")
+            prev_state = mem_get(state_key, "")
+
+            # Baseline first observation to avoid startup false alerts.
+            if not prev_seen:
+                mem_set(seen_key, "1")
+                mem_set(state_key, "1" if leak_now else "0")
+                continue
+
+            prev_leak = prev_state == "1"
+            if leak_now and not prev_leak:
+                fname = e.get("attributes", {}).get("friendly_name", eid)
+                _alert_if_new(
+                    f"water_leak_{eid}",
+                    f"💧 WATER LEAK DETECTED\n━━━━━━━━━━━━━━━━━━\n"
+                    f"Sensor: {fname}\n"
+                    f"State: {e.get('state')}\n\n"
+                    f"⚠️ Check immediately!",
+                    delay_h=1
+                )
+
+            mem_set(state_key, "1" if leak_now else "0")
     except Exception as e:
         log.debug(f"Water leak detection: {e}")
 
