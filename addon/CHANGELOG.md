@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.19 beta (2026-05-16)
+- Added missing `skill_heat_pump_behavior` learner used by the intelligence loop
+- Fixed recurring runtime `NameError` in `monitoring_core intelligence` caused by the missing heat-pump skill function
+- Added robust heat-pump/outdoor-temperature/consumption fallback detection to keep learning active even when some roles are not mapped yet
+
 ## 0.1.18 beta (2026-05-16)
 - Fixed false leak alerts on startup by changing water leak detection to transition-based behavior
 - Added first-seen state baselining for leak sensors so retained `on` states at boot no longer trigger immediate Telegram alerts

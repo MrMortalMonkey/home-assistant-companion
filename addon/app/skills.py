@@ -4720,6 +4720,210 @@ def skill_window_solar(states):
         log.debug(f"skill_window_solar: {ex}")
 
 
+def skill_heat_pump_behavior(states):
+    """Learn heat pump ON/OFF behavior by outdoor temperature bands."""
+    try:
+        if not states:
+            return
+
+        now = datetime.now()
+        bucket_key = f"{now.strftime('%Y-%m-%d')}-{now.hour}-{now.minute // 10}"
+        if mem_get("heat_pump_behavior_last_bucket") == bucket_key:
+            return
+        mem_set("heat_pump_behavior_last_bucket", bucket_key)
+
+        index = {e.get("entity_id", ""): e for e in states if e.get("entity_id")}
+
+        def _state_float(entity):
+            if not entity:
+                return None
+            raw = str(entity.get("state", "")).strip()
+            if raw.lower() in ("", "unknown", "unavailable", "none"):
+                return None
+            try:
+                return float(raw.replace(",", "."))
+            except Exception:
+                return None
+
+        def _select_heat_pump_climate():
+            # 1) Preferred explicit role.
+            role_eid = role_get("heat_pump_climate")
+            if role_eid and role_eid in index:
+                return role_eid
+
+            # 2) Fallback heuristic across climate entities.
+            best_eid = None
+            best_score = -1
+            for entity in states:
+                eid = entity.get("entity_id", "")
+                if not eid.startswith("climate."):
+                    continue
+                score = 0
+                attrs = entity.get("attributes", {})
+                friendly = str(attrs.get("friendly_name", "") or "").lower()
+                txt = f"{eid.lower()} {friendly}"
+                cat = entity_map_get(eid)
+                cat_name = (cat[0] if cat else "") or ""
+
+                if "heating" in cat_name.lower():
+                    score += 6
+                if "heat_pump" in txt or "heat pump" in txt:
+                    score += 5
+                hvac_modes = attrs.get("hvac_modes", [])
+                if isinstance(hvac_modes, list) and "heat" in [str(m).lower() for m in hvac_modes]:
+                    score += 2
+                if entity.get("state") not in ("unavailable", "unknown"):
+                    score += 1
+
+                if score > best_score:
+                    best_score = score
+                    best_eid = eid
+
+            return best_eid
+
+        heat_pump_eid = _select_heat_pump_climate()
+        if not heat_pump_eid or heat_pump_eid not in index:
+            return
+
+        heat_entity = index[heat_pump_eid]
+        heat_state = str(heat_entity.get("state", "")).strip().lower()
+        heat_pump_on = heat_state in {"auto", "heat", "cool", "fan_only", "heat_cool", "heating"}
+
+        # Outdoor temperature source.
+        temp_ext_eid = (
+            role_get("outdoor_temperature")
+            or role_get("heat_pump_outdoor_temperature")
+            or role_get("weather_temperature")
+        )
+        temp_ext = _state_float(index.get(temp_ext_eid)) if temp_ext_eid and temp_ext_eid in index else None
+
+        if temp_ext is None:
+            # Fallback: climate attribute.
+            attrs = heat_entity.get("attributes", {})
+            try:
+                if attrs.get("outdoor_temperature") is not None:
+                    temp_ext = float(str(attrs.get("outdoor_temperature")).replace(",", "."))
+            except Exception:
+                temp_ext = None
+
+        if temp_ext is None:
+            # Last fallback: detect an outdoor temperature sensor.
+            best_temp_eid = None
+            best_temp_score = -1
+            for entity in states:
+                eid = entity.get("entity_id", "")
+                if not eid.startswith("sensor."):
+                    continue
+                attrs = entity.get("attributes", {})
+                dc = str(attrs.get("device_class", "") or "").lower()
+                if dc != "temperature":
+                    continue
+                value = _state_float(entity)
+                if value is None:
+                    continue
+                friendly = str(attrs.get("friendly_name", "") or "").lower()
+                txt = f"{eid.lower()} {friendly}"
+                score = 0
+                if any(k in txt for k in ("outdoor", "outside", "weather", "external", "exterior", "ext_")):
+                    score += 5
+                if "temperature" in txt or "temp" in txt:
+                    score += 2
+                if score > best_temp_score:
+                    best_temp_score = score
+                    best_temp_eid = eid
+                    temp_ext = value
+            if best_temp_eid:
+                temp_ext_eid = best_temp_eid
+
+        if temp_ext is None:
+            return
+
+        # Heat pump consumption source.
+        consumption_eid = role_get("heat_pump_consumption")
+        consumption_w = _state_float(index.get(consumption_eid)) if consumption_eid and consumption_eid in index else None
+        if consumption_w is None and "sensor.air_water_heat_pump_energy_current" in index:
+            consumption_eid = "sensor.air_water_heat_pump_energy_current"
+            consumption_w = _state_float(index.get(consumption_eid))
+        if consumption_w is None:
+            best_cons_eid = None
+            best_cons_score = -1
+            for entity in states:
+                eid = entity.get("entity_id", "")
+                if not eid.startswith("sensor."):
+                    continue
+                attrs = entity.get("attributes", {})
+                unit = str(attrs.get("unit_of_measurement", "") or "").lower()
+                dc = str(attrs.get("device_class", "") or "").lower()
+                if unit not in ("w", "watt", "watts") and dc != "power":
+                    continue
+                value = _state_float(entity)
+                if value is None:
+                    continue
+                friendly = str(attrs.get("friendly_name", "") or "").lower()
+                txt = f"{eid.lower()} {friendly}"
+                score = 0
+                if "heat_pump" in txt or "heat pump" in txt:
+                    score += 6
+                if "hvac" in txt:
+                    score += 3
+                if "power" in txt or unit in ("w", "watt", "watts"):
+                    score += 1
+                if score > best_cons_score:
+                    best_cons_score = score
+                    best_cons_eid = eid
+                    consumption_w = value
+            if best_cons_eid:
+                consumption_eid = best_cons_eid
+
+        # Learn by 2°C temperature band.
+        temp_band = str(int(round(temp_ext / 2.0) * 2))
+
+        data, nb = skill_get("heat_pump_behavior")
+        if not isinstance(data, dict):
+            data = {}
+        tranches = data.get("tranches", {})
+        if not isinstance(tranches, dict):
+            tranches = {}
+
+        row = tranches.get(temp_band, {})
+        heat_pump_on_count = int(row.get("heat_pump_on", 0) or 0)
+        heat_pump_off_count = int(row.get("heat_pump_off", 0) or 0)
+        consumption_avg = float(row.get("consumption_avg", 0.0) or 0.0)
+        consumption_samples = int(row.get("consumption_samples", 0) or 0)
+
+        if heat_pump_on:
+            heat_pump_on_count += 1
+        else:
+            heat_pump_off_count += 1
+
+        if consumption_w is not None:
+            new_samples = consumption_samples + 1
+            consumption_avg = ((consumption_avg * consumption_samples) + consumption_w) / new_samples
+            consumption_samples = new_samples
+
+        tranches[temp_band] = {
+            "heat_pump_on": heat_pump_on_count,
+            "heat_pump_off": heat_pump_off_count,
+            "consumption_avg": round(consumption_avg, 2),
+            "consumption_samples": consumption_samples,
+            "last_temp_ext": round(float(temp_ext), 2),
+            "last_state": heat_state,
+            "updated_at": now.isoformat(),
+        }
+
+        data["tranches"] = tranches
+        data["heat_pump_entity"] = heat_pump_eid
+        if temp_ext_eid:
+            data["outdoor_temp_entity"] = temp_ext_eid
+        if consumption_eid:
+            data["consumption_entity"] = consumption_eid
+        data["updated_at"] = now.isoformat()
+
+        skill_set("heat_pump_behavior", data, (nb or 0) + 1)
+    except Exception as ex:
+        log.debug(f"skill_heat_pump_behavior: {ex}")
+
+
 def skill_suggestion_machine(states):
     """Suggest the best time to run an appliance based on the solar window.
     Without solar sensors, reminders still work but solar suggestions are disabled."""
