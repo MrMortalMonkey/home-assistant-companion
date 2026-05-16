@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.2 beta (2026-05-16)
+- Fixed remaining user-visible strings: "RESEAU ZIGBEE" → "ZIGBEE NETWORK", "Tors online" → "All online", "LQI CRITIQUE" → "LQI CRITICAL", "meiltheir" → "best", "DETAIL COMPLET" → "FULL DETAIL", "SOLAR ENTITIES SOLAR" → "SOLAR ENTITIES", "AUTOMATISATIONS" → "AUTOMATIONS", "Cartographie" → "Entity map", "Charge solar" → "Solar charge", "Injection home" → "Home output"
+- Fixed weather temperature unit: now reads `temperature_unit` attribute from HA weather entity instead of always showing °C
+- Added "No data — run /scan" hint in /energy CONSUMPTION section when no roles are assigned yet
+- Fixed /energy daily cost to use configured `currency` symbol instead of hardcoded €
+- Expanded ROLE_DEFINITIONS patterns to match a much broader range of HA entity naming conventions (generic power, energy, solar, battery patterns)
+- Energy dashboard discovery now seeds the roles table directly so /energy shows kWh data without requiring /scan
+- HA App: added feature toggles to configuration UI — enable/disable morning briefing, evening summary, and appliance cycle detection
+- HA App: added regional settings to configuration UI — timezone, country_code, electricity_rate_kwh, currency
+- HA App: removed "Enable Remote Server" (deploy server) option from configuration
+- `/diag_carto` command renamed to `/diag_map` for consistency
+
 ## 0.2.1 beta (2026-05-16)
 - Fixed missing `skill_optimisation_rate` function causing `monitoring_core intelligence` NameError every 5 minutes
 - Fixed noisy 404 warnings on optional HA Energy dashboard endpoints (`config/energy`, `energy/info`) — now logged at DEBUG level when the Energy dashboard is not configured

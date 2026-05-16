@@ -2012,8 +2012,15 @@ def check_code(message):
 
 
 def _init_baseline_entities():
-    """Discover energy entities from HA Energy dashboard, then apply config overrides."""
+    """Discover energy entities from HA Energy dashboard, then apply config overrides.
+    Also seeds the roles table so /energy shows data without requiring /scan."""
     result = {}
+    # label in BASELINE_ENTITIES → role name for the roles table
+    _LABEL_TO_ROLE = {
+        "grid_consumption_kwh": "consumption_day_kwh",
+        "production_solar_kwh": "solar_production_kwh",
+        "grid_return_kwh":      "grid_return_kwh",
+    }
     try:
         energy_cfg = ha_get("config/energy", _retries=0, _silent=True)
         if energy_cfg:
@@ -2040,6 +2047,16 @@ def _init_baseline_entities():
         pass
     # Manual overrides from config.json take precedence over auto-discovery
     result.update(CFG.get("baseline_entities", {}))
+    # Seed roles table from discovered energy entities (low confidence — overridden by scan)
+    for eid, label in result.items():
+        role = _LABEL_TO_ROLE.get(label)
+        if role:
+            try:
+                existing = role_get(role)
+                if not existing:
+                    role_set(role, eid, "energy_dashboard", 0.5)
+            except Exception:
+                pass
     return result
 
 

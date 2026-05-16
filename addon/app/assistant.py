@@ -791,6 +791,9 @@ def monitoring_core():
 def monitoring_plugs():
     """Watch configured smart outlets and close appliance cycles automatically."""
     while True:
+        if not CFG.get("enable_appliance_detection", True):
+            time.sleep(300)
+            continue
         sleep_for = PLUG_POLL_IDLE
         try:
             states = ha_get("states")

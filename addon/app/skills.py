@@ -638,7 +638,7 @@ def _engine_savings_proactive(states, index, now):
 
     # ═══ 1. MORNING BRIEFING (1x/day) ═══
     hour_briefing = WORKDAY_BRIEFING_HOUR if now.weekday() < 5 else WEEKEND_BRIEFING_HOUR
-    if hour == hour_briefing and minute < 5 and _eco_proactive_state.get("briefing") != now.strftime("%Y-%m-%d"):
+    if CFG.get("enable_morning_briefing", True) and hour == hour_briefing and minute < 5 and _eco_proactive_state.get("briefing") != now.strftime("%Y-%m-%d"):
         _eco_proactive_state["briefing"] = now.strftime("%Y-%m-%d")
 
         # Yesterday's savings
@@ -897,7 +897,7 @@ def _engine_savings_proactive(states, index, now):
                         )
 
     # ═══ 4. EVENING SUMMARY (1x/day at 21h00-21h05) ═══
-    if hour == 21 and minute < 5 and _eco_proactive_state.get("evening_summary") != now.strftime("%Y-%m-%d"):
+    if CFG.get("enable_evening_summary", True) and hour == 21 and minute < 5 and _eco_proactive_state.get("evening_summary") != now.strftime("%Y-%m-%d"):
         _eco_proactive_state["evening_summary"] = now.strftime("%Y-%m-%d")
 
         today = now.strftime("%Y-%m-%d")
@@ -7495,10 +7495,10 @@ def cmd_energy(detail=False):
                 report += f"  🔋 SOC: {anker_soc}% (no-numeric value)\n"
         anker_prod = role_value("battery_prod_solar", index, None)
         if anker_prod and anker_prod != "?":
-            report += f"  ☀️ Charge solar : {anker_prod} W\n"
+            report += f"  ☀️ Solar charge: {anker_prod} W\n"
         anker_output = role_value("battery_output", index, None)
         if anker_output and anker_output != "?":
-            report += f"  🏠 Injection home : {anker_output} W\n"
+            report += f"  🏠 Home output: {anker_output} W\n"
         anker_mode = role_value("battery_mode", index, None)
         if anker_mode and anker_mode != "?":
             report += f"  Mode : {anker_mode}\n"
@@ -7535,9 +7535,12 @@ def cmd_energy(detail=False):
     if eco_rt != "?":
         report += f"  Real-time (grid): {eco_rt} W\n"
     if eco_day != "?":
-        report += f"  Daily cost: {eco_day} €\n"
+        currency = CFG.get("currency", "€")
+        report += f"  Daily cost: {eco_day} {currency}\n"
     if consumption_kwh != "?":
-        report += f"  Total consumption : {consumption_kwh} kWh\n"
+        report += f"  Total consumption: {consumption_kwh} kWh\n"
+    if eco_rt == "?" and eco_day == "?" and consumption_kwh == "?":
+        report += "  No data — run /scan to discover your entities\n"
 
     _has_heat_pump = role_get("heat_pump_climate")
     if _has_heat_pump:
@@ -7592,7 +7595,8 @@ def cmd_energy(detail=False):
             attrs = e.get("attributes", {})
             temp = attrs.get("temperature", "?")
             hum = attrs.get("humidity", "?")
-            report += f"\n🌤️ WEATHER: {temp}°C | Humidity {hum}%\n"
+            temp_unit = attrs.get("temperature_unit", "°C")
+            report += f"\n🌤️ WEATHER: {temp}{temp_unit} | Humidity {hum}%\n"
             break
 
     try:
@@ -7606,7 +7610,7 @@ def cmd_energy(detail=False):
         report += "\n💡 /energy detail → report complete"
         return report
 
-    report += "\n━━━━━━━━━━━━━━━━━━\n📋 DETAIL COMPLET\n"
+    report += "\n━━━━━━━━━━━━━━━━━━\n📋 FULL DETAIL\n"
 
     # Every the plugs with power
     report += "\n🔌 CONNECTED PLUGS\n"
@@ -7653,7 +7657,7 @@ def cmd_energy(detail=False):
         except Exception:
             report += f"  ❓ {fname} : {e['state']}\n"
 
-    report += "\n☀️ SOLAR ENTITIES SOLAR\n"
+    report += "\n☀️ SOLAR ENTITIES\n"
     cats_detail = ["energy_solar", "energy_battery", "energy_production"]
     for cat in cats_detail:
         entities_cat = entity_map_get_by_category(cat)
@@ -7786,7 +7790,7 @@ def cmd_zigbee():
     bons = [d for d in devices if 50 < d[3] <= 100 and d[4] not in ("unavailable", "unknown")]
     excellents = [d for d in devices if d[3] > 100 and d[4] not in ("unavailable", "unknown")]
 
-    report = f"📡 RESEAU ZIGBEE — {total} devices\n━━━━━━━━━━━━━━━━━━\n"
+    report = f"📡 ZIGBEE NETWORK — {total} devices\n━━━━━━━━━━━━━━━━━━\n"
 
     # Hors line
     if ko:
@@ -7795,11 +7799,11 @@ def cmd_zigbee():
             room_str = f" [{room}]" if room else ""
             report += f"  {fname}{room_str}\n"
     else:
-        report += "\n✅ Tors online\n"
+        report += "\n✅ All online\n"
 
     # LQI critical
     if criticals:
-        report += f"\n🚨 LQI CRITIQUE ≤30 ({len(criticals)})\n"
+        report += f"\n🚨 LQI CRITICAL ≤30 ({len(criticals)})\n"
         for eid, fname, room, lqi, state in criticals:
             room_str = f" [{room}]" if room else ""
             report += f"  LQI={lqi} — {fname}{room_str}\n"
@@ -7818,7 +7822,7 @@ def cmd_zigbee():
     # Top 5 meiltheir and 5 pires (online)
     online_devices = [d for d in devices if d[4] not in ("unavailable", "unknown") and d[3] >= 0]
     if len(online_devices) >= 5:
-        report += "\n📊 TOP 5 meiltheir :\n"
+        report += "\n📊 TOP 5 best:\n"
         for eid, fname, room, lqi, state in sorted(online_devices, key=lambda x: -x[3])[:5]:
             report += f"  LQI={lqi} — {fname}\n"
         report += "\n📊 TOP 5 weakest :\n"
@@ -7849,11 +7853,11 @@ def cmd_nas():
 def cmd_automations():
     states = ha_get("states")
     if not states:
-        return "❌ AUTOMATISATIONS — HA unreachable"
+        return "❌ AUTOMATIONS — HA unreachable"
     autos = [e for e in states if e["entity_id"].startswith("automation.")]
     active_items = [e for e in autos if e["state"] == "on"]
     inactive_items = [e for e in autos if e["state"] == "off"]
-    report  = f"⚙️ AUTOMATISATIONS\n━━━━━━━━━━━━━━━\n"
+    report  = f"⚙️ AUTOMATIONS\n━━━━━━━━━━━━━━━\n"
     report += f"Total: {len(autos)} | Active: {len(active_items)} | Inactive: {len(inactive_items)}\n"
     report += "(unavailable = conditionnel, normal)\n"
     if inactive_items:
@@ -8325,7 +8329,7 @@ def cmd_monitoring():
 
     report = "🛡️ ACTIVE MONITORING\n━━━━━━━━━━━━━━━━━━\n"
     report += f"\n📡 Home Assistant : {nb_ha} entities detected"
-    report += f"\n📊 Cartographie : {nb_carto} entities mapped"
+    report += f"\n📊 Entity map: {nb_carto} entities mapped"
     report += f"\n🎯 Roles: {role_count} auto-discovered"
     report += f"\n📈 Baselines: {baseline_count} learned behaviors"
     report += f"\n🧠 Expertise: {expertise_count}/50 rules"
@@ -8724,7 +8728,7 @@ def cmd_clean_carto():
     report += f"Modifications : {modifications}\n\n"
     for cat, nb in sorted(counts.items()):
         report += f"  [{cat}]: {nb} entities\n"
-    report += f"\n✅ Done — /diag_carto to verify"
+    report += f"\n✅ Done — /diag_map to verify"
     return report
 
 
@@ -9150,7 +9154,7 @@ def cmd_diag_plugs():
         fname = e.get("attributes", {}).get("friendly_name", eid)
         if any(k in eid.lower() for k in ["power", "power", "watt"]):
             cat = carto[0] if carto else "UNCATEGORIZED"
-            report += f"  ⚠️ {fname} = {e['state']} W | carto: {cat}\n    {eid}\n"
+            report += f"  ⚠️ {fname} = {e['state']} W | mapped as: {cat}\n    {eid}\n"
 
     return report
 
@@ -9236,7 +9240,7 @@ def cmd_diag_energy():
         if e["entity_id"].startswith("climate."):
             carto = entity_map_get(e["entity_id"])
             cat_str = carto[0] if carto else "UNMAPPED"
-            report += f"  {e['entity_id']} = {e['state']} | carto: {cat_str}\n"
+            report += f"  {e['entity_id']} = {e['state']} | mapped as: {cat_str}\n"
 
     report += "\n🔌 CONNECTED PLUGS (entity_map) :\n"
     conn = sqlite3.connect(DB_PATH)
@@ -9260,7 +9264,7 @@ def cmd_diag_energy():
         if any(k in eid or k in fn for k in ["dryer", "dryer", "dryer", "dryer"]):
             carto = entity_map_get(e["entity_id"])
             cat_str = carto[0] if carto else "UNMAPPED"
-            report += f"  {e['entity_id']} = {e['state']} | carto: {cat_str}\n"
+            report += f"  {e['entity_id']} = {e['state']} | mapped as: {cat_str}\n"
 
     report += "\n📊 ENERGY MAP :\n"
     conn = sqlite3.connect(DB_PATH)
@@ -10641,7 +10645,7 @@ def handle_message(text):
         "diag_plugs": cmd_diag_plugs,
         "diag_ecojoko": cmd_diag_ecojoko,
         "diag_nas": cmd_diag_nas,
-        "diag_carto": cmd_diag_carto,
+        "diag_map": cmd_diag_carto,
         "clean_map": cmd_clean_carto,
         "baselines": cmd_baselines,
         "skills": cmd_skills,
