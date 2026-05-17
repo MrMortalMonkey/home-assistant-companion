@@ -816,6 +816,7 @@ def monitoring_core():
                     _rollback_on_repeated_errors,
                     _monitoring_deploy_server,
                     _monitor_ha_health,
+                    _send_proactive_recommendations,
                 ]
                 if CFG.get("enable_tempo_ejp", False):
                     background_fns.append(_notify_tempo_ejp)
@@ -917,6 +918,71 @@ def monitoring_plugs():
             log.error(f"monitoring_plugs: {e}")
             _watchdog["errors"].append((datetime.now(), f"monitoring_plugs: {e}"))
         time.sleep(sleep_for)
+
+
+def _start_conversation_server():
+    """HTTP server exposing POST /conversation for HA Assist and external agents."""
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+
+    class _Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path.rstrip("/") == "/health":
+                self._reply(200, {"status": "ok", "version": VERSION})
+            else:
+                self._reply(404, {"error": "not found"})
+
+        def do_POST(self):
+            if self.path.rstrip("/") == "/conversation":
+                try:
+                    length = int(self.headers.get("Content-Length", 0))
+                    body = json.loads(self.rfile.read(length).decode("utf-8"))
+                except Exception:
+                    self._reply(400, {"error": "invalid JSON"})
+                    return
+
+                secret = CFG.get("conversation_secret", "")
+                if secret:
+                    auth = self.headers.get("Authorization", "").replace("Bearer ", "").strip()
+                    if auth != secret:
+                        self._reply(401, {"error": "unauthorized"})
+                        return
+
+                text = (body.get("text") or "").strip()
+                language = body.get("language", "en")
+                if not text:
+                    self._reply(400, {"error": "missing text"})
+                    return
+
+                log.info(f"💬 Conversation API: {text[:80]}")
+                try:
+                    response_text = handle_message(text) or ""
+                except Exception as ex:
+                    log.error(f"Conversation API handler: {ex}")
+                    response_text = "Sorry, an internal error occurred."
+
+                self._reply(200, {"text": response_text, "language": language})
+            else:
+                self._reply(404, {"error": "not found"})
+
+        def _reply(self, status, body):
+            data = json.dumps(body).encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(data)
+
+        def log_message(self, fmt, *args):
+            log.debug(f"ConvAPI: {fmt % args}")
+
+    port = int(CFG.get("conversation_port", 8502))
+    try:
+        server = HTTPServer(("0.0.0.0", port), _Handler)
+        log.info(f"💬 Conversation API listening on port {port}")
+        server.serve_forever()
+    except Exception as ex:
+        log.error(f"Conversation server failed: {ex}")
 
 
 def main():
@@ -1035,6 +1101,7 @@ def main():
     threading.Thread(target=monitoring_plugs,    daemon=True).start()
     threading.Thread(target=watchdog_interne,       daemon=True).start()
     threading.Thread(target=_scan_infiltration_auto, daemon=True).start()
+    threading.Thread(target=_start_conversation_server, daemon=True).start()
 
     # Restore the state of ongoing cycles from SQLite
     try:

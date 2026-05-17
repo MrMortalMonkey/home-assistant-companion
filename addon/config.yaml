@@ -1,5 +1,5 @@
 name: Home Assistant AI Companion
-version: "0.2.5"
+version: "0.2.6"
 slug: assistant
 description: "Your home's AI guardian — autonomous agent that monitors, learns, and optimizes your energy via Home Assistant and your selected AI provider"
 url: https://github.com/MrMortalMonkey/home-assistant-companion
@@ -38,6 +38,9 @@ options:
   country_code: "us"
   electricity_rate_kwh: 0.15
   currency: "$"
+  # ── HA Assist / Conversation API ──────────────────────────────────
+  conversation_port: 8502
+  conversation_secret: ""
 schema:
   telegram_token: password
   llm_provider: list(anthropic|openai|openrouter|ollama|lmstudio)
@@ -59,6 +62,10 @@ schema:
   country_code: list(us|gb|fr|au|de|none)?
   electricity_rate_kwh: float?
   currency: str?
+  conversation_port: int?
+  conversation_secret: password?
+ports:
+  8502/tcp: 8502
 map:
   - config:rw
   - ssl:ro

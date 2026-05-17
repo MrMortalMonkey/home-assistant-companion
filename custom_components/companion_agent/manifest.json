@@ -1,0 +1,11 @@
+{
+  "domain": "companion_agent",
+  "name": "AI Companion",
+  "version": "0.2.6",
+  "config_flow": true,
+  "dependencies": [],
+  "requirements": [],
+  "iot_class": "local_polling",
+  "documentation": "https://github.com/MrMortalMonkey/home-assistant-companion",
+  "codeowners": ["@MrMortalMonkey"]
+}

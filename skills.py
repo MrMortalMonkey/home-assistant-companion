@@ -2125,6 +2125,58 @@ def handle_callback(callback_query):
         telegram_send("❌ Automation cancelled.")
         return
 
+    if data == "scene_confirm":
+        pending = mem_get("ha_scene_pending")
+        if not pending:
+            telegram_send("⚠️ No scene pending.")
+            return
+        try:
+            scene_data = json.loads(pending)
+            scene_name = scene_data.get("name", "AI Scene")
+            scene_id = scene_name.lower().replace(" ", "_").replace("-", "_")[:40]
+            result = shared.ha_execute_config_write(f"config/scene/config/{scene_id}", scene_data)
+            mem_set("ha_scene_pending", "")
+            if result is not None:
+                telegram_send(f"✅ Scene created: {scene_name}")
+            else:
+                telegram_send("❌ Error creating scene. Check HA logs.")
+        except Exception as ex:
+            telegram_send(f"❌ Scene error: {ex}")
+        return
+
+    if data == "scene_cancel":
+        mem_set("ha_scene_pending", "")
+        telegram_send("❌ Scene cancelled.")
+        return
+
+    if data.startswith("suggest_auto:"):
+        parts = data.split(":")
+        if len(parts) >= 4:
+            eid = parts[1]
+            state = parts[2]
+            hour = parts[3]
+            fname = eid.split(".")[-1].replace("_", " ").title()
+            domain = eid.split(".")[0]
+            service = f"{domain}.turn_on" if state == "on" else f"{domain}.turn_off"
+            auto_data = {
+                "alias": f"Auto {fname} at {hour}:00",
+                "description": f"Created by AI Companion from pattern detection ({state} at {hour}h)",
+                "trigger": [{"platform": "time", "at": f"{int(hour):02d}:00:00"}],
+                "condition": [],
+                "action": [{"service": service, "target": {"entity_id": eid}}],
+                "mode": "single",
+            }
+            mem_set("ha_automation_pending", json.dumps(auto_data))
+            telegram_send(
+                f"📋 Creating automation: {fname} → {state} at {int(hour):02d}:00\n"
+                f"Type /confirm to apply or /cancel to discard."
+            )
+        return
+
+    if data.startswith("suggest_ignore:"):
+        telegram_send("👍 Got it — I won't suggest this pattern again.")
+        return
+
     if data == "ha_action:confirm":
         telegram_send("ℹ️ Runtime actions now execute immediately. No pending action to confirm.")
         return
@@ -5972,6 +6024,12 @@ def _cycle_intelligence(states, index, now):
 
     skill_suggestion_machine(states)
 
+    if _intelligence_counter % 36 == 0:  # Every 3 hours
+        try:
+            skill_proactive_patterns(states, now)
+        except Exception as ex:
+            log.debug(f"skill_proactive_patterns: {ex}")
+
     if _intelligence_counter % 12 == 0:  # Every hour
         _auto_learn(states, index, now)
 
@@ -6553,6 +6611,110 @@ def rate_cost_cycle(consumption_kwh, duration_min, started_at_iso=None):
         }
 
     return {"cost_total": round(consumption_kwh * 0.2516, 3), "detail": "default", "price_avg_kwh": 0.2516}
+
+
+def skill_proactive_patterns(states, now):
+    """Detect repeating entity state patterns and queue automation suggestions.
+    Tracks per-entity state transitions by hour of day across multiple days.
+    When 5+ occurrences at the same hour are detected, queues a suggestion."""
+    if not states:
+        return
+
+    # Only track actionable domains
+    _actionable = {"light", "switch", "cover", "fan", "climate", "media_player"}
+
+    data, _ = skill_get("proactive_patterns")
+    if not isinstance(data, dict):
+        data = {}
+
+    hour_key = str(now.hour)
+    day_key = now.strftime("%Y-%m-%d")
+
+    for e in states:
+        eid = e["entity_id"]
+        domain = eid.split(".")[0]
+        if domain not in _actionable:
+            continue
+        state = e.get("state", "")
+        if state in ("unavailable", "unknown", ""):
+            continue
+        fname = e.get("attributes", {}).get("friendly_name", eid)
+
+        pattern_key = f"{eid}::{state}::{hour_key}"
+        entry = data.get(pattern_key, {"days": [], "fname": fname, "eid": eid, "state": state, "hour": now.hour})
+        days = entry.get("days", [])
+        if day_key not in days:
+            days.append(day_key)
+            days = days[-30:]  # keep 30 days rolling window
+        entry["days"] = days
+        entry["fname"] = fname
+        data[pattern_key] = entry
+
+        # Threshold: 5+ different days at the same hour
+        if len(days) >= 5 and not entry.get("suggested"):
+            # Don't re-suggest if automation already exists
+            auto_id = f"companion_{eid.replace('.', '_')}_{state}_at_{hour_key}h"
+            existing_states = {e2["entity_id"]: e2 for e2 in (states or [])}
+            if f"automation.{auto_id}" not in existing_states:
+                entry["suggested"] = True
+                data[pattern_key] = entry
+                # Queue the suggestion
+                suggestions = data.get("_pending_suggestions", [])
+                suggestions.append({
+                    "eid": eid,
+                    "fname": fname,
+                    "state": state,
+                    "hour": now.hour,
+                    "days_count": len(days),
+                    "queued_at": now.isoformat(),
+                    "sent": False,
+                })
+                data["_pending_suggestions"] = suggestions[-20:]  # cap at 20
+                log.info(f"💡 Pattern suggestion queued: {fname} → {state} at {now.hour}h ({len(days)} days)")
+
+    skill_set("proactive_patterns", data)
+
+
+def _send_proactive_recommendations(now):
+    """Send queued pattern-based automation suggestions to Telegram (at most one per hour)."""
+    last_sent_key = "proactive_last_sent"
+    last_sent = mem_get(last_sent_key)
+    if last_sent:
+        try:
+            if (now - datetime.fromisoformat(last_sent)).total_seconds() < 3600:
+                return
+        except Exception:
+            pass
+
+    data, _ = skill_get("proactive_patterns")
+    if not isinstance(data, dict):
+        return
+    suggestions = data.get("_pending_suggestions", [])
+    pending = [s for s in suggestions if not s.get("sent")]
+    if not pending:
+        return
+
+    suggestion = pending[0]
+    fname = suggestion["fname"]
+    state = suggestion["state"]
+    hour = suggestion["hour"]
+    days = suggestion["days_count"]
+
+    action_word = "turns on" if state == "on" else ("turns off" if state == "off" else f"changes to {state}")
+    msg = (
+        f"💡 PATTERN DETECTED\n"
+        f"I've noticed that **{fname}** {action_word} every day around {hour}:00 "
+        f"({days} days in a row).\n\n"
+        f"Would you like me to create an automation for this?"
+    )
+    telegram_send_buttons(msg, [
+        {"text": "✅ Create automation", "callback_data": f"suggest_auto:{suggestion['eid']}:{state}:{hour}"},
+        {"text": "❌ Ignore", "callback_data": f"suggest_ignore:{suggestion['eid']}:{state}:{hour}"},
+    ])
+    suggestion["sent"] = True
+    data["_pending_suggestions"] = suggestions
+    skill_set("proactive_patterns", data)
+    mem_set(last_sent_key, now.isoformat())
 
 
 def skill_health_host():
@@ -7865,14 +8027,54 @@ def cmd_batteries():
 
 def _collect_zigbee_devices(states):
     """Collect Zigbee devices from HA states.
-    Supports Zigbee2MQTT (linkquality), ZHA (lqi / link_quality),
-    and ZHA WebSocket device list as fallback."""
-    devices = []  # (eid, fname, room, lqi_val, state)
-    seen_devices = set()
+    Tries ZHA WebSocket API first (authoritative), then scans entity attributes
+    for Zigbee2MQTT (linkquality) and other integrations."""
+    devices = []  # (key, fname, room, lqi_val, state)
+    seen_keys = set()
 
+    def _add(key, fname, room, lqi_val, state):
+        k = key.lower()
+        if k in seen_keys:
+            return
+        seen_keys.add(k)
+        devices.append((key, fname, room, lqi_val, state))
+
+    # Pass 1: ZHA WebSocket API — authoritative list of all ZHA devices
+    zha_ieee_seen = set()
+    try:
+        zha_devs = _ha_ws_command("zha/devices", timeout=12)
+        if isinstance(zha_devs, list):
+            for dev in zha_devs:
+                ieee = dev.get("ieee", "")
+                if not ieee:
+                    continue
+                zha_ieee_seen.add(ieee)
+                name = dev.get("user_given_name") or dev.get("name") or ieee
+                lqi_raw = dev.get("lqi")
+                try:
+                    lqi_val = int(lqi_raw) if lqi_raw is not None else -1
+                except Exception:
+                    lqi_val = -1
+                available = dev.get("available", True)
+                state = "online" if available else "unavailable"
+                # Try to find room via entity registry
+                room = ""
+                for ent in (dev.get("entities") or []):
+                    if isinstance(ent, dict):
+                        eid = ent.get("entity_id", "")
+                        if eid:
+                            room = ha_get_area(eid) or ""
+                            if room:
+                                break
+                _add(ieee, name, room, lqi_val, state)
+    except Exception as ex:
+        log.debug(f"ZHA WS devices: {ex}")
+
+    # Pass 2: entity attribute scan — Zigbee2MQTT (linkquality), ZHA sensors (lqi), others
     _suffixes = ("_power", "_current", "_voltage", "_energy", "_battery",
                  "_temperature", "_humidity", "_illuminance", "_occupancy",
-                 "_motion", "_contact", "_smoke", "_co", "_co2", "_pressure")
+                 "_motion", "_contact", "_smoke", "_co", "_co2", "_pressure",
+                 "_linkquality", "_lqi")
 
     def _base_key(eid):
         key = eid.split(".", 1)[1] if "." in eid else eid
@@ -7881,44 +8083,23 @@ def _collect_zigbee_devices(states):
                 return key[:-len(sfx)]
         return key
 
-    def _add(eid, fname, room, lqi_val, state):
-        bk = _base_key(eid)
-        if bk in seen_devices:
-            return
-        seen_devices.add(bk)
-        devices.append((eid, fname, room, lqi_val, state))
-
-    # Pass 1: check linkquality (Z2M) and lqi / link_quality (ZHA)
-    for e in states:
-        attrs = e.get("attributes", {})
-        lqi = (attrs.get("linkquality")        # Zigbee2MQTT
-             or attrs.get("lqi")               # ZHA
-             or attrs.get("link_quality"))     # some integrations
-        if lqi is None:
-            continue
-        eid = e["entity_id"]
-        fname = attrs.get("friendly_name", eid)
-        carto = entity_map_get(eid)
-        room = carto[2] if carto else ""
-        try:
-            lqi_val = int(lqi)
-        except Exception:
-            lqi_val = -1
-        _add(eid, fname, room, lqi_val, e["state"])
-
-    # Pass 2: ZHA WebSocket — if state-based detection found nothing, ask ZHA directly
-    if not devices:
-        try:
-            zha_devices = _ha_ws_command("zha/devices", timeout=10)
-            if isinstance(zha_devices, list):
-                for dev in zha_devices:
-                    lqi_val = dev.get("lqi", -1) if dev.get("lqi") is not None else -1
-                    name = dev.get("name") or dev.get("user_given_name") or dev.get("ieee", "?")
-                    ieee = dev.get("ieee", "")
-                    state = "unavailable" if not dev.get("available", True) else "online"
-                    _add(f"zha.{ieee}", name, "", lqi_val, state)
-        except Exception:
-            pass
+    if states:
+        for e in states:
+            attrs = e.get("attributes", {})
+            lqi = (attrs.get("linkquality")     # Zigbee2MQTT
+                or attrs.get("lqi")             # ZHA sensors
+                or attrs.get("link_quality"))   # some integrations
+            if lqi is None:
+                continue
+            eid = e["entity_id"]
+            fname = attrs.get("friendly_name", eid)
+            carto = entity_map_get(eid)
+            room = carto[2] if carto else ""
+            try:
+                lqi_val = int(lqi)
+            except Exception:
+                lqi_val = -1
+            _add(_base_key(eid), fname, room, lqi_val, e["state"])
 
     return devices
 

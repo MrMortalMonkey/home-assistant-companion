@@ -243,6 +243,25 @@ HA_TOOLS = [
         }
     },
     {
+        "name": "ha_create_scene",
+        "description": "Creates a scene in Home Assistant that captures the desired state of multiple entities. "
+                       "Use ha_search_entities first to find the exact entity_ids. "
+                       "Shows a preview with Validate/Cancel buttons before writing.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Scene name (e.g. Movie Night, Good Morning)"},
+                "entities": {
+                    "type": "object",
+                    "description": "Dict of entity_id → desired state/attributes. "
+                                   "Example: {\"light.living_room\": {\"state\": \"on\", \"brightness\": 128}, "
+                                   "\"switch.tv\": \"on\"}"
+                }
+            },
+            "required": ["name", "entities"]
+        }
+    },
+    {
         "name": "ha_search_entities",
         "description": "Searches for entities in Home Assistant by keyword. "
                        "Use this tool BEFORE creating an automation to find the exact entity_ids. "
@@ -3000,9 +3019,10 @@ AUTOMATIONS:
         requested_action = None
         requested_watch = None
         requested_automation = None
+        requested_scene = None
 
         def _consume_followup_blocks(followup_blocks):
-            nonlocal text_response, requested_action, requested_watch, requested_automation
+            nonlocal text_response, requested_action, requested_watch, requested_automation, requested_scene
             if not followup_blocks:
                 return
             for block2 in llm_provider.dictify_content_blocks(followup_blocks):
@@ -3012,6 +3032,8 @@ AUTOMATIONS:
                     requested_action = block2["input"]
                 elif block2["type"] == "tool_use" and block2["name"] == "ha_create_automation":
                     requested_automation = block2["input"]
+                elif block2["type"] == "tool_use" and block2["name"] == "ha_create_scene":
+                    requested_scene = block2["input"]
                 elif block2["type"] == "tool_use" and block2["name"] == "ha_create_watch":
                     requested_watch = block2["input"]
 
@@ -3048,6 +3070,8 @@ AUTOMATIONS:
                     text_response = f"Tool error: {e}"
             elif block["type"] == "tool_use" and block["name"] == "ha_create_automation":
                 requested_automation = block["input"]
+            elif block["type"] == "tool_use" and block["name"] == "ha_create_scene":
+                requested_scene = block["input"]
             elif block["type"] == "tool_use" and block["name"] == "ha_create_watch":
                 requested_watch = block["input"]
 
@@ -3172,6 +3196,38 @@ AUTOMATIONS:
                 return ""
             except Exception as e:
                 log.error(f"Automation pending: {e}")
+
+        if requested_scene:
+            try:
+                scene_name = requested_scene.get("name", "AI Scene")
+                entities = requested_scene.get("entities", {})
+                scene_id = scene_name.lower().replace(" ", "_").replace("-", "_")[:40]
+                scene_data = {"name": scene_name, "entities": entities}
+                mem_set("ha_scene_pending", json.dumps(scene_data))
+
+                msg = f"🎭 PROPOSED SCENE\n━━━━━━━━━━━━━━━━━━\n"
+                msg += f"📝 {scene_name}\n\n"
+                msg += "💡 Entities:\n"
+                for eid, desired in (entities or {}).items():
+                    fname = _friendly_entity_name(eid, include_room=True)
+                    if isinstance(desired, dict):
+                        state = desired.get("state", "")
+                        extras = {k: v for k, v in desired.items() if k != "state"}
+                        extras_str = ", ".join(f"{k}={v}" for k, v in extras.items()) if extras else ""
+                        line = f"  • {fname}: {state}" + (f" ({extras_str})" if extras_str else "")
+                    else:
+                        line = f"  • {fname}: {desired}"
+                    msg += line + "\n"
+
+                telegram_send_buttons(msg, [
+                    {"text": "✅ Create scene", "callback_data": "scene_confirm"},
+                    {"text": "❌ Cancel", "callback_data": "scene_cancel"},
+                ])
+                add_history("assistant", msg)
+                return ""
+            except Exception as e:
+                log.error(f"Scene pending: {e}")
+
         text_response = _clean_chat_response(text_response, user_message)
         if text_response:
             add_history("assistant", text_response)

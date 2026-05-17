@@ -15,7 +15,7 @@ BEHAVIOR_PROMPT = os.path.join(BASE_DIR, "behavior.txt")
 
 # ═══ VERSION ═══
 MODE    = "PROD"
-VERSION = "0.2.5"
+VERSION = "0.2.6"
 
 # ═══ LLM PROVIDER CONFIGURATION ═══
 # Supported providers:

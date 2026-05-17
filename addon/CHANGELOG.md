@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.6 beta (2026-05-17)
+- Added HA Assist integration: custom conversation component (`custom_components/companion_agent/`) registers as a native Assist backend — use the agent from the HA dashboard, Siri, Google, or Alexa without Telegram
+- Added HTTP Conversation API (port 8502): `POST /conversation` forwards text to the AI engine and returns a response; `GET /health` returns version info; optional Bearer token auth via `conversation_secret`
+- Added scene creation: LLM can now call `ha_create_scene` tool to capture multi-entity states; shows a preview with Validate/Cancel buttons before writing to HA
+- Added proactive pattern detection: intelligence loop tracks entity state transitions by hour across days; when a 5-day pattern is detected with no matching automation, sends a Telegram suggestion with one-tap "Create automation" / "Ignore" buttons
+- Fixed Zigbee device detection: ZHA WebSocket API is now queried first (authoritative), entity attribute scan runs in parallel for Zigbee2MQTT — both merged with deduplication; eliminates "0 devices" false reports
+- Added `conversation_port` and `conversation_secret` options to addon configuration UI; exposed port 8502/tcp in addon manifest
+
 ## 0.2.5 beta (2026-05-17)
 - Fixed "ALERTE INTELLIGENCE" → "INTELLIGENCE ALERT" in solar/anomaly Telegram alerts
 - Fixed "ALERTE: HA unreachable" → "ALERT: HA unreachable" in internet outage SMS
