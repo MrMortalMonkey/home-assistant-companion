@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.5 beta (2026-05-17)
+- Fixed "ALERTE INTELLIGENCE" → "INTELLIGENCE ALERT" in solar/anomaly Telegram alerts
+- Fixed "ALERTE: HA unreachable" → "ALERT: HA unreachable" in internet outage SMS
+
 ## 0.2.4 beta (2026-05-17)
 - Added `/status` command: comprehensive HA ecosystem health snapshot covering entities, integrations, automations, batteries, persistent notifications, updates, recent errors, and host metrics
 - Added `/integrations` command: detailed view of all HA config entry states (loaded, retrying, failed, disabled)

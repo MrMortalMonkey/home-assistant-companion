@@ -6151,7 +6151,7 @@ def _decider(anomalies, states, index, now):
         if severity == "high":
             _alert_if_new(
                 f"ia_{atype}",
-                f"🧠 ALERTE INTELLIGENCE\n🚨 {msg}",
+                f"🧠 INTELLIGENCE ALERT\n🚨 {msg}",
                 delay_h=2
             )
         elif severity == "medium":
@@ -10132,7 +10132,7 @@ def _detect_internet_outage(now):
                 try:
                     _alert_if_new(
                         "outage_internet_sms",
-                        f"ALERTE: HA unreachable since {int(minutes)}min",
+                        f"ALERT: HA unreachable since {int(minutes)}min",
                         delay_h=6
                     )
                 except Exception:
