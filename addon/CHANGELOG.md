@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.4 beta (2026-05-17)
+- Added `/status` command: comprehensive HA ecosystem health snapshot covering entities, integrations, automations, batteries, persistent notifications, updates, recent errors, and host metrics
+- Added `/integrations` command: detailed view of all HA config entry states (loaded, retrying, failed, disabled)
+- Enhanced `/automations` command: shows last-triggered timestamp for each automation sorted by recency
+- Fixed Zigbee device detection: now handles ZHA (`lqi` attribute) and Zigbee2MQTT (`linkquality`) and falls back to ZHA WebSocket API when no devices found via states
+- Background monitoring: `_monitor_ha_health()` now alerts on new HA integration failures and new persistent notifications via Telegram
+- Added per-room power breakdown to AI context: LLM can now answer "how much power is my living room using?" with live watt data and estimated hourly cost
+- Added today's energy per sensor to AI context: LLM uses HA statistics API to answer energy/cost questions by device or room
+- Added `ha_get_statistics_today()`, `ha_get_config_entries()`, `ha_get_error_log_tail()`, `ha_get_plain()` helper functions to shared.py
+
 ## 0.2.3 beta (2026-05-17)
 - Added missing `skill_health_host` function that collects RAM, disk, and HA latency metrics every 15 minutes — eliminates recurring NameError in intelligence loop
 - Fixed SQLite "database is locked" errors under concurrent thread load: enabled WAL journal mode at DB init and added `timeout=10` to all connections across skills.py, shared.py, and assistant.py

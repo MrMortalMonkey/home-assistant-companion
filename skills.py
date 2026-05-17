@@ -3324,6 +3324,70 @@ def ha_get_context_intelligent(question, states=None):
     except Exception:
         pass
 
+    # Per-room power / energy context for natural language queries
+    try:
+        if states:
+            price_kwh = rate_current_kwh_price()
+            room_power: dict = {}
+            for e in states:
+                eid = e["entity_id"]
+                attrs = e.get("attributes", {})
+                unit = attrs.get("unit_of_measurement", "")
+                if unit not in ("W", "kW"):
+                    continue
+                st = e.get("state", "")
+                if st in ("unavailable", "unknown"):
+                    continue
+                try:
+                    w = float(st) * (1000 if unit == "kW" else 1)
+                except Exception:
+                    continue
+                if w <= 0:
+                    continue
+                room = ha_get_area(eid) or ""
+                fname = attrs.get("friendly_name", eid)
+                room_power.setdefault(room or "Unknown", []).append((fname, w))
+            if room_power:
+                memory_store_extra.append("CURRENT POWER BY ROOM (live):")
+                for room_name, items in sorted(room_power.items()):
+                    total_w = sum(w for _, w in items)
+                    hourly_cost = total_w / 1000 * price_kwh
+                    memory_store_extra.append(
+                        f"  {room_name}: {total_w:.0f}W total ({hourly_cost:.3f}/h @ {price_kwh:.4f}/kWh)"
+                    )
+                    for fname, w in sorted(items, key=lambda x: -x[1])[:5]:
+                        memory_store_extra.append(f"    - {fname}: {w:.0f}W")
+    except Exception:
+        pass
+
+    # Today's kWh per energy sensor (from HA statistics)
+    try:
+        if states:
+            energy_eids = [
+                e["entity_id"] for e in states
+                if e.get("attributes", {}).get("unit_of_measurement") in ("kWh", "Wh")
+                and e["state"] not in ("unavailable", "unknown")
+            ]
+            if energy_eids:
+                stats_today = ha_get_statistics_today(energy_eids[:20])
+                if stats_today:
+                    price_kwh = rate_current_kwh_price()
+                    memory_store_extra.append("TODAY'S ENERGY BY SENSOR (kWh):")
+                    for eid, kwh in sorted(stats_today.items(), key=lambda x: -x[1])[:15]:
+                        fname = next(
+                            (e.get("attributes", {}).get("friendly_name", eid)
+                             for e in states if e["entity_id"] == eid),
+                            eid
+                        )
+                        room = ha_get_area(eid)
+                        room_str = f" [{room}]" if room else ""
+                        cost = kwh * price_kwh
+                        memory_store_extra.append(
+                            f"  {fname}{room_str}: {kwh:.3f}kWh ({cost:.3f})"
+                        )
+    except Exception:
+        pass
+
     try:
         useful_key_names = ["last_summary", "ha_scan_date", "ha_entities_count", "discovery_count"]
         for key_name in useful_key_names:
@@ -7799,31 +7863,40 @@ def cmd_batteries():
     return report if len(batteries) > 0 else "🔋 No battery detected"
 
 
-def cmd_zigbee():
-    states = ha_get("states")
-    if not states:
-        return "❌ ZIGBEE — HA unreachable"
-    index = {e["entity_id"]: e for e in states}
+def _collect_zigbee_devices(states):
+    """Collect Zigbee devices from HA states.
+    Supports Zigbee2MQTT (linkquality), ZHA (lqi / link_quality),
+    and ZHA WebSocket device list as fallback."""
+    devices = []  # (eid, fname, room, lqi_val, state)
+    seen_devices = set()
 
-    # Collect TOUS the devices Zigbee via linkquality
-    devices = []  # (eid, fname, room, lqi, state)
-    seen_devices = set()  # Avoid duplicates by physical device
+    _suffixes = ("_power", "_current", "_voltage", "_energy", "_battery",
+                 "_temperature", "_humidity", "_illuminance", "_occupancy",
+                 "_motion", "_contact", "_smoke", "_co", "_co2", "_pressure")
+
+    def _base_key(eid):
+        key = eid.split(".", 1)[1] if "." in eid else eid
+        for sfx in _suffixes:
+            if key.endswith(sfx):
+                return key[:-len(sfx)]
+        return key
+
+    def _add(eid, fname, room, lqi_val, state):
+        bk = _base_key(eid)
+        if bk in seen_devices:
+            return
+        seen_devices.add(bk)
+        devices.append((eid, fname, room, lqi_val, state))
+
+    # Pass 1: check linkquality (Z2M) and lqi / link_quality (ZHA)
     for e in states:
-        lqi = e.get("attributes", {}).get("linkquality")
+        attrs = e.get("attributes", {})
+        lqi = (attrs.get("linkquality")        # Zigbee2MQTT
+             or attrs.get("lqi")               # ZHA
+             or attrs.get("link_quality"))     # some integrations
         if lqi is None:
             continue
         eid = e["entity_id"]
-        device_key = eid.split(".", 1)[1] if "." in eid else eid
-        base_key = device_key
-        for suffix in ["_power", "_current", "_voltage", "_energy", "_power", "_battery"]:
-            if base_key.endswith(suffix):
-                base_key = base_key[:-len(suffix)]
-                break
-        if base_key in seen_devices:
-            continue
-        seen_devices.add(base_key)
-
-        attrs = e.get("attributes", {})
         fname = attrs.get("friendly_name", eid)
         carto = entity_map_get(eid)
         room = carto[2] if carto else ""
@@ -7831,7 +7904,31 @@ def cmd_zigbee():
             lqi_val = int(lqi)
         except Exception:
             lqi_val = -1
-        devices.append((eid, fname, room, lqi_val, e["state"]))
+        _add(eid, fname, room, lqi_val, e["state"])
+
+    # Pass 2: ZHA WebSocket — if state-based detection found nothing, ask ZHA directly
+    if not devices:
+        try:
+            zha_devices = _ha_ws_command("zha/devices", timeout=10)
+            if isinstance(zha_devices, list):
+                for dev in zha_devices:
+                    lqi_val = dev.get("lqi", -1) if dev.get("lqi") is not None else -1
+                    name = dev.get("name") or dev.get("user_given_name") or dev.get("ieee", "?")
+                    ieee = dev.get("ieee", "")
+                    state = "unavailable" if not dev.get("available", True) else "online"
+                    _add(f"zha.{ieee}", name, "", lqi_val, state)
+        except Exception:
+            pass
+
+    return devices
+
+
+def cmd_zigbee():
+    states = ha_get("states")
+    if not states:
+        return "❌ ZIGBEE — HA unreachable"
+
+    devices = _collect_zigbee_devices(states)
 
     # Sort by increasing LQI (weakest first)
     devices.sort(key=lambda x: x[3])
@@ -7910,14 +8007,194 @@ def cmd_automations():
     autos = [e for e in states if e["entity_id"].startswith("automation.")]
     active_items = [e for e in autos if e["state"] == "on"]
     inactive_items = [e for e in autos if e["state"] == "off"]
-    report  = f"⚙️ AUTOMATIONS\n━━━━━━━━━━━━━━━\n"
-    report += f"Total: {len(autos)} | Active: {len(active_items)} | Inactive: {len(inactive_items)}\n"
-    report += "(unavailable = conditionnel, normal)\n"
+    report  = "⚙️ AUTOMATIONS\n━━━━━━━━━━━━━━━\n"
+    report += f"Total: {len(autos)} | Active: {len(active_items)} | Disabled: {len(inactive_items)}\n"
     if inactive_items:
         report += "\n⚠️ Disabled:\n"
-        for e in inactive_items[:10]:
-            report += f"  • {_ha_entity_label(e)}\n"
+        for e in inactive_items[:15]:
+            label = e.get("attributes", {}).get("friendly_name", e["entity_id"].replace("automation.", ""))
+            last = e.get("attributes", {}).get("last_triggered")
+            last_str = f" (last: {last[:10]})" if last else " (never triggered)"
+            report += f"  • {label}{last_str}\n"
+    if active_items:
+        report += "\n⚙️ Active (recent first):\n"
+        def _last_triggered(e):
+            t = e.get("attributes", {}).get("last_triggered")
+            return t or "0"
+        sorted_active = sorted(active_items, key=_last_triggered, reverse=True)
+        for e in sorted_active[:15]:
+            label = e.get("attributes", {}).get("friendly_name", e["entity_id"].replace("automation.", ""))
+            last = e.get("attributes", {}).get("last_triggered")
+            last_str = f" — {last[:16].replace('T', ' ')}" if last else " — never"
+            report += f"  ✅ {label}{last_str}\n"
     return report
+
+
+def cmd_status():
+    """Comprehensive HA ecosystem health snapshot."""
+    states = ha_get("states")
+    if not states:
+        return "❌ STATUS — HA unreachable"
+
+    lines = ["🏠 HOME ASSISTANT STATUS\n━━━━━━━━━━━━━━━━━━━━━"]
+
+    # Core info
+    core = ha_get("config")
+    if core:
+        lines.append(f"HA {core.get('version', '?')} | {core.get('location_name', 'Home')}")
+    lines.append(f"Entities tracked: {len(states)}\n")
+
+    # Unavailable entities (exclude noise domains)
+    _skip_domains = {"persistent_notification", "group", "sun", "zone", "scene",
+                     "input_boolean", "input_number", "input_select", "input_text"}
+    unavailable = [
+        e for e in states
+        if e["state"] in ("unavailable", "unknown")
+        and e["entity_id"].split(".")[0] not in _skip_domains
+    ]
+    if unavailable:
+        lines.append(f"⚠️ UNAVAILABLE ENTITIES ({len(unavailable)}):")
+        for e in unavailable[:12]:
+            fname = e.get("attributes", {}).get("friendly_name", e["entity_id"])
+            lines.append(f"  • {fname}")
+        if len(unavailable) > 12:
+            lines.append(f"  … and {len(unavailable) - 12} more")
+    else:
+        lines.append("✅ All entities reachable")
+
+    # Integration health
+    entries = ha_get_config_entries()
+    _bad_states = {"setup_error", "failed_unload", "migration_error", "not_loaded"}
+    if entries:
+        failed = [e for e in entries if e.get("state") in _bad_states]
+        retrying = [e for e in entries if e.get("state") == "setup_retry"]
+        ok_count = len(entries) - len(failed) - len(retrying)
+        lines.append(f"\n🔌 INTEGRATIONS: {ok_count} loaded | {len(retrying)} retrying | {len(failed)} failed")
+        for entry in failed[:8]:
+            lines.append(f"  🔴 {entry.get('title', entry.get('domain', '?'))} [{entry.get('state', '?')}]")
+        for entry in retrying[:5]:
+            lines.append(f"  🟡 {entry.get('title', entry.get('domain', '?'))} [retrying]")
+    else:
+        lines.append("\n🔌 INTEGRATIONS: status unavailable (WebSocket not connected)")
+
+    # Automations
+    autos = [e for e in states if e["entity_id"].startswith("automation.")]
+    disabled_autos = [e for e in autos if e["state"] == "off"]
+    lines.append(f"\n⚙️ AUTOMATIONS: {len(autos)} total | {len(disabled_autos)} disabled")
+    if disabled_autos:
+        for e in disabled_autos[:5]:
+            fname = e.get("attributes", {}).get("friendly_name", e["entity_id"].replace("automation.", ""))
+            lines.append(f"  ⚠️ {fname}")
+
+    # Persistent HA notifications
+    notifs = [
+        e for e in states
+        if e["entity_id"].startswith("persistent_notification.")
+        and e["state"] not in ("dismissed", "notifying")  # "notifying" is active in older HA
+    ]
+    # In most HA versions state is "notifying" for active notifications
+    notifs_active = [
+        e for e in states
+        if e["entity_id"].startswith("persistent_notification.")
+        and e["state"] == "notifying"
+    ]
+    notifs_all = notifs + notifs_active
+    if notifs_all:
+        lines.append(f"\n📢 HA NOTIFICATIONS ({len(notifs_all)}):")
+        for n in notifs_all[:5]:
+            title = n.get("attributes", {}).get("title", n["entity_id"])
+            msg_text = n.get("attributes", {}).get("message", "")[:80]
+            lines.append(f"  • {title}: {msg_text}")
+
+    # Low batteries
+    low_batt = []
+    for e in states:
+        attrs = e.get("attributes", {})
+        if attrs.get("device_class") == "battery":
+            try:
+                val = float(e["state"])
+                if val < 20:
+                    fname = attrs.get("friendly_name", e["entity_id"])
+                    low_batt.append((val, fname))
+            except Exception:
+                pass
+    if low_batt:
+        low_batt.sort()
+        lines.append(f"\n🔋 LOW BATTERIES ({len(low_batt)}):")
+        for val, name in low_batt[:8]:
+            icon = "🚨" if val < 10 else "⚠️"
+            lines.append(f"  {icon} {name}: {val:.0f}%")
+    else:
+        lines.append("\n🔋 Batteries: all OK")
+
+    # Updates available
+    updates = [e for e in states if e["entity_id"].startswith("update.") and e["state"] == "on"]
+    if updates:
+        lines.append(f"\n🔄 UPDATES AVAILABLE ({len(updates)}):")
+        for u in updates[:5]:
+            lines.append(f"  • {u.get('attributes', {}).get('friendly_name', u['entity_id'])}")
+
+    # Recent HA errors
+    errors = ha_get_error_log_tail(max_lines=3)
+    if errors:
+        lines.append(f"\n📋 RECENT ERRORS:")
+        for err in errors:
+            lines.append(f"  • {err[:120]}")
+
+    # Host health (if collected)
+    try:
+        data_host, _ = skill_get("health_host")
+        if data_host and data_host.get("history"):
+            m = data_host["history"][-1].get("metrics", {})
+            ram = m.get("ram_mb", "?")
+            disk = m.get("disque_libre_mb", "?")
+            latency = m.get("latence_ha_ms", "?")
+            lines.append(f"\n🖥️ HOST: RAM free {ram}MB | Disk free {disk}MB | HA latency {latency}ms")
+    except Exception:
+        pass
+
+    return "\n".join(lines)
+
+
+def cmd_integrations():
+    """Show detailed HA integration (config entry) status."""
+    entries = ha_get_config_entries()
+    if not entries:
+        return "🔌 INTEGRATIONS — status unavailable (WebSocket required)"
+
+    _state_icon = {
+        "loaded": "✅",
+        "setup_in_progress": "🔄",
+        "setup_retry": "🟡",
+        "setup_error": "🔴",
+        "failed_unload": "🔴",
+        "migration_error": "🔴",
+        "not_loaded": "⬜",
+    }
+
+    by_state: dict = {}
+    for entry in entries:
+        state = entry.get("state", "unknown")
+        by_state.setdefault(state, []).append(entry)
+
+    lines = [f"🔌 INTEGRATIONS ({len(entries)} total)\n━━━━━━━━━━━━━━━━━"]
+
+    for state in ("setup_error", "failed_unload", "migration_error", "setup_retry",
+                  "not_loaded", "setup_in_progress", "loaded"):
+        group = by_state.get(state, [])
+        if not group:
+            continue
+        icon = _state_icon.get(state, "❓")
+        if state == "loaded" and len(group) > 10:
+            lines.append(f"\n{icon} {state.upper()}: {len(group)} integrations")
+        else:
+            lines.append(f"\n{icon} {state.upper()} ({len(group)}):")
+            for entry in group[:20]:
+                title = entry.get("title") or entry.get("domain", "?")
+                disabled = f" [disabled: {entry.get('disabled_by')}]" if entry.get("disabled_by") else ""
+                lines.append(f"  {title}{disabled}")
+
+    return "\n".join(lines)
 
 
 def cmd_addons():
@@ -8433,10 +8710,10 @@ def cmd_commands():
             ("⚡ Rate", "/rate"),
         ],
         "🏠 Home": [
+            ("🏠 Status", "/status"),
             ("🔋 Batteries", "/batteries"),
             ("📡 Zigbee", "/zigbee"),
-            ("💾 NAS", "/nas"),
-            ("🌡️ Heating", "/heating"),
+            ("⚙️ Automations", "/automations"),
         ],
         "🔌 Machines": [
             ("🔌 Appliances", "/appliances"),
@@ -8561,14 +8838,16 @@ def cmd_documentation():
 
 Available commands:
 ━━━━━━━━━━━━━━━━━━━━
+/status         → Full HA ecosystem health (entities, integrations, batteries, errors)
+/integrations   → Detailed integration / config entry status
+/automations    → Automations list with last triggered time
 /audit          → Home Assistant state and AI analysis
 /energy         → Energy, solar, heat pump, thermostats, and weather
 /solar          → Solar production and battery systems
 /batteries      → Device batteries
 /zigbee         → Zigbee network and LQI
 /nas            → NAS monitoring
-/automations    → Home Assistant automations
-/addons         → HA Apps
+/addons         → HA apps and available updates
 /cycles         → Appliance cycle history
 /budget         → AI token and cost usage
 /rate           → Electricity rate status
@@ -8580,10 +8859,9 @@ Available commands:
 /memory_store   → What the AI has memorized
 /documentation  → This help menu
 /export         → Export assistant.py
-/script         → Export assistant.py
 /ai             → Execute autonomous AI helper
 
-Free-form chat → Ask for Home Assistant actions, monitoring, or analysis."""
+Free-form chat → Ask for HA actions, status, automation help, or analysis."""
     return doc
 
 
@@ -10679,6 +10957,9 @@ def handle_message(text):
         "batteries": cmd_batteries,
         "zigbee": cmd_zigbee,
         "nas": cmd_nas,
+        "status": cmd_status,
+        "health": cmd_status,
+        "integrations": cmd_integrations,
         "automations": cmd_automations,
         "addons": cmd_addons,
         "budget": cmd_budget,

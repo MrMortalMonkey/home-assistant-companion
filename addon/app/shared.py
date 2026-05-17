@@ -2121,6 +2121,74 @@ def ha_execute_config_write(endpoint, data):
         mem_set("ha_config_write_consent", "")
 
 
+def ha_get_statistics_today(entity_ids):
+    """Return today's kWh sum for a list of energy statistic entity IDs using HA statistics API."""
+    if not CFG.get("ha_url") or not entity_ids:
+        return {}
+    now = datetime.now()
+    start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    end = now.isoformat()
+    url = f"{CFG['ha_url']}/api/statistics_during_period"
+    headers = {"Authorization": f"Bearer {CFG['ha_token']}", "Content-Type": "application/json"}
+    payload = {
+        "start_time": start,
+        "end_time": end,
+        "statistic_ids": list(entity_ids),
+        "period": "day",
+        "types": ["change"],
+    }
+    try:
+        r = requests.post(url, headers=headers, json=payload, verify=False, timeout=15)
+        if r.status_code != 200:
+            return {}
+        result = {}
+        for eid, stats in r.json().items():
+            total = sum(s.get("change", 0) or 0 for s in stats if s.get("change") is not None)
+            if total > 0:
+                result[eid] = round(total, 3)
+        return result
+    except Exception:
+        return {}
+
+
+def ha_get_plain(endpoint):
+    """GET HA API endpoint and return raw text (for endpoints that return plain text, e.g. error_log)."""
+    if not CFG.get("ha_url"):
+        return None
+    url = f"{CFG['ha_url']}/api/{endpoint}"
+    headers = {"Authorization": f"Bearer {CFG['ha_token']}"}
+    try:
+        r = requests.get(url, headers=headers, verify=False, timeout=15)
+        if r.status_code == 200:
+            return r.text
+        log.debug(f"ha_get_plain {endpoint}: HTTP {r.status_code}")
+    except Exception as ex:
+        log.debug(f"ha_get_plain {endpoint}: {ex}")
+    return None
+
+
+def ha_get_config_entries():
+    """Return HA config entry list (integration status) via WebSocket."""
+    try:
+        result = _ha_ws_command("config_entries/get", timeout=12)
+        if isinstance(result, list):
+            return result
+        if isinstance(result, dict):
+            return list(result.values())
+    except Exception as ex:
+        log.debug(f"ha_get_config_entries: {ex}")
+    return []
+
+
+def ha_get_error_log_tail(max_lines=5):
+    """Return the last N ERROR/CRITICAL lines from the HA error log."""
+    text = ha_get_plain("error_log")
+    if not text:
+        return []
+    errors = [l.strip() for l in text.splitlines() if "ERROR" in l or "CRITICAL" in l]
+    return errors[-max_lines:]
+
+
 def ha_get_forecast(entity_id=None, forecast_type="daily"):
     """Retrieve the weather forecast via the weather.get_forecasts service (HA 2024+)."""
     if entity_id is None:

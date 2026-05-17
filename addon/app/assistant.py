@@ -575,6 +575,52 @@ def _scan_infiltration_auto():
             log.error(f"❌ scan_infiltration_auto: {ex}")
 
 
+def _monitor_ha_health(now):
+    """Alert on new HA integration failures and new persistent notifications."""
+    try:
+        states = ha_get("states")
+        if not states:
+            return
+
+        # New persistent HA notifications
+        notifs_active = [
+            e for e in states
+            if e["entity_id"].startswith("persistent_notification.")
+            and e["state"] == "notifying"
+        ]
+        seen_key = "seen_ha_notifications"
+        seen = set(filter(None, (mem_get(seen_key) or "").split(",")))
+        new_notifs = [n for n in notifs_active if n["entity_id"] not in seen]
+        for n in new_notifs[:3]:
+            title = n.get("attributes", {}).get("title", "HA Notification")
+            body = n.get("attributes", {}).get("message", "")[:200]
+            telegram_send(f"📢 HA: {title}\n{body}")
+        if new_notifs:
+            seen.update(n["entity_id"] for n in new_notifs)
+            mem_set(seen_key, ",".join(list(seen)[-50:]))
+
+        # Integration failure changes
+        try:
+            entries = ha_get_config_entries()
+            _bad = {"setup_error", "failed_unload", "migration_error"}
+            failed_ids = {e["entry_id"] for e in entries if e.get("state") in _bad}
+            seen_fail_key = "seen_failed_integrations"
+            seen_fail = set(filter(None, (mem_get(seen_fail_key) or "").split(",")))
+            new_failures = failed_ids - seen_fail
+            if new_failures:
+                for entry in entries:
+                    if entry.get("entry_id") in new_failures:
+                        title = entry.get("title") or entry.get("domain", "?")
+                        state = entry.get("state", "?")
+                        telegram_send(f"🔴 Integration failure: {title} [{state}]\nType /integrations for details.")
+            mem_set(seen_fail_key, ",".join(list(failed_ids)[-50:]))
+        except Exception:
+            pass
+
+    except Exception as ex:
+        log.debug(f"_monitor_ha_health: {ex}")
+
+
 def audit_auto():
     global last_audit
     while True:
@@ -769,6 +815,7 @@ def monitoring_core():
                     _detect_internet_outage,
                     _rollback_on_repeated_errors,
                     _monitoring_deploy_server,
+                    _monitor_ha_health,
                 ]
                 if CFG.get("enable_tempo_ejp", False):
                     background_fns.append(_notify_tempo_ejp)
