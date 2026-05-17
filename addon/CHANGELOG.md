@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.3 beta (2026-05-17)
+- Added missing `skill_health_host` function that collects RAM, disk, and HA latency metrics every 15 minutes — eliminates recurring NameError in intelligence loop
+- Fixed SQLite "database is locked" errors under concurrent thread load: enabled WAL journal mode at DB init and added `timeout=10` to all connections across skills.py, shared.py, and assistant.py
+- Fixed remaining French string in log output: "Question intelligente" → "Intelligent query"
+
 ## 0.2.2 beta (2026-05-16)
 - Fixed remaining user-visible strings: "RESEAU ZIGBEE" → "ZIGBEE NETWORK", "Tors online" → "All online", "LQI CRITIQUE" → "LQI CRITICAL", "meiltheir" → "best", "DETAIL COMPLET" → "FULL DETAIL", "SOLAR ENTITIES SOLAR" → "SOLAR ENTITIES", "AUTOMATISATIONS" → "AUTOMATIONS", "Cartographie" → "Entity map", "Charge solar" → "Solar charge", "Injection home" → "Home output"
 - Fixed weather temperature unit: now reads `temperature_unit` attribute from HA weather entity instead of always showing °C

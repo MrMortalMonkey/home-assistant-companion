@@ -468,7 +468,7 @@ def validation_started():
         results.append(f"❌ LLM: {e}")
 
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         conn.execute("SELECT 1")
         conn.close()
         results.append("✅ SQLite OK")
@@ -682,7 +682,7 @@ def _watts_from_state(entity):
 
 def _monitored_appliances():
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         rows = conn.execute(
             "SELECT entity_id, appliance_type, custom_name FROM appliances WHERE monitored=1"
         ).fetchall()
@@ -709,7 +709,7 @@ def _record_cycle_sample(entity_id, watts):
     _powers_history.setdefault(entity_id, []).append((ts, watts))
     _powers_history[entity_id] = _powers_history[entity_id][-1500:]
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         conn.execute(
             "INSERT INTO cycle_measurements (entity_id, watts, ts) VALUES (?, ?, ?)",
             (entity_id, watts, ts)
@@ -963,7 +963,7 @@ def main():
     if current_states:
         compare_entities_on_startup(current_states)
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     nb_carto = conn.execute('SELECT COUNT(*) FROM entity_map').fetchone()[0]
     conn.close()
 
@@ -991,7 +991,7 @@ def main():
 
     # Restore the state of ongoing cycles from SQLite
     try:
-        conn_cycles = sqlite3.connect(DB_PATH)
+        conn_cycles = sqlite3.connect(DB_PATH, timeout=10)
         open_cycles = conn_cycles.execute(
             "SELECT entity_id, started_at FROM appliance_cycles WHERE ended_at IS NULL"
         ).fetchall()

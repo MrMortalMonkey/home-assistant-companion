@@ -549,7 +549,8 @@ def _is_authorized_chat(chat_id):
 
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    conn.execute("PRAGMA journal_mode=WAL")
 
     conn.execute('''CREATE TABLE IF NOT EXISTS memory_store (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -921,7 +922,7 @@ def init_db():
 
     # ═══ PURGE DUPLICATE EXPERTISE ═══
     try:
-        conn_purge = sqlite3.connect(DB_PATH)
+        conn_purge = sqlite3.connect(DB_PATH, timeout=10)
         count_before = conn_purge.execute("SELECT COUNT(*) FROM expertise").fetchone()[0]
         if count_before > 50:
             # Keep founding lessons + top 30 by confidence
@@ -960,7 +961,7 @@ def init_db():
 
     # ═══ FIX DISHWASHER PLUG ROOM (kitchen) ═══
     try:
-        conn_room = sqlite3.connect(DB_PATH)
+        conn_room = sqlite3.connect(DB_PATH, timeout=10)
         nb_fix = conn_room.execute(
             "UPDATE entity_map SET room='kitchen' WHERE entity_id LIKE '%dishwasher%' AND (room IS NULL OR room='')"
         ).rowcount
@@ -979,7 +980,7 @@ def init_db():
 
     # ═══ PURGE DUPLICATE HISTORICAL FAILURES (fix 20/03/2026) ═══
     try:
-        conn_fix = sqlite3.connect(DB_PATH)
+        conn_fix = sqlite3.connect(DB_PATH, timeout=10)
         # Keep only 1 copy of each historical FAILURE_, remove duplicates
         for failure_type in ["FAILURE_nas_false_positives", "FAILURE_printer_false_positives",
                            "FAILURE_silent_mode_spam", "FAILURE_entities_missing_entities_spam",
@@ -1155,7 +1156,7 @@ def _inject_founding_lessons(conn_or_path=None):
 
 
 def mem_set(key_name, value_text):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.execute(
         'INSERT OR REPLACE INTO memory_store (key_name, value_text, updated_at) VALUES (?, ?, ?)',
         (key_name, str(value_text), datetime.now().isoformat())
@@ -1165,7 +1166,7 @@ def mem_set(key_name, value_text):
 
 
 def mem_get(key_name, default=None):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     r = conn.execute('SELECT value_text FROM memory_store WHERE key_name=?', (key_name,)).fetchone()
     conn.close()
     return r[0] if r else default
@@ -1173,7 +1174,7 @@ def mem_get(key_name, default=None):
 
 def log_token_usage(tokens_in, tokens_out):
     month = datetime.now().strftime("%Y-%m")
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.execute(
         '''INSERT INTO tokens (month, tokens_in, tokens_out) VALUES (?, ?, ?)
            ON CONFLICT(month) DO UPDATE SET
@@ -1186,14 +1187,14 @@ def log_token_usage(tokens_in, tokens_out):
 
 def get_token_usage():
     month = datetime.now().strftime("%Y-%m")
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     r = conn.execute('SELECT tokens_in, tokens_out FROM tokens WHERE month=?', (month,)).fetchone()
     conn.close()
     return r if r else (0, 0)
 
 
 def add_history(role, content):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.execute(
         'INSERT INTO history (role, content, created_at) VALUES (?, ?, ?)',
         (role, content, datetime.now().isoformat())
@@ -1203,7 +1204,7 @@ def add_history(role, content):
 
 
 def get_history(n=6):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     rows = conn.execute(
         'SELECT role, content FROM history ORDER BY id DESC LIMIT ?', (n,)
     ).fetchall()
@@ -1212,7 +1213,7 @@ def get_history(n=6):
 
 
 def entity_map_get(entity_id):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     r = conn.execute(
         'SELECT category, subcategory, room FROM entity_map WHERE entity_id=?',
         (entity_id,)
@@ -1222,7 +1223,7 @@ def entity_map_get(entity_id):
 
 
 def entity_map_get_by_category(category):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     rows = conn.execute(
         'SELECT entity_id, subcategory, room FROM entity_map WHERE category=?',
         (category,)
@@ -1232,21 +1233,21 @@ def entity_map_get_by_category(category):
 
 
 def entity_map_get_all_categories():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     rows = conn.execute('SELECT DISTINCT category FROM entity_map').fetchall()
     conn.close()
     return [r[0] for r in rows]
 
 
 def entity_map_get_all():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     rows = conn.execute('SELECT entity_id, category FROM entity_map').fetchall()
     conn.close()
     return {r[0]: r[1] for r in rows}
 
 
 def battery_set(entity_id, room, value_text):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.execute(
         '''INSERT OR REPLACE INTO batteries
            (entity_id, room, last_value, updated_at)
@@ -1258,7 +1259,7 @@ def battery_set(entity_id, room, value_text):
 
 
 def battery_get_last_alert(entity_id):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     r = conn.execute(
         'SELECT last_alert FROM batteries WHERE entity_id=?', (entity_id,)
     ).fetchone()
@@ -1267,7 +1268,7 @@ def battery_get_last_alert(entity_id):
 
 
 def battery_set_alert(entity_id):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.execute(
         'UPDATE batteries SET last_alert=? WHERE entity_id=?',
         (datetime.now().isoformat(), entity_id)
@@ -1278,7 +1279,7 @@ def battery_set_alert(entity_id):
 
 def role_get(role):
     """Returns the entity_id assigned to a role, or None"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     r = conn.execute("SELECT entity_id FROM roles WHERE role=?", (role,)).fetchone()
     conn.close()
     return r[0] if r else None
@@ -1286,7 +1287,7 @@ def role_get(role):
 
 def role_set(role, entity_id, source="auto", confidence=0.5):
     """Assigns an entity_id to a role"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.execute(
         "INSERT OR REPLACE INTO roles (role, entity_id, confidence, source, updated_at) VALUES (?, ?, ?, ?, ?)",
         (role, entity_id, confidence, source, datetime.now().isoformat())
@@ -1298,7 +1299,7 @@ def role_set(role, entity_id, source="auto", confidence=0.5):
 
 def role_get_all():
     """Returns all assigned roles"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     rows = conn.execute("SELECT role, entity_id, confidence FROM roles").fetchall()
     conn.close()
     return {r[0]: {"entity_id": r[1], "confidence": r[2]} for r in rows}
@@ -1446,7 +1447,7 @@ def role_baseline_entities():
 
 
 def known_entities_update(entity_id, category):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.execute(
         '''INSERT OR REPLACE INTO known_entities
            (entity_id, category, last_seen)
@@ -1458,7 +1459,7 @@ def known_entities_update(entity_id, category):
 
 
 def known_entities_get_all():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     rows = conn.execute('SELECT entity_id, category FROM known_entities').fetchall()
     conn.close()
     return {r[0]: r[1] for r in rows}
@@ -1467,7 +1468,7 @@ def known_entities_get_all():
 def appliance_get(entity_id):
     """Returns the device type for a plug, or None if not yet identified."""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         row = conn.execute(
             "SELECT appliance_type, custom_name, monitored FROM appliances WHERE entity_id=?",
             (entity_id,)
@@ -1486,7 +1487,7 @@ def appliance_set(entity_id, appliance_type, name=None):
     if not name:
         name = APPLIANCE_TYPES.get(appliance_type, appliance_type)
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         conn.execute(
             "INSERT OR REPLACE INTO appliances (entity_id, appliance_type, custom_name, monitored, created_at) VALUES (?, ?, ?, ?, ?)",
             (entity_id, appliance_type, name, monitored, datetime.now().isoformat())
@@ -1501,7 +1502,7 @@ def appliance_set(entity_id, appliance_type, name=None):
 def record_saving(saving_type, description, euros, kwh=0, source="auto"):
     """Records a saving in the savings table + logs success."""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         conn.execute(
             "INSERT INTO savings (type, description, euros, kwh_saved, source, created_at) VALUES (?, ?, ?, ?, ?, ?)",
             (saving_type, description, round(euros, 4), round(kwh, 4), source, datetime.now().isoformat())
@@ -1522,7 +1523,7 @@ def get_savings_month(month=None):
     if not month:
         month = datetime.now().strftime("%Y-%m")
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         row = conn.execute(
             "SELECT COALESCE(SUM(euros), 0), COALESCE(SUM(kwh_saved), 0), COUNT(*) "
             "FROM savings WHERE created_at LIKE ?",
@@ -1543,7 +1544,7 @@ def get_savings_month(month=None):
 
 
 def zigbee_absence_create(entity_id):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.execute(
         '''INSERT OR REPLACE INTO zigbee_outages
            (entity_id, offline_since, status, alert_sent)
@@ -1555,7 +1556,7 @@ def zigbee_absence_create(entity_id):
 
 
 def zigbee_absence_get(entity_id):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     r = conn.execute(
         'SELECT offline_since, status FROM zigbee_outages WHERE entity_id=? AND back_online IS NULL',
         (entity_id,)
@@ -1565,7 +1566,7 @@ def zigbee_absence_get(entity_id):
 
 
 def zigbee_absence_status(entity_id, status):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.execute(
         'UPDATE zigbee_outages SET status=? WHERE entity_id=? AND back_online IS NULL',
         (status, entity_id)
@@ -1575,7 +1576,7 @@ def zigbee_absence_status(entity_id, status):
 
 
 def zigbee_absence_returned(entity_id):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     r = conn.execute(
         'SELECT status FROM zigbee_outages WHERE entity_id=? AND back_online IS NULL',
         (entity_id,)
@@ -1676,7 +1677,7 @@ def telegram_send(text, parse_mode=None, force=False):
     if not force:
         # ═══ FILTRE 1 : PATTERNS APPRIS (SQLite) ═══
         try:
-            conn_f = sqlite3.connect(DB_PATH)
+            conn_f = sqlite3.connect(DB_PATH, timeout=10)
             patterns = conn_f.execute(
                 "SELECT pattern, reason FROM message_filters WHERE active=1 AND action='block'"
             ).fetchall()
@@ -1726,7 +1727,7 @@ def telegram_send(text, parse_mode=None, force=False):
                 filter_reason = "limite_50_day"
 
     try:
-        conn_log = sqlite3.connect(DB_PATH)
+        conn_log = sqlite3.connect(DB_PATH, timeout=10)
         conn_log.execute(
             "INSERT INTO message_log (message, sent, filter_reason, created_at) VALUES (?, ?, ?, ?)",
             (text[:500], 0 if filter_reason else 1, filter_reason, now_ts.isoformat())
@@ -1765,7 +1766,7 @@ def telegram_send(text, parse_mode=None, force=False):
 def filter_learn_pattern(pattern, reason, action="block"):
     """Teach the assistant a new message filtering pattern."""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         conn.execute(
             "INSERT OR REPLACE INTO message_filters (pattern, action, reason, applied_count, active, created_at, updated_at) "
             "VALUES (?, ?, ?, 0, 1, ?, ?)",
@@ -1785,7 +1786,7 @@ def filter_analyze_messages():
     if not check_budget():
         return
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
 
     filters = conn.execute(
         "SELECT filter_reason, COUNT(*) as nb FROM message_log "
@@ -2233,7 +2234,7 @@ def _alert_if_new(key_name, message, delay_h=2):
 
 def skill_get(name):
     """Read a skill from SQLite."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     r = conn.execute("SELECT data, learning_count FROM skills WHERE name=?", (name,)).fetchone()
     conn.close()
     if r:
@@ -2243,7 +2244,7 @@ def skill_get(name):
 
 def skill_set(name, data, nb=None):
     """Write a skill to SQLite."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     old = conn.execute("SELECT learning_count FROM skills WHERE name=?", (name,)).fetchone()
     nb_val = nb if nb is not None else ((old[0] + 1) if old else 1)
     conn.execute(

@@ -464,7 +464,7 @@ def _collect_appliance_candidates():
     energy_ids = _ha_energy_entity_ids()
 
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         rows = conn.execute(
             "SELECT entity_id, friendly_name FROM entity_map "
             "WHERE category='connected_plug' AND subcategory='power'"
@@ -549,7 +549,7 @@ def _ask_question_appliance_next():
     if not queue_json:
         nb_monitored = 0
         try:
-            conn_s = sqlite3.connect(DB_PATH)
+            conn_s = sqlite3.connect(DB_PATH, timeout=10)
             nb_monitored = conn_s.execute("SELECT COUNT(*) FROM appliances WHERE monitored=1").fetchone()[0]
             conn_s.close()
         except Exception:
@@ -634,7 +634,7 @@ def _engine_savings_proactive(states, index, now):
     production_w = ha_get_current_solar_production(states) if _has_solar else 0
     price_kwh = rate_current_kwh_price()
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
 
     # ═══ 1. MORNING BRIEFING (1x/day) ═══
     hour_briefing = WORKDAY_BRIEFING_HOUR if now.weekday() < 5 else WEEKEND_BRIEFING_HOUR
@@ -1199,7 +1199,7 @@ def _engine_savings_proactive(states, index, now):
 
 
 def cycle_started_at(entity_id, friendly_name, solar_production_w=0):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.execute('DELETE FROM appliance_cycles WHERE entity_id=? AND ended_at IS NULL', (entity_id,))
     conn.execute('DELETE FROM cycle_measurements WHERE entity_id=?', (entity_id,))
     conn.execute(
@@ -1214,7 +1214,7 @@ def cycle_started_at(entity_id, friendly_name, solar_production_w=0):
 
 
 def cycle_ended_at(entity_id, consumption_kwh=0.0):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     r = conn.execute(
         'SELECT id, started_at, solar_production_w FROM appliance_cycles WHERE entity_id=? AND ended_at IS NULL',
         (entity_id,)
@@ -1272,7 +1272,7 @@ def cycle_ended_at(entity_id, consumption_kwh=0.0):
     conn.commit()
     conn.close()
     try:
-        conn2 = sqlite3.connect(DB_PATH)
+        conn2 = sqlite3.connect(DB_PATH, timeout=10)
         conn2.execute(
             "INSERT INTO decisions_log (action, context, result, success, created_at) VALUES (?, ?, ?, 1, ?)",
             ("CYCLE_OK", json.dumps({"eid": entity_id, "kwh": consumption_kwh}, ensure_ascii=False),
@@ -1290,7 +1290,7 @@ def cycle_ended_at(entity_id, consumption_kwh=0.0):
             name_prog = _learning_cycle(entity_id, signature, duration, consumption_kwh)
             # Store the signature in the cycle in DB
             try:
-                conn3 = sqlite3.connect(DB_PATH)
+                conn3 = sqlite3.connect(DB_PATH, timeout=10)
                 try:
                     conn3.execute("ALTER TABLE appliance_cycles ADD COLUMN signature TEXT DEFAULT ''")
                 except Exception:
@@ -1427,7 +1427,7 @@ def _learning_cycle(entity_id, signature, duration_min, consumption_kwh):
 
 
 def cycle_in_progress(entity_id):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     r = conn.execute(
         'SELECT started_at, solar_production_w FROM appliance_cycles WHERE entity_id=? AND ended_at IS NULL',
         (entity_id,)
@@ -1448,7 +1448,7 @@ def generate_energy_graph(states, index):
         return None
 
     now = datetime.now()
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
 
     today_start = now.strftime("%Y-%m-%dT00:00:00")
     samples = conn.execute(
@@ -1486,7 +1486,7 @@ def generate_energy_graph(states, index):
     if role_get("solar_production_w"):
         prod_eid = role_get("solar_production_w")
         if prod_eid:
-            conn2 = sqlite3.connect(DB_PATH)
+            conn2 = sqlite3.connect(DB_PATH, timeout=10)
             rows_sol = conn2.execute(
                 "SELECT hour, avg_value FROM baselines WHERE entity_id=? AND weekday=?",
                 (prod_eid, now.weekday())
@@ -2141,7 +2141,7 @@ def handle_callback(callback_query):
             return
         try:
             watch = json.loads(pending_watch)
-            conn = sqlite3.connect(DB_PATH)
+            conn = sqlite3.connect(DB_PATH, timeout=10)
             conn.execute(
                 "INSERT INTO watches (entity_pattern, condition, state_value, message, cooldown_min, created_at) "
                 "VALUES (?, ?, ?, ?, ?, ?)",
@@ -2270,7 +2270,7 @@ def handle_callback(callback_query):
         _state_plugs.pop(eid, None)
         # Close the cycle in the database
         try:
-            conn_cf = sqlite3.connect(DB_PATH)
+            conn_cf = sqlite3.connect(DB_PATH, timeout=10)
             conn_cf.execute(
                 "UPDATE appliance_cycles SET ended_at=? WHERE entity_id=? AND ended_at IS NULL",
                 (datetime.now().isoformat(), eid)
@@ -2290,7 +2290,7 @@ def handle_callback(callback_query):
         _state_plugs[eid] = "active"
         # Restore the samples
         try:
-            conn_cc = sqlite3.connect(DB_PATH)
+            conn_cc = sqlite3.connect(DB_PATH, timeout=10)
             rows = conn_cc.execute(
                 "SELECT ts, watts FROM cycle_measurements WHERE entity_id=? ORDER BY ts", (eid,)
             ).fetchall()
@@ -2330,7 +2330,7 @@ def handle_callback(callback_query):
                 appliance_set(eid, "ignore", "⬜ Ignored")
                 nb_monitored = 0
                 try:
-                    conn_nb = sqlite3.connect(DB_PATH)
+                    conn_nb = sqlite3.connect(DB_PATH, timeout=10)
                     nb_monitored = conn_nb.execute("SELECT COUNT(*) FROM appliances WHERE monitored=1").fetchone()[0]
                     conn_nb.close()
                 except Exception:
@@ -2346,7 +2346,7 @@ def handle_callback(callback_query):
                 appliance_set(eid, type_app, label)
                 nb_monitored = 0
                 try:
-                    conn_nb = sqlite3.connect(DB_PATH)
+                    conn_nb = sqlite3.connect(DB_PATH, timeout=10)
                     nb_monitored = conn_nb.execute("SELECT COUNT(*) FROM appliances WHERE monitored=1").fetchone()[0]
                     conn_nb.close()
                 except Exception:
@@ -2386,7 +2386,7 @@ def handle_callback(callback_query):
         parts = data.split(":", 2)
         if len(parts) == 3:
             _, room, entity_id = parts
-            conn = sqlite3.connect(DB_PATH)
+            conn = sqlite3.connect(DB_PATH, timeout=10)
             conn.execute('UPDATE entity_map SET room=? WHERE entity_id=?', (room, entity_id))
             conn.commit()
             conn.close()
@@ -2408,7 +2408,7 @@ def handle_callback(callback_query):
 
     if data.startswith("entity_ori:"):
         entity_id = data.split(":", 1)[1]
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         already = conn.execute(
             "SELECT response FROM pending_entities WHERE entity_id=?", (entity_id,)
         ).fetchone()
@@ -2448,7 +2448,7 @@ def handle_callback(callback_query):
 
     if data.startswith("entity_cancel:"):
         entity_id = data.split(":", 1)[1]
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         row = conn.execute(
             "SELECT friendly_name, response FROM pending_entities WHERE entity_id=?",
             (entity_id,)
@@ -2486,7 +2486,7 @@ def handle_callback(callback_query):
 
     if data.startswith("entity_no:"):
         entity_id = data.split(":", 1)[1]
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         row = conn.execute(
             "SELECT friendly_name FROM pending_entities WHERE entity_id=?",
             (entity_id,)
@@ -2512,7 +2512,7 @@ def handle_callback(callback_query):
 
     if data.startswith("missing_entity_ok:"):
         entity_id = data.split(":", 1)[1]
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         conn.execute(
             "UPDATE entity_map SET category='ignore' WHERE entity_id=?",
             (entity_id,)
@@ -2999,7 +2999,7 @@ def ha_refresh_areas():
         "entry", "hallway", "garden", "terrace", "attic", "basement",
     ]
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         updated_count = 0
         rows = conn.execute("SELECT entity_id, room, friendly_name FROM entity_map WHERE room IS NULL OR room=''").fetchall()
         for eid, current_room, fname in rows:
@@ -3284,7 +3284,7 @@ def ha_get_context_intelligent(question, states=None):
     day = now.weekday()
     hour = now.hour
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         for eid in list(BASELINE_ENTITIES.keys()):
             row = conn.execute(
                 "SELECT avg_value, sample_count FROM baselines WHERE entity_id=? AND weekday=? AND hour=?",
@@ -3310,7 +3310,7 @@ def ha_get_context_intelligent(question, states=None):
 
     # Recent appliance cycles
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         cycles = conn.execute(
             "SELECT friendly_name, started_at, duration_min, consumption_kwh FROM appliance_cycles "
             "WHERE ended_at IS NOT NULL ORDER BY created_at DESC LIMIT 5"
@@ -3371,7 +3371,7 @@ def ha_get_context_intelligent(question, states=None):
         pass
 
     try:
-        conn_exp = sqlite3.connect(DB_PATH)
+        conn_exp = sqlite3.connect(DB_PATH, timeout=10)
         expertise = conn_exp.execute(
             "SELECT category, insight, confidence FROM expertise "
             "WHERE confidence >= 0.4 ORDER BY confidence DESC LIMIT 10"
@@ -3386,7 +3386,7 @@ def ha_get_context_intelligent(question, states=None):
         pass
 
     try:
-        conn_hyp = sqlite3.connect(DB_PATH)
+        conn_hyp = sqlite3.connect(DB_PATH, timeout=10)
         hyps = conn_hyp.execute(
             "SELECT statement, confidence, confirmations, predictions FROM hypotheses "
             "WHERE active=1 AND confidence >= 0.6 AND predictions >= 3 ORDER BY confidence DESC LIMIT 5"
@@ -3617,13 +3617,13 @@ def _build_intelligent_question(entity_id, fname, state, attrs):
         log_token_usage(t_in, t_out)
         return data.get("category", "unknown"), data.get("description", fname)
     except Exception as ex:
-        log.warning(f"⚠️ Question intelligente {entity_id}: {ex}")
+        log.warning(f"⚠️ Intelligent query {entity_id}: {ex}")
         return "unknown", fname
 
 
 def ask_entity_question(entity_id, fname, category, description):
     """Send a question Telegram with buttons Yes/No"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     row = conn.execute(
         "SELECT question_asked, response FROM pending_entities WHERE entity_id=?",
         (entity_id,)
@@ -3638,7 +3638,7 @@ def ask_entity_question(entity_id, fname, category, description):
         log.debug(f"Entity already answered: {entity_id} → {row[1]}")
         return
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.execute(
         """INSERT OR REPLACE INTO pending_entities
            (entity_id, friendly_name, proposed_category, description, question_asked, created_at)
@@ -3665,7 +3665,7 @@ def ask_entity_question(entity_id, fname, category, description):
 
 def _check_entity_map_consistency(index):
     """Checks that the entities already in memory_store are still coherent"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     rows = conn.execute(
         "SELECT entity_id, category, friendly_name FROM entity_map"
     ).fetchall()
@@ -3674,7 +3674,7 @@ def _check_entity_map_consistency(index):
     for entity_id, category, fname in rows:
         if "plug" in entity_id and category in ("energy_battery", "energy_production", "energy_forecast"):
             log.warning(f"🔧 Correction: {entity_id} misclassified")
-            conn2 = sqlite3.connect(DB_PATH)
+            conn2 = sqlite3.connect(DB_PATH, timeout=10)
             conn2.execute(
                 "UPDATE entity_map SET category='ignore' WHERE entity_id=?",
                 (entity_id,)
@@ -3711,7 +3711,7 @@ def handle_pending_entities(index):
     When Assist exposure metadata is available, only entities exposed to
     Assist are processed.
     """
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     known = set(
         r[0] for r in conn.execute(
             "SELECT entity_id FROM entity_map WHERE category != 'ignore'"
@@ -3740,7 +3740,7 @@ def handle_pending_entities(index):
 
     auto_count = 0
     assist_skipped = 0
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
 
     for entity_id, e in index.items():
         if entity_id in known or entity_id in pending:
@@ -3791,7 +3791,7 @@ def handle_pending_entities(index):
 
 def _forcer_reclassification_anker(index):
     """Force the reclassification of the entities Anker"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     rows = conn.execute(
         "SELECT entity_id, category, friendly_name FROM entity_map WHERE category='ignore'"
     ).fetchall()
@@ -3819,7 +3819,7 @@ def _forcer_reclassification_anker(index):
             else:
                 continue
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         conn.execute(
             "UPDATE entity_map SET category=?, subcategory=?, friendly_name=? WHERE entity_id=?",
             (cat, subcategory, fname_ha, entity_id)
@@ -3856,7 +3856,7 @@ def discover_automatically(states=None):
             log.error("❌ Discovery: HA unreachable")
             return
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     known = set(r[0] for r in conn.execute('SELECT entity_id FROM entity_map').fetchall())
     conn.close()
 
@@ -3915,7 +3915,7 @@ def discover_automatically(states=None):
             items_for_ai.append(e)
 
     if auto_categorized:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         for eid, cat, subcategory, pc, fn in auto_categorized:
             conn.execute(
                 '''INSERT OR REPLACE INTO entity_map
@@ -3967,7 +3967,7 @@ def discover_automatically(states=None):
             if not match:
                 continue
             results = json.loads(match.group())
-            conn = sqlite3.connect(DB_PATH)
+            conn = sqlite3.connect(DB_PATH, timeout=10)
             for item in results:
                 eid = item.get("entity_id", "")
                 cat = item.get("category", "ignore")
@@ -4042,7 +4042,7 @@ def scan_ha_complete():
         telegram_send("❌ SCAN — HA unreachable")
         return False
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     for e in states:
         conn.execute(
             '''INSERT OR REPLACE INTO entities (entity_id, state, attributes, updated_at)
@@ -4074,7 +4074,7 @@ def _detect_new_entities(index):
     Other items are reported for the next infiltration scan."""
     # global _entities_already_detected  # via shared
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     carto_set = set(r[0] for r in conn.execute("SELECT entity_id FROM entity_map").fetchall())
 
     domains_ignores = {
@@ -4288,7 +4288,7 @@ def _surface_errors():
 
     for sig, info in groups.items():
         try:
-            conn = sqlite3.connect(DB_PATH)
+            conn = sqlite3.connect(DB_PATH, timeout=10)
             conn.execute(
                 "INSERT INTO decisions_log (action, context, result, success, created_at) VALUES (?, ?, ?, 0, ?)",
                 ("ERROR_AUTO", json.dumps({"sig": sig[:80], "n": info["count"]}, ensure_ascii=False),
@@ -4346,7 +4346,7 @@ def _surface_errors():
             result = _auto_heal(sig, info["msg"])
             action_db = "AUTO_FIX_OK" if result == "OK" else "AUTO_FIX_FAIL"
             try:
-                conn2 = sqlite3.connect(DB_PATH)
+                conn2 = sqlite3.connect(DB_PATH, timeout=10)
                 conn2.execute(
                     "INSERT INTO decisions_log (action, context, result, success, created_at) VALUES (?, ?, ?, ?, ?)",
                     (action_db, json.dumps({"sig": sig[:80]}, ensure_ascii=False),
@@ -4565,7 +4565,7 @@ def cmd_roi():
     """Show the ROI : tokens spent vs generated savings.
     ROI is the key metric. If ROI > 1, each token is profitable.
     This number justifies the business model."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     month = datetime.now().strftime("%Y-%m")
 
     tokens_row = conn.execute(
@@ -5050,7 +5050,7 @@ def cmd_skills():
     if nb_sol < 20:
         report += "\n💡 Skills build over time.\nAppliance suggestions active after ~1 week."
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     dyn_rows = conn.execute(
         "SELECT name, data, nb_learning samples FROM skills WHERE name LIKE 'dyn_%'"
     ).fetchall()
@@ -5123,7 +5123,7 @@ def generate_cognitive_hypotheses(states, index):
     """Generate testable hypotheses from the data.
     A hypothesis is a verifiable prediction about home behavior."""
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
 
     # Limit active hypotheses
     active_count = conn.execute("SELECT COUNT(*) FROM hypotheses WHERE active=1").fetchone()[0]
@@ -5244,7 +5244,7 @@ def test_cognitive_hypotheses(states, index):
     """Test active hypotheses against observed reality.
     Each test strengthens or weakens confidence."""
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     now = datetime.now()
     day = now.weekday()
     hour = now.hour
@@ -5344,7 +5344,7 @@ def test_cognitive_hypotheses(states, index):
 
 def cognitif_calculer_score():
     """Calculates the global intelligence score — measures system growth."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     now = datetime.now()
     today = now.strftime("%Y-%m-%d")
 
@@ -5441,7 +5441,7 @@ def cmd_intelligence():
     """Complete dashboard — intelligence score + evolution"""
     metrics = cognitif_calculer_score()
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
 
     # Score history
     history = conn.execute(
@@ -5515,7 +5515,7 @@ def cmd_intelligence():
 
 def learning_log_failure(source, description, context=None):
     """Record a failure to derive a lesson"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.execute(
         "INSERT INTO decisions_log (action, context, result, success, created_at) VALUES (?, ?, ?, 0, ?)",
         (f"FAILURE_{source}", json.dumps(context or {}, ensure_ascii=False),
@@ -5528,7 +5528,7 @@ def learning_log_failure(source, description, context=None):
 
 def learning_log_success(source, description, context=None):
     """Record a success to reinforce the pattern."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.execute(
         "INSERT INTO decisions_log (action, context, result, success, created_at) VALUES (?, ?, ?, 1, ?)",
         (f"SUCCESS_{source}", json.dumps(context or {}, ensure_ascii=False),
@@ -5544,7 +5544,7 @@ def learning_tirer_lessons():
     This is where the AI learns from failures and creates reusable rules.
     """
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
 
     sept_days = (datetime.now() - timedelta(days=7)).isoformat()
     failures = conn.execute(
@@ -5625,7 +5625,7 @@ def learning_tirer_lessons():
         patterns = result.get("patterns_success", [])
         summary = result.get("summary", "")
 
-        conn2 = sqlite3.connect(DB_PATH)
+        conn2 = sqlite3.connect(DB_PATH, timeout=10)
         new_items = 0
         for lesson in lessons:
             text_l = lesson.get("lesson", "")
@@ -5681,7 +5681,7 @@ def learning_auto_correction():
     """Checks whether recurring problems require an automatic patch.
     Called every 24h. If the same failure type appears more than 3 times, proposes a fix."""
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
 
     sept_days = (datetime.now() - timedelta(days=7)).isoformat()
     failures = conn.execute(
@@ -5714,7 +5714,7 @@ def baseline_collect(states):
         weekday = now.weekday()
         hour = now.hour
 
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         for entity_id in list(BASELINE_ENTITIES.keys()):
             entity = index.get(entity_id)
             if not entity or entity.get("state") in ("unavailable", "unknown", None):
@@ -5759,7 +5759,7 @@ def baseline_detect_anomalies(states):
         hour = now.hour
         anomalies = []
 
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         for entity_id, label in BASELINE_ENTITIES.items():
             entity = index.get(entity_id)
             if not entity or entity.get("state") in ("unavailable", "unknown", None):
@@ -5816,7 +5816,7 @@ def _check_dynamic_watches(index, now):
     """Evaluate user-created watches against live Home Assistant state."""
     try:
         import fnmatch
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         watches = conn.execute(
             "SELECT id, entity_pattern, condition, state_value, message, cooldown_min, last_triggered "
             "FROM watches WHERE active=1"
@@ -5957,7 +5957,7 @@ def _cycle_intelligence(states, index, now):
     if _intelligence_counter % 60 == 0:  # Every the 5h
         skill_count = 0
         try:
-            conn = sqlite3.connect(DB_PATH)
+            conn = sqlite3.connect(DB_PATH, timeout=10)
             skill_count = conn.execute("SELECT COUNT(*) FROM skills").fetchone()[0]
             baseline_count = conn.execute("SELECT COUNT(*) FROM baselines").fetchone()[0]
             conn.close()
@@ -6100,7 +6100,7 @@ def _decider(anomalies, states, index, now):
 
 def _auto_learn(states, index, now):
     """Phase 7 : Analysis the patterns recurring and cree of new_items competences"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
 
     categories_energy = ["energy_solar", "energy_consumption", "energy_heating",
                           "connected_plug", "energy_battery", "energy_production"]
@@ -6166,7 +6166,7 @@ def _analysis_ia_periodique(states, index, now):
     if not check_budget():
         return  # No tokens → no analysis
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
 
     ai_data = []
 
@@ -6349,7 +6349,7 @@ def _analysis_ia_periodique(states, index, now):
         actions = result.get("recommended_actions", [])
         obsoletes = result.get("expertise_obsolete", [])
 
-        conn2 = sqlite3.connect(DB_PATH)
+        conn2 = sqlite3.connect(DB_PATH, timeout=10)
         for ins in insights:
             cat = ins.get("category", "general")
             text_ins = ins.get("insight", "")
@@ -6428,7 +6428,7 @@ def _analysis_ia_periodique(states, index, now):
             msg += "\n\n💡 RECOMMANDATIONS :\n" + "\n".join(f"  • {a}" for a in actions[:3])
         nb_exp = 0
         try:
-            conn3 = sqlite3.connect(DB_PATH)
+            conn3 = sqlite3.connect(DB_PATH, timeout=10)
             nb_exp = conn3.execute("SELECT COUNT(*) FROM expertise").fetchone()[0]
             conn3.close()
         except Exception:
@@ -6489,6 +6489,59 @@ def rate_cost_cycle(consumption_kwh, duration_min, started_at_iso=None):
         }
 
     return {"cost_total": round(consumption_kwh * 0.2516, 3), "detail": "default", "price_avg_kwh": 0.2516}
+
+
+def skill_health_host():
+    """Collect host health metrics (RAM, disk, HA latency) and store in health_host skill."""
+    try:
+        import shutil
+        import time as _time
+
+        metrics = {}
+
+        # RAM free MB
+        try:
+            import psutil
+            vm = psutil.virtual_memory()
+            metrics["ram_mb"] = round(vm.available / 1024 / 1024)
+        except ImportError:
+            try:
+                with open("/proc/meminfo") as _f:
+                    for _line in _f:
+                        if _line.startswith("MemAvailable:"):
+                            metrics["ram_mb"] = int(_line.split()[1]) // 1024
+                            break
+            except Exception:
+                pass
+
+        # Disk free MB
+        try:
+            du = shutil.disk_usage(BASE_DIR)
+            metrics["disque_libre_mb"] = round(du.free / 1024 / 1024)
+        except Exception:
+            pass
+
+        # HA latency ms
+        try:
+            t0 = _time.monotonic()
+            ha_get("config", _retries=0, _silent=True)
+            metrics["latence_ha_ms"] = round(((_time.monotonic() - t0) * 1000))
+        except Exception:
+            pass
+
+        if not metrics:
+            return
+
+        data, nb = skill_get("health_host")
+        if not isinstance(data, dict):
+            data = {}
+        history = data.get("history", [])
+        history.append({"ts": datetime.now().isoformat(), "metrics": metrics})
+        history = history[-24:]  # keep last 24 samples (~2h at 5-min intervals)
+        data["history"] = history
+        skill_set("health_host", data, (nb or 0) + 1)
+    except Exception as ex:
+        log.debug(f"skill_health_host: {ex}")
 
 
 def skill_optimisation_rate(states):
@@ -7266,7 +7319,7 @@ def cmd_rate():
 
 def skill_dynamic_collect(states):
     """Run all registered dynamic skills."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     rows = conn.execute(
         "SELECT name, data FROM skills WHERE name LIKE 'dyn_%'"
     ).fetchall()
@@ -7338,7 +7391,7 @@ def skill_create_auto(question, states):
     """lightweight model decides whether a new skill is necessary and creates it."""
     index = {e["entity_id"]: e for e in states}
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     nb_dyn = conn.execute("SELECT COUNT(*) FROM skills WHERE name LIKE 'dyn_%'").fetchone()[0]
     conn.close()
     if nb_dyn >= 10:
@@ -7963,7 +8016,7 @@ def cmd_logs():
 
 
 def cmd_memory_store():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     rows = conn.execute(
         'SELECT key_name, value_text FROM memory_store ORDER BY updated_at DESC LIMIT 20'
     ).fetchall()
@@ -7976,7 +8029,7 @@ def cmd_memory_store():
 
 def cmd_baselines():
     """Show learned behavior baselines."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     rows = conn.execute(
         "SELECT entity_id, COUNT(*), AVG(avg_value) FROM baselines GROUP BY entity_id ORDER BY COUNT(*) DESC LIMIT 20"
     ).fetchall()
@@ -7996,7 +8049,7 @@ def cmd_scan():
         ha_refresh_areas()
         nb_areas = len(shared._areas_id_to_name)
 
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         for sql in [
             "UPDATE entity_map SET category='ignore' WHERE entity_id LIKE 'select.plug_%'",
             "UPDATE entity_map SET category='ignore' WHERE entity_id LIKE 'number.plug_%'",
@@ -8022,7 +8075,7 @@ def cmd_scan():
         nb_entities = len(states)
         index = {e["entity_id"]: e for e in states}
 
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         for e in states:
             conn.execute(
                 "INSERT OR REPLACE INTO entities (entity_id, state, attributes, updated_at) VALUES (?, ?, ?, ?)",
@@ -8037,7 +8090,7 @@ def cmd_scan():
 
         discover_automatically(states)
 
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         count_after = conn.execute("SELECT COUNT(*) FROM entity_map").fetchone()[0]
         all_plugs = conn.execute(
             "SELECT entity_id FROM entity_map WHERE category='connected_plug' AND entity_id LIKE 'sensor.%'"
@@ -8142,7 +8195,7 @@ def cmd_dashboard():
     # 1. ROI
     eco = get_savings_month()
     month = datetime.now().strftime("%Y-%m")
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     tokens_row = conn.execute("SELECT tokens_in, tokens_out FROM tokens WHERE month=?", (month,)).fetchone()
     conn.close()
     total_tokens = (tokens_row[0] + tokens_row[1]) if tokens_row else 0
@@ -8167,7 +8220,7 @@ def cmd_dashboard():
     }
 
     # 2. Lasts cycles
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     last_cycle = conn.execute(
         "SELECT friendly_name, duration_min, consumption_kwh, cost_eur FROM appliance_cycles WHERE ended_at IS NOT NULL ORDER BY id DESC LIMIT 1"
     ).fetchone()
@@ -8239,7 +8292,7 @@ def cmd_profile():
 
 def cmd_savings():
     """Detail of all the savings generated — the core metric."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     month = datetime.now().strftime("%Y-%m")
 
     # Total month
@@ -8305,7 +8358,7 @@ def cmd_savings():
 
 def cmd_monitoring():
     """Complete view of everything the script monitors"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     states = ha_get("states") or []
     index = {e["entity_id"]: e for e in states}
 
@@ -8414,7 +8467,7 @@ def cmd_commands():
 
 def cmd_appliances():
     """Show appliances and power consumers configured for monitoring."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     rows = conn.execute("SELECT entity_id, appliance_type, custom_name, monitored FROM appliances ORDER BY appliance_type").fetchall()
     conn.close()
     if not rows:
@@ -8482,7 +8535,7 @@ def cmd_programs():
 
 
 def cmd_cycles():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     rows = conn.execute(
         '''SELECT friendly_name, started_at, duration_min, consumption_kwh, cost_eur, program
            FROM appliance_cycles WHERE ended_at IS NOT NULL
@@ -8630,7 +8683,7 @@ def cmd_problem(description):
 
 def cmd_clean_carto():
     """Cleans the energy entity map and removes noisy entries"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     modifications = 0
 
     # ecu_inverters, ecu_inverters_online, inverter_*_temperature
@@ -8951,7 +9004,7 @@ def cmd_diag_weather():
 
 def cmd_learning():
     """Shows the learning daynal: failures, successes, lessons"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
 
     # Stats globales
     total = conn.execute("SELECT COUNT(*) FROM decisions_log").fetchone()[0]
@@ -9008,7 +9061,7 @@ def cmd_learning():
 
 def cmd_expertise():
     """Shows the accumulated AI expertise"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     rows = conn.execute(
         "SELECT category, insight, confidence, nb_validations, created_at FROM expertise "
         "ORDER BY confidence DESC"
@@ -9202,7 +9255,7 @@ def cmd_diag_nas():
 
 def cmd_diag_carto():
     """Diagnostic entity_map — list all the entities by category energy"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     report = "🔧 MAP DIAG\n━━━━━━━━━━━━━━━━━━\n"
     for cat in ["energy_solar", "energy_heating", "energy_consumption", "energy_battery", "energy_production", "energy_forecast"]:
         rows = conn.execute(
@@ -9243,7 +9296,7 @@ def cmd_diag_energy():
             report += f"  {e['entity_id']} = {e['state']} | mapped as: {cat_str}\n"
 
     report += "\n🔌 CONNECTED PLUGS (entity_map) :\n"
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     rows = conn.execute(
         "SELECT entity_id, subcategory, room, friendly_name FROM entity_map WHERE category='connected_plug'"
     ).fetchall()
@@ -9267,7 +9320,7 @@ def cmd_diag_energy():
             report += f"  {e['entity_id']} = {e['state']} | mapped as: {cat_str}\n"
 
     report += "\n📊 ENERGY MAP :\n"
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     for cat in ["energy_solar", "energy_heating", "energy_consumption", "energy_battery", "energy_production"]:
         rows = conn.execute(
             "SELECT entity_id FROM entity_map WHERE category=?", (cat,)
@@ -9301,7 +9354,7 @@ def cmd_script_export():
 def cmd_watches():
     """List active dynamic alerts."""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         watches = conn.execute("SELECT id, entity_pattern, condition, state_value, message, cooldown_min, last_triggered, active FROM watches ORDER BY id").fetchall()
         conn.close()
     except Exception as e:
@@ -9341,7 +9394,7 @@ def _alert_night_ghost_consumption(index, now):
             consumption_w = float(index[eid_consumption]["state"])
         except (ValueError, TypeError):
             return
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         rows = conn.execute(
             "SELECT AVG(avg_value) FROM baselines WHERE entity_id=? AND hour BETWEEN 1 AND 4 AND sample_count >= 5",
             (eid_consumption,)
@@ -9412,7 +9465,7 @@ def _detect_vacation_mode(now):
         if mem_get("vacation_mode") == "active":
             return
         try:
-            conn = sqlite3.connect(DB_PATH)
+            conn = sqlite3.connect(DB_PATH, timeout=10)
             last_cycle = conn.execute(
                 "SELECT MAX(started_at) FROM appliance_cycles WHERE started_at > datetime('now', '-48 hours')"
             ).fetchone()
@@ -9556,7 +9609,7 @@ def _backup_auto_db(now):
 def cmd_score():
     """Score energy DPE dynamic of the home."""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         now = datetime.now()
 
         # 1. Coverage solar (0-25 pts)
@@ -9651,7 +9704,7 @@ def cmd_export_pdf():
     """Generate and send a report PDF monthly by email."""
     try:
         now = datetime.now()
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
 
         month = now.strftime("%B %Y")
 
@@ -9713,7 +9766,7 @@ def cmd_advice_contract():
         current_type = current_rate.get("type", "")
         provider = current_rate.get("provider", "")
 
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         now = datetime.now()
 
         # Consumption of the 30 lasts days
@@ -9813,7 +9866,7 @@ def _detect_internet_outage(now):
 def _heartbeat_init_table():
     """Create the sensor_heartbeat table if it does not exist. Idempotent."""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS sensor_heartbeat (
                 entity_id TEXT PRIMARY KEY,
@@ -9927,7 +9980,7 @@ def _heartbeat_observe(index, now):
         # Make sure the table exists.
         _heartbeat_init_table()
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         
         for entity_id in _HEARTBEAT_SENSORS_PILIERS:
             e = index.get(entity_id)
@@ -10087,7 +10140,7 @@ def cmd_heartbeat():
     from datetime import datetime, timezone
     try:
         _heartbeat_init_table()
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         rows = conn.execute(
             "SELECT entity_id, median_sec, p95_sec, p99_sec, samples_count, "
             "learning_started, learning_complete FROM sensor_heartbeat "
@@ -10178,7 +10231,7 @@ def _alert_zigbee_device_mort(index, now):
             except Exception:
                 pass
 
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         rows = conn.execute(
             "SELECT entity_id, friendly_name FROM entity_map WHERE category NOT IN ('ignore')"
         ).fetchall()
@@ -10334,7 +10387,7 @@ def cmd_rooms():
             "attic", "basement", "pantry", "wc", "toilet",
         ]
 
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)
         solar_ids = set()
         try:
             rows = conn.execute(
@@ -10813,7 +10866,7 @@ def automatic_summary():
         telegram_send("❌ SUMMARY — HA unreachable")
         return
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     nb_cycles = conn.execute("SELECT COUNT(*) FROM appliance_cycles WHERE ended_at IS NOT NULL").fetchone()[0]
     total_consumption = conn.execute("SELECT SUM(consumption_kwh) FROM appliance_cycles WHERE ended_at IS NOT NULL").fetchone()[0] or 0
     cost_total = conn.execute("SELECT SUM(cost_eur) FROM appliance_cycles WHERE ended_at IS NOT NULL").fetchone()[0] or 0
