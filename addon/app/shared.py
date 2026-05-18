@@ -465,6 +465,24 @@ HA_TOOLS = [
         }
     },
     {
+        "name": "ha_get_zigbee_devices",
+        "description": "Returns a live list of all Zigbee devices visible in Home Assistant, "
+                       "including their link quality (LQI), room, and online/offline status. "
+                       "Use this tool for any question about Zigbee devices: listing them, "
+                       "checking which are offline, which have weak signal, or battery status.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "filter": {
+                    "type": "string",
+                    "description": "Optional filter: 'offline' to show only offline devices, "
+                                   "'weak' to show only LQI ≤50, 'all' or omit for everything"
+                }
+            },
+            "required": []
+        }
+    },
+    {
         "name": "ha_create_script",
         "description": "Creates a reusable Home Assistant script — a named action sequence callable from automations, "
                        "dashboards, or the Assist voice interface. "
@@ -2893,6 +2911,89 @@ def _friendly_entity_name(entity_id, entity=None, include_room=True):
     return _friendly_entity_name_inline(entity_id, entity=entity, include_room=include_room)
 
 
+def _format_ha_zigbee_result(tool_input):
+    """Collect Zigbee device data from HA states for the LLM tool."""
+    import re as _re
+    filter_arg = str(tool_input.get("filter", "") or "").strip().lower()
+
+    all_states = ha_get("states") or []
+    index = {e["entity_id"]: e for e in all_states}
+
+    devices = {}  # key -> {name, room, lqi, state}
+
+    _suffixes = ("_power", "_current", "_voltage", "_energy", "_battery",
+                 "_temperature", "_humidity", "_illuminance", "_occupancy",
+                 "_motion", "_contact", "_smoke", "_co", "_co2", "_pressure",
+                 "_linkquality", "_lqi")
+
+    def _base(eid):
+        key = eid.split(".", 1)[1] if "." in eid else eid
+        for sfx in _suffixes:
+            if key.endswith(sfx):
+                return key[:-len(sfx)]
+        return key
+
+    # Pass A: entities with linkquality/lqi attribute (Z2M main entities or ZHA sensors)
+    for e in all_states:
+        attrs = e.get("attributes", {})
+        lqi = attrs.get("linkquality") or attrs.get("lqi") or attrs.get("link_quality")
+        if lqi is None:
+            continue
+        eid = e["entity_id"]
+        key = _base(eid)
+        fname = attrs.get("friendly_name", key.replace("_", " ").title())
+        area = _entity_area_name(eid)
+        try:
+            lqi_val = int(lqi)
+        except Exception:
+            lqi_val = -1
+        devices[key] = {"name": fname, "room": area, "lqi": lqi_val, "state": e.get("state", "")}
+
+    # Pass B: standalone sensor.*_linkquality entities (Z2M standard layout)
+    for e in all_states:
+        eid = e["entity_id"]
+        if not (eid.startswith("sensor.") and eid.endswith("_linkquality")):
+            continue
+        key = eid[len("sensor."):-len("_linkquality")]
+        if key in devices:
+            continue
+        attrs = e.get("attributes", {})
+        raw_name = attrs.get("friendly_name", key.replace("_", " ").title())
+        fname = _re.sub(r'\s+[Ll]ink\s*[Qq]uality$', '', raw_name).strip()
+        area = _entity_area_name(eid)
+        try:
+            lqi_val = int(float(e.get("state", "-1")))
+        except Exception:
+            lqi_val = -1
+        devices[key] = {"name": fname, "room": area, "lqi": lqi_val, "state": "online"}
+
+    if not devices:
+        return ("No Zigbee devices detected. "
+                "If Zigbee devices are present in HA they may not expose a linkquality signal.")
+
+    # Apply filter
+    filtered = list(devices.values())
+    if filter_arg == "offline":
+        filtered = [d for d in filtered if d["state"] in ("unavailable", "unknown")]
+    elif filter_arg == "weak":
+        filtered = [d for d in filtered if 0 <= d["lqi"] <= 50]
+
+    if not filtered:
+        if filter_arg == "offline":
+            return f"All {len(devices)} Zigbee devices are online."
+        if filter_arg == "weak":
+            return f"No Zigbee devices with weak signal (LQI ≤50). All {len(devices)} devices have good signal."
+        return "No Zigbee devices match the requested filter."
+
+    lines = [f"Zigbee devices ({len(filtered)} of {len(devices)} total):"]
+    for d in sorted(filtered, key=lambda x: (x["state"] in ("unavailable", "unknown"), x["lqi"])):
+        status = "OFFLINE" if d["state"] in ("unavailable", "unknown") else "online"
+        lqi_str = f"LQI={d['lqi']}" if d["lqi"] >= 0 else "LQI=unknown"
+        room_str = f" [{d['room']}]" if d["room"] else ""
+        lines.append(f"  {d['name']}{room_str}: {lqi_str}, {status}")
+    return "\n".join(lines)
+
+
 def _format_ha_search_result(search_input):
     keyword = str(search_input.get("keyword", "") or "").strip().lower()
     domain_filter = str(search_input.get("domain", "") or "").strip().lower()
@@ -3170,6 +3271,7 @@ CRITICAL RULES:
 - When the user describes their home, appliances, rates, or monitoring preferences, treat it as setup context and use it in future answers.
 - For monitoring or alert requests, use ha_create_watch when you can identify a reasonable entity or pattern.
 - For factual questions, use ha_search_entities and ha_get_history to retrieve real Home Assistant data before answering.
+- For any Zigbee question (list devices, offline, weak signal, link quality), call ha_get_zigbee_devices — do NOT try to answer from context or search for entities manually.
 - For simple actions such as turn on/off, use ha_call_service directly.
 - Do not ask for textual confirmation before runtime actions.
 - Home Assistant configuration writes must always stay behind explicit user confirmation.
@@ -3290,7 +3392,7 @@ MEMORY:
                     add_user_memory(fact)
                     log.info(f"💾 Remembered: {fact}")
                 text_response = text_response or "✅ Got it, I'll remember that."
-            elif block["type"] == "tool_use" and block["name"] in ("ha_search_entities", "ha_get_history"):
+            elif block["type"] == "tool_use" and block["name"] in ("ha_search_entities", "ha_get_history", "ha_get_zigbee_devices"):
                 _search_count = getattr(call_llm, "_search_count", 0) + 1
                 if _search_count > 3:
                     log.warning(f"⚠️ Tool loop detected ({_search_count} calls) — stopping")
@@ -3302,6 +3404,8 @@ MEMORY:
                 try:
                     if block["name"] == "ha_search_entities":
                         tool_result = _format_ha_search_result(tool_input)
+                    elif block["name"] == "ha_get_zigbee_devices":
+                        tool_result = _format_ha_zigbee_result(tool_input)
                     else:
                         tool_result = _format_ha_history_result(tool_input)
 

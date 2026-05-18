@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.9 beta (2026-05-18)
+- Added `ha_get_zigbee_devices` LLM tool: natural language queries like "list Zigbee devices", "which are offline", or "weak signal devices" now call a dedicated tool that scans linkquality attributes and `sensor.*_linkquality` entities — no longer falls back to generic entity search that returns bridge restart buttons
+- Added `filter` parameter to `ha_get_zigbee_devices`: supports `offline`, `weak` (LQI ≤50), or all devices
+- Added system prompt rule: for any Zigbee question the LLM must call `ha_get_zigbee_devices` instead of guessing from context
+
 ## 0.2.8 beta (2026-05-18)
 - Fixed intelligence cycle counter stuck at #0: `_cycle_intelligence` now reads `shared._intelligence_counter` directly instead of a stale local copy imported at startup — periodic tasks (hourly learning, daily analysis, etc.) now fire at correct intervals
 - Fixed solar "0W in daylight" alert firing on installations with no solar panels: alert is now gated on `role_get("solar_production_w")` being configured
