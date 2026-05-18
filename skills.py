@@ -3938,9 +3938,10 @@ def handle_pending_entities(index):
     Assist are processed.
     """
     conn = sqlite3.connect(DB_PATH, timeout=10)
+    # Include 'ignore' category so already-classified entities aren't re-evaluated every cycle
     known = set(
         r[0] for r in conn.execute(
-            "SELECT entity_id FROM entity_map WHERE category != 'ignore'"
+            "SELECT entity_id FROM entity_map"
         ).fetchall()
     )
     pending = set(r[0] for r in conn.execute(
@@ -3952,6 +3953,8 @@ def handle_pending_entities(index):
         )
         conn.commit()
     conn.close()
+
+    BATCH_LIMIT = 20  # Max new entities to classify per cycle to avoid LLM storms on startup
 
     domains_ignores = {
         "persistent_notification", "group", "zone", "sun",
@@ -3967,9 +3970,11 @@ def handle_pending_entities(index):
     auto_count = 0
     assist_skipped = 0
 
-    # Phase 1: classify all new entities (may make LLM calls) — no DB write lock held
+    # Phase 1: classify new entities (may make LLM calls) — no DB write lock held
     rows = []
     for entity_id, e in index.items():
+        if len(rows) >= BATCH_LIMIT:
+            break
         if entity_id in known or entity_id in pending:
             continue
         if assist_filter_active and entity_id not in assist_exposed:
@@ -6127,7 +6132,9 @@ def _cycle_intelligence(states, index, now):
         pass
     skill_dynamic_collect(states)
 
-    if _intelligence_counter % 3 == 0:
+    _ic = shared._intelligence_counter
+
+    if _ic % 3 == 0:
         try:
             skill_health_host()
         except Exception as ex_sh:
@@ -6139,59 +6146,59 @@ def _cycle_intelligence(states, index, now):
 
     skill_suggestion_machine(states)
 
-    if _intelligence_counter % 36 == 0:  # Every 3 hours
+    if _ic % 36 == 0:  # Every 3 hours
         try:
             skill_proactive_patterns(states, now)
         except Exception as ex:
             log.debug(f"skill_proactive_patterns: {ex}")
 
-    if _intelligence_counter % 12 == 0:  # Every hour
+    if _ic % 12 == 0:  # Every hour
         _auto_learn(states, index, now)
 
     try:
         test_cognitive_hypotheses(states, index)
-        if _intelligence_counter % 12 == 0:  # Every hour
+        if _ic % 12 == 0:  # Every hour
             generate_cognitive_hypotheses(states, index)
-        if _intelligence_counter % 288 == 0:  # Every the 24h
+        if _ic % 288 == 0:  # Every 24h
             score_data = cognitif_calculer_score()
             if score_data["score"] > 0:
                 log.info(f"🧠 Score intelligence: {score_data['score']}/100 ({score_data['level']})")
     except Exception as ex_cog:
         log.error(f"❌ cognitif: {ex_cog}")
 
-    if _intelligence_counter % 72 == 0 and _intelligence_counter > 0:
+    if _ic % 72 == 0 and _ic > 0:
         try:
             _analysis_ia_periodique(states, index, now)
         except Exception as ex_ia:
             log.error(f"❌ analysis_ia: {ex_ia}")
             learning_log_failure("analysis_ia", str(ex_ia))
 
-    if _intelligence_counter % 144 == 0 and _intelligence_counter > 0:
+    if _ic % 144 == 0 and _ic > 0:
         try:
             learning_tirer_lessons()
         except Exception as ex_app:
             log.error(f"❌ learning: {ex_app}")
 
-    if _intelligence_counter % 144 == 0 and _intelligence_counter > 0:
+    if _ic % 144 == 0 and _ic > 0:
         try:
             filter_analyze_messages()
         except Exception as ex_fa:
             log.error(f"❌ filter_analyze: {ex_fa}")
 
-    if _intelligence_counter % 288 == 0 and _intelligence_counter > 0:
+    if _ic % 288 == 0 and _ic > 0:
         try:
             learning_auto_correction()
         except Exception as ex_ctrl:
             log.error(f"❌ auto_correction: {ex_ctrl}")
 
-    if _intelligence_counter % 288 == 72 and _intelligence_counter > 72:
+    if _ic % 288 == 72 and _ic > 72:
         try:
             skill_proactive_recommendations()
         except Exception as ex_recommendation:
             log.error(f"❌ recommendations: {ex_recommendation}")
 
-    # Log discret
-    if _intelligence_counter % 60 == 0:  # Every the 5h
+    # Periodic status log (every 5 hours)
+    if _ic % 60 == 0:
         skill_count = 0
         try:
             conn = sqlite3.connect(DB_PATH, timeout=10)
@@ -6200,7 +6207,7 @@ def _cycle_intelligence(states, index, now):
             conn.close()
         except Exception:
             pass
-        log.info(f"🧠 Intelligence: cycle #{_intelligence_counter} | {skill_count} skills | {baseline_count} baselines")
+        log.info(f"🧠 Intelligence: cycle #{_ic} | {skill_count} skills | {baseline_count} baselines")
 
 
 def _observer(states, index, now):
@@ -6269,8 +6276,8 @@ def _compare(states, index, now, snapshot):
             "severity": "high" if pct_ko > 50 else "medium",
         })
 
-    # Anomaly: solar production is zero in full daylight
-    if ha_is_day(states) and snapshot.get("production_w", 0) == 0:
+    # Anomaly: solar production is zero in full daylight (only if solar role is configured)
+    if role_get("solar_production_w") and ha_is_day(states) and snapshot.get("production_w", 0) == 0:
         hour = now.hour
         if 9 <= hour <= 16:
             prev_zero = False
@@ -8201,7 +8208,7 @@ def _collect_zigbee_devices(states):
     if states:
         for e in states:
             attrs = e.get("attributes", {})
-            lqi = (attrs.get("linkquality")     # Zigbee2MQTT
+            lqi = (attrs.get("linkquality")     # Zigbee2MQTT attribute on main entity
                 or attrs.get("lqi")             # ZHA sensors
                 or attrs.get("link_quality"))   # some integrations
             if lqi is None:
@@ -8215,6 +8222,27 @@ def _collect_zigbee_devices(states):
             except Exception:
                 lqi_val = -1
             _add(_base_key(eid), fname, room, lqi_val, e["state"])
+
+    # Pass 3: standalone sensor.*_linkquality entities (Zigbee2MQTT standard layout)
+    # Z2M exposes linkquality as its own entity rather than as an attribute
+    if states:
+        for e in states:
+            eid = e["entity_id"]
+            if not (eid.startswith("sensor.") and eid.endswith("_linkquality")):
+                continue
+            base = eid[len("sensor."):-len("_linkquality")]
+            attrs = e.get("attributes", {})
+            raw_name = attrs.get("friendly_name", base.replace("_", " ").title())
+            # Strip " Linkquality" / " Link Quality" suffix from display name
+            fname = re.sub(r'\s+[Ll]ink\s*[Qq]uality$', '', raw_name).strip()
+            carto = entity_map_get(eid)
+            room = carto[2] if carto else ha_get_area(eid) or ""
+            try:
+                lqi_val = int(float(e.get("state", "-1")))
+            except Exception:
+                lqi_val = -1
+            # Only add if not already seen from ZHA or attribute scan
+            _add(base, fname, room, lqi_val, "online")
 
     return devices
 
@@ -8238,7 +8266,14 @@ def cmd_zigbee():
 
     report = f"📡 ZIGBEE NETWORK — {total} devices\n━━━━━━━━━━━━━━━━━━\n"
 
-    # Hors line
+    if total == 0:
+        return (report +
+                "No Zigbee devices detected.\n\n"
+                "Checked: ZHA WebSocket API, Z2M linkquality attributes, "
+                "and sensor.*_linkquality entities.\n"
+                "If your devices are present in HA, they may not expose a linkquality signal.")
+
+    # Offline devices
     if ko:
         report += f"\n❌ OFFLINE ({len(ko)})\n"
         for eid, fname, room, lqi, state in ko:
@@ -8265,13 +8300,12 @@ def cmd_zigbee():
         report += f"\n✅ Good LQI 51-100: {len(bons)} devices"
         report += f"\n✅ LQI EXCELLENT >100 : {len(excellents)} devices\n"
 
-    # Top 5 meiltheir and 5 pires (online)
     online_devices = [d for d in devices if d[4] not in ("unavailable", "unknown") and d[3] >= 0]
     if len(online_devices) >= 5:
-        report += "\n📊 TOP 5 best:\n"
+        report += "\n📊 Top 5 strongest:\n"
         for eid, fname, room, lqi, state in sorted(online_devices, key=lambda x: -x[3])[:5]:
             report += f"  LQI={lqi} — {fname}\n"
-        report += "\n📊 TOP 5 weakest :\n"
+        report += "\n📊 Top 5 weakest:\n"
         for eid, fname, room, lqi, state in sorted(online_devices, key=lambda x: x[3])[:5]:
             room_str = f" [{room}]" if room else ""
             report += f"  LQI={lqi} — {fname}{room_str}\n"

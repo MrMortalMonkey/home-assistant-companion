@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.8 beta (2026-05-18)
+- Fixed intelligence cycle counter stuck at #0: `_cycle_intelligence` now reads `shared._intelligence_counter` directly instead of a stale local copy imported at startup — periodic tasks (hourly learning, daily analysis, etc.) now fire at correct intervals
+- Fixed solar "0W in daylight" alert firing on installations with no solar panels: alert is now gated on `role_get("solar_production_w")` being configured
+- Fixed deploy server health-check alert spamming on addon installs: `_monitoring_deploy_server` is now disabled by default and only runs when `enable_deploy_server: true` is set in config
+- Fixed entity classification re-running 'ignore'-category entities on every intelligence cycle: `entity_map` lookup now includes all categories, not just non-ignore; classification is also capped at 20 new entities per cycle to prevent LLM storms on first boot
+- Added role exclusion patterns to `ROLE_DEFINITIONS`: `realtime_consumption` now excludes UPS/generator sensors; `battery_soc` now excludes phone/tablet/laptop device batteries — prevents false-positive role assignments from auto-discovery
+- Reduced offline entity audit log noise: "N entities offline" is only logged when the count changes, not every 30-minute audit cycle
+
 ## 0.2.7 beta (2026-05-18)
 - Added persistent memory: agent stores facts about your home (device names, room assignments, preferences) across all future conversations via `ha_remember` tool; `/memory` command lists stored facts with per-fact delete buttons
 - Added automation editing: `ha_update_automation` tool fetches current automation, shows a diff preview with Apply/Cancel before writing

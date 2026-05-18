@@ -15,7 +15,7 @@ BEHAVIOR_PROMPT = os.path.join(BASE_DIR, "behavior.txt")
 
 # ═══ VERSION ═══
 MODE    = "PROD"
-VERSION = "0.2.7"
+VERSION = "0.2.8"
 
 # ═══ LLM PROVIDER CONFIGURATION ═══
 # Supported providers:
@@ -98,49 +98,67 @@ APPLIANCE_TYPES = {
 }
 
 # ═══ AUTO-DISCOVERED ROLES ═══
+# Each role can be a flat list of patterns (legacy) or a dict with:
+#   patterns: list of include patterns (regex)
+#   exclude:  list of patterns — entities matching ANY exclude pattern are skipped
 ROLE_DEFINITIONS = {
-    "realtime_consumption":     ["sensor.*real.*power*", "sensor.*instant.*power*",
-                                  "sensor.*current.*power*", "sensor.*active.*power*",
-                                  "sensor.*grid.*power*", "sensor.*power.*grid*",
-                                  "sensor.*ecojoko.*realtime*", "sensor.*realtime.*consumption*"],
-    "consumption_day_kwh":      ["sensor.*consumption.*total.*kwh*", "sensor.*daily.*energy*",
-                                  "sensor.*energy.*today*", "sensor.*today.*energy*",
-                                  "sensor.*kwh.*today*", "sensor.*today.*kwh*",
-                                  "sensor.*energy.*day*", "sensor.*day.*energy*"],
-    "consumption_day_cost":     ["sensor.*daily.*cost*", "sensor.*day.*cost*",
-                                  "sensor.*energy.*cost.*today*", "sensor.*cost.*today*"],
-    "solar_production_w":       ["sensor.*ecu.*current.*power*", "sensor.*solar.*power*",
-                                  "sensor.*pv.*power*", "sensor.*photovoltaic.*power*",
-                                  "sensor.*solar.*watt*", "sensor.*panel.*power*"],
-    "solar_production_kwh":     ["sensor.*ecu.*today.*energy*", "sensor.*solar.*energy.*today*",
-                                  "sensor.*solar.*today.*kwh*", "sensor.*pv.*today*",
-                                  "sensor.*solar.*production.*today*"],
-    "solar_production_lifetime":["sensor.*ecu.*lifetime.*energy*", "sensor.*solar.*total*",
-                                  "sensor.*solar.*lifetime*", "sensor.*pv.*lifetime*"],
-    "inverters_total":          ["sensor.*ecu.*inverters", "sensor.*inverter.*count*",
-                                  "sensor.*inverters.*total*"],
-    "inverters_online":         ["sensor.*ecu.*inverters.*online*", "sensor.*inverters.*online*",
-                                  "sensor.*online.*inverters*"],
-    "battery_soc":              ["sensor.*battery.*soc*", "sensor.*state.*of.*charge*",
-                                  "sensor.*battery.*percent*", "sensor.*battery.*level*"],
-    "battery_soc_anker":        ["sensor.*solarbank.*state.*charge*", "sensor.*solarbank.*soc*"],
-    "battery_prod_solar":       ["sensor.*solarbank.*power.*solar*"],
-    "battery_output":           ["sensor.*solarbank.*output*", "sensor.*battery.*output*"],
-    "battery_power":            ["sensor.*solarbank.*power*", "sensor.*battery.*power*"],
-    "battery_mode":             ["sensor.*solarbank.*mode*", "sensor.*battery.*mode*"],
-    "heat_pump_climate":        ["climate.*heat.*pump*", "climate.*heatpump*",
-                                  "climate.*heat_pump*", "climate.*pompe.*chaleur*"],
-    "heat_pump_outdoor_temperature": ["sensor.*outdoor.*temperature*", "sensor.*outdoor.*temp*",
-                                       "sensor.*outside.*temperature*", "sensor.*ext.*temp*"],
-    "heat_pump_setpoint":       ["number.*temperature.*setpoint*", "number.*setpoint.*temp*"],
-    "weather_temperature":      ["sensor.*outdoor.*temperature*", "sensor.*outdoor.*temp*",
-                                  "sensor.*outside.*temp*"],
-    "weather_alert":            ["sensor.*weather.*alert*", "sensor.*storm.*alert*"],
-    "weather_next_rain":        ["sensor.*next.*rain*", "sensor.*rain.*forecast*"],
-    "weather_rain_chance":      ["sensor.*rain.*chance*", "sensor.*precipitation.*probability*"],
-    "weather_snow_chance":      ["sensor.*snow.*chance*"],
-    "weather_wind_speed":       ["sensor.*wind.*speed*"],
-    "weather_wind_gust":        ["sensor.*wind.*gust*"],
+    "realtime_consumption": {
+        "patterns": ["sensor.*real.*power", "sensor.*instant.*power",
+                     "sensor.*current.*power", "sensor.*active.*power",
+                     "sensor.*grid.*power", "sensor.*power.*grid",
+                     "sensor.*ecojoko.*realtime", "sensor.*realtime.*consumption"],
+        # Exclude UPS/inverter backup sensors — they reflect supply, not home draw
+        "exclude":  [".*ups.*", ".*uninterruptible.*", ".*inverter.*supply.*",
+                     ".*backup.*power.*", ".*generator.*"],
+    },
+    "consumption_day_kwh": {
+        "patterns": ["sensor.*consumption.*total.*kwh", "sensor.*daily.*energy",
+                     "sensor.*energy.*today", "sensor.*today.*energy",
+                     "sensor.*kwh.*today", "sensor.*today.*kwh",
+                     "sensor.*energy.*day", "sensor.*day.*energy"],
+        # Exclude cost sensors that contain both energy and cost keywords
+        "exclude":  [".*cost.*", ".*price.*"],
+    },
+    "consumption_day_cost":     ["sensor.*daily.*cost", "sensor.*day.*cost",
+                                  "sensor.*energy.*cost.*today", "sensor.*cost.*today"],
+    "solar_production_w":       ["sensor.*ecu.*current.*power", "sensor.*solar.*power",
+                                  "sensor.*pv.*power", "sensor.*photovoltaic.*power",
+                                  "sensor.*solar.*watt", "sensor.*panel.*power"],
+    "solar_production_kwh":     ["sensor.*ecu.*today.*energy", "sensor.*solar.*energy.*today",
+                                  "sensor.*solar.*today.*kwh", "sensor.*pv.*today",
+                                  "sensor.*solar.*production.*today"],
+    "solar_production_lifetime":["sensor.*ecu.*lifetime.*energy", "sensor.*solar.*total",
+                                  "sensor.*solar.*lifetime", "sensor.*pv.*lifetime"],
+    "inverters_total":          ["sensor.*ecu.*inverters", "sensor.*inverter.*count",
+                                  "sensor.*inverters.*total"],
+    "inverters_online":         ["sensor.*ecu.*inverters.*online", "sensor.*inverters.*online",
+                                  "sensor.*online.*inverters"],
+    "battery_soc": {
+        "patterns": ["sensor.*battery.*soc", "sensor.*state.*of.*charge",
+                     "sensor.*battery.*percent", "sensor.*battery.*level"],
+        # Exclude personal device batteries (phones, tablets, laptops, watches)
+        "exclude":  [".*iphone.*", ".*android.*", ".*phone.*", ".*tablet.*",
+                     ".*laptop.*", ".*watch.*", ".*macbook.*", ".*ipad.*",
+                     ".*mobile.*", ".*pixel.*", ".*galaxy.*"],
+    },
+    "battery_soc_anker":        ["sensor.*solarbank.*state.*charge", "sensor.*solarbank.*soc"],
+    "battery_prod_solar":       ["sensor.*solarbank.*power.*solar"],
+    "battery_output":           ["sensor.*solarbank.*output", "sensor.*battery.*output"],
+    "battery_power":            ["sensor.*solarbank.*power", "sensor.*battery.*power"],
+    "battery_mode":             ["sensor.*solarbank.*mode", "sensor.*battery.*mode"],
+    "heat_pump_climate":        ["climate.*heat.*pump", "climate.*heatpump",
+                                  "climate.*heat_pump"],
+    "heat_pump_outdoor_temperature": ["sensor.*outdoor.*temperature", "sensor.*outdoor.*temp",
+                                       "sensor.*outside.*temperature", "sensor.*ext.*temp"],
+    "heat_pump_setpoint":       ["number.*temperature.*setpoint", "number.*setpoint.*temp"],
+    "weather_temperature":      ["sensor.*outdoor.*temperature", "sensor.*outdoor.*temp",
+                                  "sensor.*outside.*temp"],
+    "weather_alert":            ["sensor.*weather.*alert", "sensor.*storm.*alert"],
+    "weather_next_rain":        ["sensor.*next.*rain", "sensor.*rain.*forecast"],
+    "weather_rain_chance":      ["sensor.*rain.*chance", "sensor.*precipitation.*probability"],
+    "weather_snow_chance":      ["sensor.*snow.*chance"],
+    "weather_wind_speed":       ["sensor.*wind.*speed"],
+    "weather_wind_gust":        ["sensor.*wind.*gust"],
 }
 
 # ═══ AUTO-HEALING ═══

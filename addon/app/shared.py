@@ -1475,6 +1475,7 @@ def role_definition_details(definition):
             "device_class": definition.get("device_class", []),
             "unit": definition.get("unit", []),
             "patterns": definition.get("patterns", []),
+            "exclude": definition.get("exclude", []),
             "domain": definition.get("domain", ""),
         }
     if isinstance(definition, (list, tuple)):
@@ -1483,6 +1484,7 @@ def role_definition_details(definition):
             "device_class": [],
             "unit": [],
             "patterns": list(definition),
+            "exclude": [],
             "domain": "",
         }
     return {
@@ -1490,6 +1492,7 @@ def role_definition_details(definition):
         "device_class": [],
         "unit": [],
         "patterns": [],
+        "exclude": [],
         "domain": "",
     }
 
@@ -1513,6 +1516,7 @@ def discover_roles(states):
         target_device_classes = details.get("device_class", [])
         target_units = details.get("unit", [])
         patterns = details.get("patterns", [])
+        exclude_patterns = details.get("exclude", [])
         target_domain = details.get("domain", "")
 
         best_candidate = None
@@ -1533,6 +1537,10 @@ def discover_roles(states):
             unit = attrs.get("unit_of_measurement", "")
             fname = attrs.get("friendly_name", "").lower()
             eid_low = eid.lower()
+
+            # Skip entities matching any exclusion pattern
+            if any(_re.search(p, eid_low) or _re.search(p, fname) for p in exclude_patterns):
+                continue
 
             score = 0
 
@@ -3040,7 +3048,16 @@ def ha_execute_service_action(domain, service, entity_id, data=None):
     if domain not in HA_ALLOWED_DOMAINS:
         return f"❌ Domain '{domain}' is not authorized."
 
-    data = data or {}
+    if not isinstance(data, dict):
+        # LLM occasionally returns data as a JSON string or None — coerce safely
+        if isinstance(data, str):
+            try:
+                parsed = json.loads(data)
+                data = parsed if isinstance(parsed, dict) else {}
+            except Exception:
+                data = {}
+        else:
+            data = {}
     if isinstance(entity_id, list):
         entity_ids = [str(e).strip() for e in entity_id if str(e).strip()]
         if not entity_ids:
@@ -3289,13 +3306,29 @@ MEMORY:
                         tool_result = _format_ha_history_result(tool_input)
 
                     followup_messages = _tool_result_messages(messages, block, tool_input, tool_result)
-                    blocks2, t_in2, t_out2 = llm_provider.llm_completion_with_tools(
-                        CFG, followup_messages, HA_TOOLS, model=_model,
-                        max_tokens=1200 if _use_strong else 450,
-                        system_prompt=system_prompt
-                    )
+                    blocks2, t_in2, t_out2 = None, 0, 0
+                    for _fa in range(2):
+                        try:
+                            blocks2, t_in2, t_out2 = llm_provider.llm_completion_with_tools(
+                                CFG, followup_messages, HA_TOOLS, model=_model,
+                                max_tokens=1200 if _use_strong else 450,
+                                system_prompt=system_prompt
+                            )
+                            if blocks2 is not None:
+                                break
+                        except Exception as _ferr:
+                            if _fa == 0:
+                                log.warning(f"Follow-up LLM attempt 1 failed ({_ferr}), retrying…")
+                                time.sleep(4)
                     log_token_usage(t_in2, t_out2)
                     _consume_followup_blocks(blocks2)
+                    if not text_response and not any(
+                        v for v in [requested_action, requested_automation, requested_scene,
+                                    requested_watch, requested_update_automation,
+                                    requested_delete_automation, requested_helper, requested_script]
+                        if v is not None
+                    ):
+                        text_response = "I found relevant data but could not generate a summary. Please try rephrasing."
                 except Exception as e:
                     log.error(f"{block['name']}: {e}")
                     text_response = f"Tool error: {e}"

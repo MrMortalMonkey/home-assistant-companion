@@ -641,9 +641,12 @@ def audit_auto():
                 states = ha_get("states")
                 if states:
                     ko = [e for e in states if e["state"] in ["unavailable", "unknown"]]
-                    mem_set("last_audit_ko", len(ko))
+                    ko_count = len(ko)
+                    prev_ko = mem_get("last_audit_ko")
+                    if prev_ko is None or int(prev_ko) != ko_count:
+                        log.info(f"Silent audit: {ko_count} entities offline (was {prev_ko or 'unknown'})")
+                    mem_set("last_audit_ko", ko_count)
                     mem_set("last_audit_hour", datetime.now().strftime("%d/%m/%Y %H:%M"))
-                    log.info(f"Silent audit: {len(ko)} entities offline")
 
             last_audit = now
 
@@ -815,10 +818,11 @@ def monitoring_core():
                     _backup_auto_db,
                     _detect_internet_outage,
                     _rollback_on_repeated_errors,
-                    _monitoring_deploy_server,
                     _monitor_ha_health,
                     _send_proactive_recommendations,
                 ]
+                if CFG.get("enable_deploy_server", False):
+                    background_fns.append(_monitoring_deploy_server)
                 if CFG.get("enable_tempo_ejp", False):
                     background_fns.append(_notify_tempo_ejp)
                 for fn in background_fns:
