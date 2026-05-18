@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.7 beta (2026-05-18)
+- Added persistent memory: agent stores facts about your home (device names, room assignments, preferences) across all future conversations via `ha_remember` tool; `/memory` command lists stored facts with per-fact delete buttons
+- Added automation editing: `ha_update_automation` tool fetches current automation, shows a diff preview with Apply/Cancel before writing
+- Added automation deletion: `ha_delete_automation` tool with confirmation prompt before permanent removal
+- Added helper creation: `ha_create_helper` tool supports input_boolean, input_number, input_select, input_text, timer, and counter — building blocks for more complex automations
+- Added script creation: `ha_create_script` tool creates reusable HA action sequences callable from automations, dashboards, or Assist voice
+- Fixed `_send_proactive_recommendations` NameError in monitoring loop (private function was not included in explicit imports)
+- Fixed SQLite database-locked errors in entity classification loop: separated LLM calls (Phase 1) from DB writes (Phase 2) to eliminate write-lock contention
+- Fixed agent ignoring user-provided entity IDs: added explicit rule to use entity_id as-is and call ha_search_entities to retrieve state
+- Added LLM API retry: failed API calls (timeout, 504) retry once after 4s before returning an error message
+- Changed default log level from WARNING to INFO; added configurable `log_level` option (debug/info/warning/error) in addon UI and config.json
+- Updated `/automations` command to show automation slug IDs for use with edit/delete requests
+
 ## 0.2.6 beta (2026-05-17)
 - Added HA Assist integration: custom conversation component (`custom_components/companion_agent/`) registers as a native Assist backend — use the agent from the HA dashboard, Siri, Google, or Alexa without Telegram
 - Added HTTP Conversation API (port 8502): `POST /conversation` forwards text to the AI engine and returns a response; `GET /health` returns version info; optional Bearer token auth via `conversation_secret`

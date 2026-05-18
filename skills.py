@@ -2125,6 +2125,116 @@ def handle_callback(callback_query):
         telegram_send("❌ Automation cancelled.")
         return
 
+    if data == "auto_update_confirm":
+        pending_raw = mem_get("ha_automation_update_pending")
+        if not pending_raw:
+            telegram_send("⚠️ No pending automation edit.")
+            return
+        try:
+            pending = json.loads(pending_raw)
+            auto_id = pending["automation_id"]
+            new_data = pending["new_data"]
+            alias = new_data.get("alias", auto_id)
+            result = shared.ha_execute_config_write(f"config/automation/config/{auto_id}", new_data)
+            mem_set("ha_automation_update_pending", "")
+            if result is not None:
+                telegram_send(f"✅ Automation updated: {alias}")
+            else:
+                telegram_send("❌ Error updating automation. Check HA logs.")
+        except Exception as ex:
+            telegram_send(f"❌ Update error: {ex}")
+        return
+
+    if data == "auto_update_cancel":
+        mem_set("ha_automation_update_pending", "")
+        telegram_send("❌ Edit cancelled.")
+        return
+
+    if data == "auto_delete_confirm":
+        auto_id = mem_get("ha_automation_delete_pending", "")
+        if not auto_id:
+            telegram_send("⚠️ No pending deletion.")
+            return
+        ok = shared.ha_delete(f"config/automation/config/{auto_id}")
+        mem_set("ha_automation_delete_pending", "")
+        if ok:
+            telegram_send(f"🗑️ Automation deleted: {auto_id.replace('_', ' ').title()}")
+        else:
+            telegram_send("❌ Error deleting automation. Check HA logs.")
+        return
+
+    if data == "auto_delete_cancel":
+        mem_set("ha_automation_delete_pending", "")
+        telegram_send("❌ Deletion cancelled.")
+        return
+
+    if data == "memory_keep":
+        return
+
+    if data == "helper_confirm":
+        pending_raw = mem_get("ha_helper_pending")
+        if not pending_raw:
+            telegram_send("⚠️ No helper pending.")
+            return
+        try:
+            pending = json.loads(pending_raw)
+            htype  = pending["helper_type"]
+            slug   = pending["slug"]
+            config = pending["config"]
+            name   = config.get("name", slug)
+            result = shared.ha_execute_config_write(f"config/{htype}/config/{slug}", config)
+            mem_set("ha_helper_pending", "")
+            if result is not None:
+                telegram_send(f"✅ Helper created: {name}\nEntity: {htype}.{slug}")
+            else:
+                telegram_send("❌ Error creating helper. Check HA logs.")
+        except Exception as ex:
+            telegram_send(f"❌ Helper error: {ex}")
+        return
+
+    if data == "helper_cancel":
+        mem_set("ha_helper_pending", "")
+        telegram_send("❌ Helper cancelled.")
+        return
+
+    if data == "script_confirm":
+        pending_raw = mem_get("ha_script_pending")
+        if not pending_raw:
+            telegram_send("⚠️ No script pending.")
+            return
+        try:
+            script_data = json.loads(pending_raw)
+            alias = script_data.get("alias", "AI Script")
+            slug  = alias.lower().replace(" ", "_").replace("-", "_")[:40]
+            result = shared.ha_execute_config_write(f"config/script/config/{slug}", script_data)
+            mem_set("ha_script_pending", "")
+            if result is not None:
+                telegram_send(f"✅ Script created: {alias}\nEntity: script.{slug}")
+            else:
+                telegram_send("❌ Error creating script. Check HA logs.")
+        except Exception as ex:
+            telegram_send(f"❌ Script error: {ex}")
+        return
+
+    if data == "script_cancel":
+        mem_set("ha_script_pending", "")
+        telegram_send("❌ Script cancelled.")
+        return
+
+    if data.startswith("forget_fact:"):
+        try:
+            idx = int(data.split(":")[1])
+            facts = shared.get_user_memory()
+            if 0 <= idx < len(facts):
+                removed = facts[idx]
+                shared.remove_user_memory(idx)
+                telegram_send(f"🗑️ Forgotten: {removed}")
+            else:
+                telegram_send("⚠️ Fact not found.")
+        except Exception:
+            telegram_send("⚠️ Could not remove fact.")
+        return
+
     if data == "scene_confirm":
         pending = mem_get("ha_scene_pending")
         if not pending:
@@ -3856,8 +3966,9 @@ def handle_pending_entities(index):
 
     auto_count = 0
     assist_skipped = 0
-    conn = sqlite3.connect(DB_PATH, timeout=10)
 
+    # Phase 1: classify all new entities (may make LLM calls) — no DB write lock held
+    rows = []
     for entity_id, e in index.items():
         if entity_id in known or entity_id in pending:
             continue
@@ -3884,17 +3995,21 @@ def handle_pending_entities(index):
         if cat not in VALID_CATEGORIES:
             cat = "ignore"
         room = ha_get_area(entity_id)
+        rows.append((entity_id, cat, subcategory or "", room, fname, datetime.now().isoformat()))
 
-        conn.execute(
-            """INSERT OR REPLACE INTO entity_map
-               (entity_id, category, subcategory, room, friendly_name, learned_at)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (entity_id, cat, subcategory or "", room, fname, datetime.now().isoformat())
-        )
-        auto_count += 1
-
-    conn.commit()
-    conn.close()
+    # Phase 2: write results in one batch — no LLM calls happen here
+    if rows:
+        conn = sqlite3.connect(DB_PATH, timeout=10)
+        for row in rows:
+            conn.execute(
+                """INSERT OR REPLACE INTO entity_map
+                   (entity_id, category, subcategory, room, friendly_name, learned_at)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                row
+            )
+        conn.commit()
+        conn.close()
+        auto_count = len(rows)
 
     if auto_count > 0:
         mode = "Assist-exposed entities only" if assist_filter_active else "all new entities"
@@ -8190,25 +8305,52 @@ def cmd_automations():
     inactive_items = [e for e in autos if e["state"] == "off"]
     report  = "⚙️ AUTOMATIONS\n━━━━━━━━━━━━━━━\n"
     report += f"Total: {len(autos)} | Active: {len(active_items)} | Disabled: {len(inactive_items)}\n"
+
+    def _auto_slug(e):
+        return e["entity_id"].replace("automation.", "")
+
     if inactive_items:
         report += "\n⚠️ Disabled:\n"
         for e in inactive_items[:15]:
-            label = e.get("attributes", {}).get("friendly_name", e["entity_id"].replace("automation.", ""))
+            label = e.get("attributes", {}).get("friendly_name", _auto_slug(e))
             last = e.get("attributes", {}).get("last_triggered")
-            last_str = f" (last: {last[:10]})" if last else " (never triggered)"
+            last_str = f" (last: {last[:10]})" if last else " (never)"
             report += f"  • {label}{last_str}\n"
+            report += f"    id: {_auto_slug(e)}\n"
     if active_items:
         report += "\n⚙️ Active (recent first):\n"
         def _last_triggered(e):
-            t = e.get("attributes", {}).get("last_triggered")
-            return t or "0"
+            return e.get("attributes", {}).get("last_triggered") or "0"
         sorted_active = sorted(active_items, key=_last_triggered, reverse=True)
-        for e in sorted_active[:15]:
-            label = e.get("attributes", {}).get("friendly_name", e["entity_id"].replace("automation.", ""))
+        for e in sorted_active[:20]:
+            label = e.get("attributes", {}).get("friendly_name", _auto_slug(e))
             last = e.get("attributes", {}).get("last_triggered")
             last_str = f" — {last[:16].replace('T', ' ')}" if last else " — never"
             report += f"  ✅ {label}{last_str}\n"
+            report += f"    id: {_auto_slug(e)}\n"
+    report += "\nTo edit: ask me to edit an automation by name or id.\nTo delete: ask me to delete an automation.\n"
     return report
+
+
+def cmd_memory():
+    """List all facts stored in persistent user memory with individual delete buttons."""
+    facts = shared.get_user_memory()
+    if not facts:
+        telegram_send(
+            "🧠 MEMORY\n━━━━━━━━━\nNo facts stored yet.\n\n"
+            "I'll remember things you tell me about your home automatically."
+        )
+        return
+    msg = f"🧠 MEMORY ({len(facts)} fact{'s' if len(facts) != 1 else ''})\n━━━━━━━━━\n"
+    for i, fact in enumerate(facts):
+        msg += f"{i+1}. {fact}\n"
+    msg += "\nTap a number below to forget that fact."
+    buttons = [
+        {"text": f"🗑️ {i+1}", "callback_data": f"forget_fact:{i}"}
+        for i in range(min(len(facts), 10))
+    ]
+    buttons.append({"text": "✅ Keep all", "callback_data": "memory_keep"})
+    telegram_send_buttons(msg, buttons)
 
 
 def cmd_status():
@@ -11142,6 +11284,7 @@ def handle_message(text):
         "health": cmd_status,
         "integrations": cmd_integrations,
         "automations": cmd_automations,
+        "memory": cmd_memory,
         "addons": cmd_addons,
         "budget": cmd_budget,
         "heartbeat": cmd_heartbeat,

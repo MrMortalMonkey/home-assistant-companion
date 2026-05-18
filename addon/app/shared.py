@@ -158,7 +158,7 @@ __all__ = [
 # =============================================================================
 # LOGGING
 # =============================================================================
-_log_level = logging.DEBUG if MODE == "DEV" else logging.WARNING
+_log_level = logging.DEBUG if MODE == "DEV" else logging.INFO
 _log_format = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
 _file_handler = RotatingFileHandler(LOG_PATH, maxBytes=5*1024*1024, backupCount=3)
 _file_handler.setFormatter(_log_format)
@@ -170,6 +170,20 @@ logging.basicConfig(level=_log_level, handlers=[_file_handler, _console_handler]
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("requests").setLevel(logging.WARNING)
 log = logging.getLogger(__name__)
+
+
+def apply_log_level(level_str: str) -> None:
+    """Apply a log level string (debug/info/warning/error) to all handlers."""
+    _map = {
+        "debug":   logging.DEBUG,
+        "info":    logging.INFO,
+        "warning": logging.WARNING,
+        "error":   logging.ERROR,
+    }
+    level = _map.get(level_str.lower(), logging.INFO)
+    logging.getLogger().setLevel(level)
+    for h in logging.getLogger().handlers:
+        h.setLevel(level)
 
 
 
@@ -355,6 +369,121 @@ HA_TOOLS = [
             },
             "required": ["entity_pattern", "condition", "message"]
         }
+    },
+    {
+        "name": "ha_remember",
+        "description": "Saves a fact about the user's home permanently for all future conversations. "
+                       "Call this whenever the user corrects you, names a device, assigns an entity to a room, "
+                       "or shares a preference. Examples: "
+                       "'sensor.climate_craft_room_temperature is the craft room temperature sensor', "
+                       "'User prefers temperatures in Fahrenheit', "
+                       "'The back foyer switch controls the porch light'.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "fact": {
+                    "type": "string",
+                    "description": "One concise sentence describing what to remember."
+                }
+            },
+            "required": ["fact"]
+        }
+    },
+    {
+        "name": "ha_update_automation",
+        "description": "Edits an existing Home Assistant automation. "
+                       "First use ha_search_entities with domain=automation to find the exact entity_id, "
+                       "then strip the 'automation.' prefix to get the automation_id. "
+                       "Provide the COMPLETE updated automation — all fields. "
+                       "A diff preview is shown in Telegram with Validate/Cancel before any write.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "automation_id": {
+                    "type": "string",
+                    "description": "Automation slug — the part after 'automation.' in the entity_id (e.g. bedroom_motion_lights)"
+                },
+                "alias": {"type": "string", "description": "Automation display name"},
+                "description": {"type": "string", "description": "Optional description"},
+                "trigger": {"type": "array", "items": {"type": "object"}},
+                "condition": {"type": "array", "items": {"type": "object"}},
+                "action": {"type": "array", "items": {"type": "object"}},
+                "mode": {"type": "string", "description": "single, restart, queued, or parallel"}
+            },
+            "required": ["automation_id", "alias", "trigger", "action"]
+        }
+    },
+    {
+        "name": "ha_delete_automation",
+        "description": "Permanently deletes an existing Home Assistant automation after user confirmation. "
+                       "First use ha_search_entities with domain=automation to find the automation_id. "
+                       "A confirmation prompt is shown before any deletion.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "automation_id": {
+                    "type": "string",
+                    "description": "Automation slug (e.g. bedroom_motion_lights)"
+                },
+                "alias": {
+                    "type": "string",
+                    "description": "Human-readable name shown in the confirm prompt"
+                }
+            },
+            "required": ["automation_id", "alias"]
+        }
+    },
+    {
+        "name": "ha_create_helper",
+        "description": "Creates a Home Assistant helper entity. "
+                       "Use when the user wants a toggle (input_boolean), number slider (input_number), "
+                       "dropdown (input_select), text field (input_text), countdown (timer), or tally (counter) "
+                       "for use in automations, dashboards, or conditions. "
+                       "Shows a preview with Validate/Cancel before writing.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "helper_type": {
+                    "type": "string",
+                    "description": "One of: input_boolean, input_number, input_select, input_text, timer, counter"
+                },
+                "name": {"type": "string", "description": "Display name (e.g. 'Vacation Mode', 'Target Temperature')"},
+                "icon": {"type": "string", "description": "Optional MDI icon (e.g. mdi:airplane, mdi:thermometer)"},
+                "min": {"type": "number", "description": "input_number: minimum value"},
+                "max": {"type": "number", "description": "input_number: maximum value"},
+                "step": {"type": "number", "description": "input_number / counter: step size"},
+                "unit_of_measurement": {"type": "string", "description": "input_number: unit (e.g. °F, %)"},
+                "options": {
+                    "type": "array", "items": {"type": "string"},
+                    "description": "input_select: list of option strings"
+                },
+                "duration": {"type": "string", "description": "timer: duration as HH:MM:SS (e.g. 00:30:00)"},
+                "min_value": {"type": "number", "description": "counter: minimum value"},
+                "max_value": {"type": "number", "description": "counter: maximum value"}
+            },
+            "required": ["helper_type", "name"]
+        }
+    },
+    {
+        "name": "ha_create_script",
+        "description": "Creates a reusable Home Assistant script — a named action sequence callable from automations, "
+                       "dashboards, or the Assist voice interface. "
+                       "Use ha_search_entities first to find entity IDs. "
+                       "Shows a preview with Validate/Cancel before writing.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "alias": {"type": "string", "description": "Script display name (e.g. 'Good Morning', 'Movie Night')"},
+                "description": {"type": "string", "description": "Optional description"},
+                "sequence": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "List of HA actions: service calls, delays, conditions, etc."
+                },
+                "mode": {"type": "string", "description": "single, restart, queued, or parallel (default: single)"}
+            },
+            "required": ["alias", "sequence"]
+        }
     }
 ]
 _areas_id_to_name = {}
@@ -535,6 +664,9 @@ def load_config():
 
 
 CFG = load_config()
+
+# Apply log level from config (debug/info/warning/error); default INFO in PROD
+apply_log_level(CFG.get("log_level", "debug" if MODE == "DEV" else "info"))
 
 # Apply timezone from config (IANA format, e.g. "Europe/Paris", "America/New_York")
 _tz = CFG.get("timezone", "")
@@ -2140,6 +2272,60 @@ def ha_execute_config_write(endpoint, data):
         mem_set("ha_config_write_consent", "")
 
 
+def ha_delete(endpoint):
+    """Send a DELETE request to the HA REST API (used for automation/scene removal)."""
+    url = f"{CFG['ha_url']}/api/{endpoint.lstrip('/')}"
+    headers = {"Authorization": f"Bearer {CFG['ha_token']}"}
+    mem_set("ha_config_write_consent", "yes")
+    try:
+        r = requests.delete(url, headers=headers, verify=False, timeout=15)
+        return r.status_code in (200, 204)
+    except Exception as e:
+        log.error(f"❌ HA DELETE {endpoint}: {e}")
+        return False
+    finally:
+        mem_set("ha_config_write_consent", "")
+
+
+def ha_get_automation_config(automation_id):
+    """Fetch the full config JSON of an existing automation by its slug ID."""
+    return ha_get(f"config/automation/config/{automation_id}")
+
+
+# =============================================================================
+# PERSISTENT USER MEMORY
+# =============================================================================
+
+def get_user_memory():
+    """Return the list of persistent facts the user has told the assistant."""
+    raw = mem_get("user_memory", "[]")
+    try:
+        return json.loads(raw)
+    except Exception:
+        return []
+
+
+def add_user_memory(fact: str):
+    """Append a fact to persistent memory (deduplicates, capped at 100 entries)."""
+    fact = fact.strip()
+    if not fact:
+        return
+    facts = get_user_memory()
+    if fact not in facts:
+        facts.append(fact)
+        if len(facts) > 100:
+            facts = facts[-100:]
+        mem_set("user_memory", json.dumps(facts))
+
+
+def remove_user_memory(index: int):
+    """Remove the fact at position index (0-based)."""
+    facts = get_user_memory()
+    if 0 <= index < len(facts):
+        facts.pop(index)
+        mem_set("user_memory", json.dumps(facts))
+
+
 def ha_get_statistics_today(entity_ids):
     """Return today's kWh sum for a list of energy statistic entity IDs using HA statistics API."""
     if not CFG.get("ha_url") or not entity_ids:
@@ -2961,8 +3147,9 @@ def call_llm(user_message, context_ha=None):
     # Autonomous assistant instructions.
     system_prompt = behavior_prompt + """
 CRITICAL RULES:
-- You have access to all Home Assistant entities in the state below. Find likely entity IDs yourself.
+- You have access to all Home Assistant entities. Find likely entity IDs yourself using ha_search_entities.
 - Never ask the user to look up entity IDs.
+- When the user provides an entity_id (format: domain.entity_name such as sensor.climate_craft_room_temperature), use it EXACTLY as given — do not convert it to a display name. Call ha_search_entities with that keyword to retrieve its current state.
 - When the user describes their home, appliances, rates, or monitoring preferences, treat it as setup context and use it in future answers.
 - For monitoring or alert requests, use ha_create_watch when you can identify a reasonable entity or pattern.
 - For factual questions, use ha_search_entities and ha_get_history to retrieve real Home Assistant data before answering.
@@ -2979,13 +3166,25 @@ TELEGRAM RESPONSE STYLE:
 - If the user is simply telling you what they have, acknowledge briefly and remember it. Do not recap every capability.
 - If details are useful, give the result first and offer to expand.
 
-AUTOMATIONS:
-1. First, use ha_search_entities to find entities related to the request
-2. With the results, use ha_create_automation to create the automation
-3. The system shows a summary with Validate/Modify/Cancel buttons
+AUTOMATIONS / SCRIPTS / HELPERS:
+- Create automation: ha_search_entities → ha_create_automation. System shows Validate/Modify/Cancel.
+- Edit automation: ha_search_entities(domain=automation) → ha_update_automation with full updated config.
+- Delete automation: ha_search_entities(domain=automation) → ha_delete_automation.
+- Create script: ha_search_entities → ha_create_script. Reusable sequences callable from automations, dashboards, or Assist.
+- Create helper: ha_create_helper for toggles (input_boolean), sliders (input_number), dropdowns (input_select), timers, or counters — use these as building blocks inside automations and conditions.
 - Ask a short clarification only when acting would be risky or the target cannot be inferred.
 - Works with ALL HA integrations: Anker, Shelly, Zigbee, Tuya, etc.
+
+MEMORY:
+- When the user corrects you, names a device, assigns an entity to a room, or shares a preference, call ha_remember with a concise fact sentence.
+- Do not call ha_remember for transient requests or commands — only for persistent facts about the home.
 """
+    memory_facts = get_user_memory()
+    if memory_facts:
+        mem_block = "=== THINGS I KNOW ABOUT YOUR HOME ===\n"
+        mem_block += "\n".join(f"• {f}" for f in memory_facts)
+        system_prompt = mem_block + "\n\n" + system_prompt
+
     if context_ha:
         system_prompt += f"\n\n=== HOME ASSISTANT STATE ===\n{context_ha}"
 
@@ -3002,13 +3201,26 @@ AUTOMATIONS:
         _use_strong = any(k in user_message.lower() for k in _kw)
         _model = llm_provider.get_model(CFG, use_strong=_use_strong)
 
-        blocks, t_in, t_out = llm_provider.llm_completion_with_tools(
-            CFG, messages, HA_TOOLS, model=_model,
-            max_tokens=1200 if _use_strong else 450,
-            system_prompt=system_prompt
-        )
+        _max_tok = 1200 if _use_strong else 450
+        blocks, t_in, t_out = None, 0, 0
+        for _attempt in range(2):
+            try:
+                blocks, t_in, t_out = llm_provider.llm_completion_with_tools(
+                    CFG, messages, HA_TOOLS, model=_model,
+                    max_tokens=_max_tok,
+                    system_prompt=system_prompt
+                )
+                if blocks is not None:
+                    break
+            except Exception as _api_err:
+                if _attempt == 0:
+                    log.warning(f"LLM API attempt 1 failed ({_api_err}), retrying in 4s…")
+                    time.sleep(4)
+                else:
+                    log.error(f"LLM API failed after retry: {_api_err}")
+                    return "⚠️ The AI API is not responding after two attempts. Please retry."
         if blocks is None:
-            return "⚠️ The AI API is not responding. Please check your configuration."
+            return "⚠️ The AI API returned no response. Please check your provider configuration."
 
         log_token_usage(t_in, t_out)
         log.debug(f"Tokens: in={t_in} out={t_out}")
@@ -3020,9 +3232,14 @@ AUTOMATIONS:
         requested_watch = None
         requested_automation = None
         requested_scene = None
+        requested_update_automation = None
+        requested_delete_automation = None
+        requested_helper = None
+        requested_script = None
 
         def _consume_followup_blocks(followup_blocks):
             nonlocal text_response, requested_action, requested_watch, requested_automation, requested_scene
+            nonlocal requested_update_automation, requested_delete_automation, requested_helper, requested_script
             if not followup_blocks:
                 return
             for block2 in llm_provider.dictify_content_blocks(followup_blocks):
@@ -3036,12 +3253,26 @@ AUTOMATIONS:
                     requested_scene = block2["input"]
                 elif block2["type"] == "tool_use" and block2["name"] == "ha_create_watch":
                     requested_watch = block2["input"]
+                elif block2["type"] == "tool_use" and block2["name"] == "ha_update_automation":
+                    requested_update_automation = block2["input"]
+                elif block2["type"] == "tool_use" and block2["name"] == "ha_delete_automation":
+                    requested_delete_automation = block2["input"]
+                elif block2["type"] == "tool_use" and block2["name"] == "ha_create_helper":
+                    requested_helper = block2["input"]
+                elif block2["type"] == "tool_use" and block2["name"] == "ha_create_script":
+                    requested_script = block2["input"]
 
         for block in blocks:
             if block["type"] == "text":
                 text_response += block.get("text", "")
             elif block["type"] == "tool_use" and block["name"] == "ha_call_service":
                 requested_action = block["input"]
+            elif block["type"] == "tool_use" and block["name"] == "ha_remember":
+                fact = (block.get("input") or {}).get("fact", "").strip()
+                if fact:
+                    add_user_memory(fact)
+                    log.info(f"💾 Remembered: {fact}")
+                text_response = text_response or "✅ Got it, I'll remember that."
             elif block["type"] == "tool_use" and block["name"] in ("ha_search_entities", "ha_get_history"):
                 _search_count = getattr(call_llm, "_search_count", 0) + 1
                 if _search_count > 3:
@@ -3074,6 +3305,14 @@ AUTOMATIONS:
                 requested_scene = block["input"]
             elif block["type"] == "tool_use" and block["name"] == "ha_create_watch":
                 requested_watch = block["input"]
+            elif block["type"] == "tool_use" and block["name"] == "ha_update_automation":
+                requested_update_automation = block["input"]
+            elif block["type"] == "tool_use" and block["name"] == "ha_delete_automation":
+                requested_delete_automation = block["input"]
+            elif block["type"] == "tool_use" and block["name"] == "ha_create_helper":
+                requested_helper = block["input"]
+            elif block["type"] == "tool_use" and block["name"] == "ha_create_script":
+                requested_script = block["input"]
 
         add_history("user", user_message)
 
@@ -3227,6 +3466,166 @@ AUTOMATIONS:
                 return ""
             except Exception as e:
                 log.error(f"Scene pending: {e}")
+
+        if requested_update_automation:
+            try:
+                auto_id = requested_update_automation.get("automation_id", "").strip()
+                alias = requested_update_automation.get("alias", auto_id)
+                new_data = {
+                    "alias": alias,
+                    "description": requested_update_automation.get("description", ""),
+                    "trigger": requested_update_automation.get("trigger", []),
+                    "condition": requested_update_automation.get("condition", []),
+                    "action": requested_update_automation.get("action", []),
+                    "mode": requested_update_automation.get("mode", "single"),
+                }
+                current = ha_get_automation_config(auto_id) or {}
+                pending = {"automation_id": auto_id, "new_data": new_data}
+                mem_set("ha_automation_update_pending", json.dumps(pending))
+
+                def _summarise(d):
+                    lines = []
+                    for t in d.get("trigger", []):
+                        eid = t.get("entity_id", "")
+                        eid_s = eid.split(".")[-1].replace("_", " ").title() if eid else t.get("platform", "?")
+                        lines.append(f"  trigger: {eid_s}")
+                    for a in d.get("action", []):
+                        svc = a.get("service", "")
+                        tgt = (a.get("target") or {}).get("entity_id", a.get("entity_id", ""))
+                        tgt_s = tgt.split(".")[-1].replace("_", " ").title() if tgt else ""
+                        lines.append(f"  action: {svc.split('.')[-1].replace('_',' ').title()} {tgt_s}")
+                    return "\n".join(lines) if lines else "  (complex)"
+
+                cur_alias = current.get("alias", auto_id)
+                msg  = f"✏️ EDIT AUTOMATION\n━━━━━━━━━━━━━━━━━━\n"
+                msg += f"Current: {cur_alias}\n{_summarise(current)}\n\n"
+                msg += f"Proposed: {alias}\n{_summarise(new_data)}\n"
+                telegram_send_buttons(msg, [
+                    {"text": "✅ Apply edit", "callback_data": "auto_update_confirm"},
+                    {"text": "❌ Cancel", "callback_data": "auto_update_cancel"},
+                ])
+                add_history("assistant", msg)
+                return ""
+            except Exception as e:
+                log.error(f"Update automation pending: {e}")
+
+        if requested_delete_automation:
+            try:
+                auto_id = requested_delete_automation.get("automation_id", "").strip()
+                alias = requested_delete_automation.get("alias", auto_id)
+                mem_set("ha_automation_delete_pending", auto_id)
+                msg = (f"🗑️ DELETE AUTOMATION\n━━━━━━━━━━━━━━━━━━\n"
+                       f"'{alias}'\n\nThis cannot be undone.")
+                telegram_send_buttons(msg, [
+                    {"text": "🗑️ Yes, delete", "callback_data": "auto_delete_confirm"},
+                    {"text": "❌ Cancel", "callback_data": "auto_delete_cancel"},
+                ])
+                add_history("assistant", msg)
+                return ""
+            except Exception as e:
+                log.error(f"Delete automation pending: {e}")
+
+        if requested_helper:
+            try:
+                htype = requested_helper.get("helper_type", "").strip()
+                name  = requested_helper.get("name", "Helper").strip()
+                slug  = name.lower().replace(" ", "_").replace("-", "_")[:40]
+                config = {"name": name}
+                if requested_helper.get("icon"):
+                    config["icon"] = requested_helper["icon"]
+                if htype == "input_number":
+                    config["min"]  = requested_helper.get("min", 0)
+                    config["max"]  = requested_helper.get("max", 100)
+                    config["step"] = requested_helper.get("step", 1)
+                    if requested_helper.get("unit_of_measurement"):
+                        config["unit_of_measurement"] = requested_helper["unit_of_measurement"]
+                elif htype == "input_select":
+                    config["options"] = requested_helper.get("options", [])
+                elif htype == "timer":
+                    config["duration"] = requested_helper.get("duration", "00:30:00")
+                elif htype == "counter":
+                    config["step"] = requested_helper.get("step", 1)
+                    if requested_helper.get("min_value") is not None:
+                        config["minimum"] = int(requested_helper["min_value"])
+                    if requested_helper.get("max_value") is not None:
+                        config["maximum"] = int(requested_helper["max_value"])
+
+                pending = {"helper_type": htype, "slug": slug, "config": config}
+                mem_set("ha_helper_pending", json.dumps(pending))
+
+                HELPER_ICONS = {
+                    "input_boolean": "🔘", "input_number": "🔢",
+                    "input_select": "📋", "input_text": "📝",
+                    "timer": "⏱️", "counter": "🔢"
+                }
+                icon = HELPER_ICONS.get(htype, "🔧")
+                msg  = f"{icon} PROPOSED HELPER\n━━━━━━━━━━━━━━━━━━\n"
+                msg += f"Type: {htype}\nName: {name}\n"
+                if config.get("icon"):
+                    msg += f"Icon: {config['icon']}\n"
+                if htype == "input_number":
+                    msg += f"Range: {config['min']} – {config['max']} (step {config['step']})"
+                    if config.get("unit_of_measurement"):
+                        msg += f" {config['unit_of_measurement']}"
+                    msg += "\n"
+                elif htype == "input_select":
+                    msg += f"Options: {', '.join(config.get('options', []))}\n"
+                elif htype == "timer":
+                    msg += f"Duration: {config.get('duration')}\n"
+                elif htype == "counter":
+                    msg += f"Step: {config.get('step', 1)}"
+                    if "minimum" in config or "maximum" in config:
+                        msg += f" (range {config.get('minimum', 0)}–{config.get('maximum', '∞')})"
+                    msg += "\n"
+                msg += f"\nEntity will be: {htype}.{slug}"
+
+                telegram_send_buttons(msg, [
+                    {"text": "✅ Create helper", "callback_data": "helper_confirm"},
+                    {"text": "❌ Cancel",         "callback_data": "helper_cancel"},
+                ])
+                add_history("assistant", msg)
+                return ""
+            except Exception as e:
+                log.error(f"Helper pending: {e}")
+
+        if requested_script:
+            try:
+                alias    = requested_script.get("alias", "AI Script")
+                sequence = requested_script.get("sequence", [])
+                mode     = requested_script.get("mode", "single")
+                slug     = alias.lower().replace(" ", "_").replace("-", "_")[:40]
+                script_data = {
+                    "alias": alias,
+                    "description": requested_script.get("description", "Created by AI Companion"),
+                    "sequence": sequence,
+                    "mode": mode,
+                }
+                mem_set("ha_script_pending", json.dumps(script_data))
+
+                msg  = f"📜 PROPOSED SCRIPT\n━━━━━━━━━━━━━━━━━━\n"
+                msg += f"📝 {alias}\n\n⚡ Steps:\n"
+                for step in sequence[:8]:
+                    svc = step.get("service", "")
+                    if svc:
+                        tgt = (step.get("target") or {}).get("entity_id", step.get("entity_id", ""))
+                        tgt_s = tgt.split(".")[-1].replace("_", " ").title() if tgt else ""
+                        msg += f"  • {svc.split('.')[-1].replace('_', ' ').title()} {tgt_s}\n"
+                    elif "delay" in step:
+                        msg += f"  • Wait {step['delay']}\n"
+                    else:
+                        msg += f"  • {list(step.keys())[0] if step else 'action'}\n"
+                if len(sequence) > 8:
+                    msg += f"  … and {len(sequence)-8} more steps\n"
+                msg += f"\nMode: {mode} | script.{slug}"
+
+                telegram_send_buttons(msg, [
+                    {"text": "✅ Create script", "callback_data": "script_confirm"},
+                    {"text": "❌ Cancel",         "callback_data": "script_cancel"},
+                ])
+                add_history("assistant", msg)
+                return ""
+            except Exception as e:
+                log.error(f"Script pending: {e}")
 
         text_response = _clean_chat_response(text_response, user_message)
         if text_response:

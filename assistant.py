@@ -21,6 +21,7 @@ from skills import (
     _monitoring_deploy_server,
     _notify_tempo_ejp,
     _rollback_on_repeated_errors,
+    _send_proactive_recommendations,
 )
 from shared import (_wizard_step, _wizard_save_config, _is_authorized_chat, transcribe_voice,
     _state_plugs, _grace_ended_at, _powers_history, _last_high_phase,

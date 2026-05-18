@@ -1,5 +1,5 @@
 name: Home Assistant AI Companion
-version: "0.2.6"
+version: "0.2.7"
 slug: assistant
 description: "Your home's AI guardian — autonomous agent that monitors, learns, and optimizes your energy via Home Assistant and your selected AI provider"
 url: https://github.com/MrMortalMonkey/home-assistant-companion
@@ -41,6 +41,8 @@ options:
   # ── HA Assist / Conversation API ──────────────────────────────────
   conversation_port: 8502
   conversation_secret: ""
+  # ── Logging ───────────────────────────────────────────────────────
+  log_level: "info"
 schema:
   telegram_token: password
   llm_provider: list(anthropic|openai|openrouter|ollama|lmstudio)
@@ -64,6 +66,7 @@ schema:
   currency: str?
   conversation_port: int?
   conversation_secret: password?
+  log_level: list(debug|info|warning|error)?
 ports:
   8502/tcp: 8502
 map:
